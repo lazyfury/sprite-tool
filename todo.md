@@ -93,6 +93,19 @@
 
 ---
 
+## M4b — CLI 解耦重构（已落地）
+
+- [x] **CLI11 开源解析库**：`third_party/cli11/CLI/CLI.hpp`（v2.7.2，vendored）；替换手写 flag_table/parse_args/帮助文本，自动 help/类型校验（Range/IsMember/PositiveNumber）
+- [x] **split 与 remove-background 分离**：split/sheet/manual/from-json 删除全部背景 flag；remove-background 独立（含全部背景 flag）
+- [x] **删除 --contract**（core SplitOptions/splitter + CLI + 4 个测试用例）
+- [x] **--stdout 真管道**：remove-background 输出 PNG 二进制到 stdout（与 --format json 互斥）；全命令 input 支持 `-`（stdin 读 PNG）
+- [x] 两管道（JSON 桥接 / --stdout）产物**逐字节一致**（golden 实测）
+- [x] 单测全绿（92 用例）；SKILL.md 验证方法改为管道/JSON 断言（全部实测通过）
+
+**M4b 验收（已达成）**：`remove-background sheet.png --stdout | sprite-split split - --mode grid --cell-size 8` 链路可用；
+旧工作流（split --remove-background）语义等价拆解为两命令（同一算法路径，grid8 均 5 组件）。
+设计文档：`docs/refactoring-guide.md`。
+
 ## 进行中
 
-（当前：M1–M3.5 全部完成 + remove-background 子命令；auto 已修复；M4/M5 搁置）
+（当前：M1–M4b 全部完成；M4 ONNX 内嵌 / M5 Godot GDExtension 搁置）

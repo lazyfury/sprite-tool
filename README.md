@@ -24,11 +24,12 @@ C++ Core ──────── Godot GDExtension（Phase 5）
 |---|---|---|
 | M1 | C++ Core：Image / Mask / Connected Components / Bounding Box / Crop / PNG 导出 + CLI | ✅ 完成 |
 | M2 | Grid Detection / Auto / Padding / 最小尺寸 / Merge Distance / Morphology / JSON 导出 | ✅ 完成 |
-| M3 | 背景清理（颜色采样 + Flood Fill + 手动背景色区间）+ 透明导出 + 收缩 --contract + 图片分析 --info + 橡皮擦 --gen-masks + sheet 重排 | ✅ 完成 |
+| M3 | 背景清理（颜色采样 + Flood Fill + 手动背景色区间）+ 透明导出 + 图片分析 --info + 橡皮擦 --gen-masks + sheet 重排 | ✅ 完成 |
 | M3+ | Magic Wand 魔棒种子清理（--seed 指定背景点，非交互，补四角取色失效场景） | ⏸ 搁置（UI 阶段再评估） |
 | M3.5 | CLI 子命令化（info/split/manual/from-json/sheet）+ `--format json` 机器可读输出 + 管道友好 | ✅ 完成 |
 | M3.5+ | `remove-background` 子命令：去背景整图透明导出（不切分，复用 BackgroundRemover 管线） | ✅ 完成 |
-| M4a | Remote AI 后端：`--bg-backend remote --bg-url` HTTP 调用 `examples/rembg-api`（Python rembg 独立服务，含 upload/url 两接口 + 失败回退纯算法）。统一走 `BackgroundRemover` 接口（core 抽象 + `extra/bg_remote` 实现），remote 下 `--contract` 同样可用 | ✅ 完成 |
+| M4a | Remote AI 后端：`--bg-backend remote --bg-url` HTTP 调用 `examples/rembg-api`（Python rembg 独立服务，含 upload/url 两接口 + 失败回退纯算法）。统一走 `BackgroundRemover` 接口（core 抽象 + `extra/bg_remote` 实现） | ✅ 完成 |
+| M4b | **CLI 解耦重构**：CLI11 开源解析库替代手写解析；split/remove-background 分离（`--stdout` 真管道 + 全命令 stdin `-` 输入）；删除 --contract | ✅ 完成 |
 | M4 | AI 分割（ONNX 内嵌，可选） | ⏸ 搁置（remote 路线已覆盖主要场景） |
 | M5 | Godot GDExtension 编辑器插件（导出 PNG / AtlasTexture / SpriteFrames） | ⏸ 搁置 |
 
@@ -46,22 +47,28 @@ brew install cmake ninja
 cmake -B build
 cmake --build build -j
 
-# 0) 分析图片并获取推荐参数（不切分）
+# 0) 分析图片并获取推荐参数（不切分；输出两步推荐工作流）
 build/sprite-split info input.png
 
 # 1) 透明背景 PNG：按 alpha 切分，导出 PNG + JSON
-build/sprite-split split input.png --alpha-threshold 10 --padding 2 --output ./sprites --json
+build/sprite-split split input.png --alpha-threshold 10 --output ./sprites --json
 
-# 2) 白底无透明通道素材：背景清理 + 透明导出 + 网格模式（8x8）
-build/sprite-split split sheet.png --remove-background --mode grid --cell-size 8 --output ./sprites
+# 2) 白底无透明通道素材：先去背景（输出透明图），再切分（两命令管道）
+build/sprite-split remove-background sheet.png --output ./tmp
+build/sprite-split split ./tmp/sheet_transparent.png --mode grid --cell-size 8 --output ./sprites
 
-# 3) 连通分量合并（角色上下块间隔 2px）
-build/sprite-split split character.png --remove-background --merge-distance 3 --output ./sprites
+# 2.5) 一行式管道（--stdout：PNG 二进制直出，无需中间文件）
+build/sprite-split remove-background sheet.png --stdout | \
+  build/sprite-split split - --mode grid --cell-size 8 --output ./sprites
+
+# 3) 连通分量合并（角色上下块间隔 2px；先去背景再切）
+build/sprite-split remove-background character.png --stdout | \
+  build/sprite-split split - --merge-distance 3 --output ./sprites
 
 # 3.5) AI 背景清理（remote 后端）：启动 examples/rembg-api 后，通过 URL 调用
 ./examples/rembg-api/run.sh   # 独立 Python 服务（FastAPI + rembg，端口 8000）
-build/sprite-split split photo.png --remove-background --bg-backend remote \
-  --bg-url http://127.0.0.1:8000 --output ./sprites --json
+build/sprite-split remove-background photo.png --bg-backend remote \
+  --bg-url http://127.0.0.1:8000 --output ./tmp --format json | jq '.background_percent'
 # 服务不可达时自动 warning + 回退纯算法，不影响可用性
 
 # 4) 手动画框：交互输入 'x y width height'，写 meta.json + 切图
@@ -71,8 +78,8 @@ build/sprite-split manual input.png --output ./sprites
 build/sprite-split from-json input.png sprites/meta.json --output ./sprites
 
 # 6) 仅导出 JSON（不切 PNG；无 --output 时 JSON 直出 stdout，供 UI 调用）
-build/sprite-split split input.png --remove-background --json-only
-build/sprite-split split input.png --remove-background --json-only --output ./sprites
+build/sprite-split split input.png --json-only
+build/sprite-split split input.png --json-only --output ./sprites
 
 # 7) 橡皮擦工作流：生成全白 mask + meta.json → UI 编辑 mask（黑=擦除）→ 重切
 build/sprite-split split input.png --mode auto --gen-masks --output ./sprites
@@ -94,20 +101,28 @@ build/sprite-split remove-background photo.png --format json | jq '.background_p
 ctest --test-dir build
 ```
 
-> 完整参数见 `build/sprite-split --help` 与 `build/sprite-split <command> --help`（split 含 --min-width/--min-height/--background-threshold/--mode/--cell-size/--merge-distance/--json/-q/--version；remove-background 含 --background-threshold/--edge-clean/--bg-color/--bg-backend/--bg-url）
+> **背景移除与切分已解耦为两个命令**：`remove-background` 只做背景移除（输出整图透明 PNG，
+> `--stdout` 可直接进入管道）；`split`/`sheet` 只接受透明图做 alpha 切分（不再内嵌背景 flag）。
+> 所有命令 `input` 支持 `-`（从 stdin 读 PNG），配合 `remove-background --stdout` 实现纯管道。
+> 完整参数见 `build/sprite-split --help` 与 `build/sprite-split <command> --help`
+> （split 含 --mode/--alpha-threshold/--min-width/--min-height/--merge-distance/--cell-size/--json/--json-only/--gen-masks/--erase-tl；
+> remove-background 含 --background-threshold/--edge-clean/--bg-color/--bg-backend/--bg-url/--stdout）
 > 复杂不规则素材若 auto 评分偏低，可显式指定 `--mode grid --cell-size N`
 
 ## 项目结构
 
 ```
 core/           C++ 核心算法库（image / mask / segmentation / model / analyzer / export）
-cli/            CLI 入口
+cli/            CLI 入口（CLI11 子命令）
+extra/          Remote 背景后端（sps_bg_remote，httplib）
 godot/          Godot GDExtension（Phase 5）
 tests/          Catch2 单元测试
-third_party/    vendored 第三方依赖（stb / catch2 / json）
-docs/           设计文档
+examples/       rembg-api 独立 Python 服务
+docs/           设计文档（含重构指南 refactoring-guide.md）
+third_party/    vendored 第三方依赖（stb / catch2 / json / httplib / cli11）
 ```
 
 ## 状态
 
-**M1–M3.5 已完成**：88 用例 / 347 断言全绿；CLI 子命令化 + 机器可读 JSON 输出可用。M4（AI 分割）、M5（Godot GDExtension）搁置。
+**M1–M4b 已完成**：92 用例全绿；CLI11 子命令化 + 机器可读 JSON 输出 + split/remover 解耦
+（--stdout 真管道 + stdin 输入）可用。M4（ONNX 内嵌 AI 分割）、M5（Godot GDExtension）搁置。

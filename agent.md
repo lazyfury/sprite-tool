@@ -39,7 +39,7 @@
   - `stb_image.h` (v2.30, 283KB) / `stb_image_write.h` (71KB) — 图片读写
   - `catch_amalgamated.hpp` (548KB) — 测试框架单头版
   - `nlohmann/json.hpp` 单头版 — JSON 导出（可选，M2 再用）
-  - CLI11 — multi-header（可选；CLI 参数不多时也可手写解析，M1 先手写）
+  - CLI11 — v2.7.2 单头版已 vendored（M4b 起 CLI 使用）
 
 ### 2.3 godot-cpp / GDExtension 可行性
 
@@ -64,7 +64,7 @@
 | 图像处理 | 自研（Mask / CCL / morphology / grid） |
 | JSON | nlohmann/json 单头（vendored，M2+） |
 | 测试 | Catch2 单头版（vendored） |
-| CLI | 手写参数解析（M1，参数少）；CLI11 备选 |
+| CLI | CLI11 单头版（vendored `third_party/cli11`，M4b 起）；子命令 + 类型/范围校验 + 自动 help |
 | Godot 集成 | godot-cpp GDExtension（Phase 5，SCons） |
 | SIMD/多线程 | 后期优化（AVX2/NEON、std::execution），不在一版 |
 

@@ -1,7 +1,7 @@
 # Sprite Splitter — 项目审查与重构指南
 
-> 状态：审查完成，重构建议稿（未实施）。决策点见 §6，需用户确认后按 §5 分阶段执行。
-> 范围：CLI 架构重构（开源解析库 + split/remover 解耦 + 测试自动化）。core 算法层不改语义。
+> 状态：审查完成，**重构已按用户决策执行完毕**（Phase 1-3 落地，见 §5 执行记录）。
+> 范围：CLI 架构重构（CLI11 解析库 + split/remover 解耦 + --stdout 管道 + 测试自动化）。core 算法层语义不变。
 
 ---
 
@@ -221,10 +221,22 @@ $SPLIT split "$TMP/grid8_sheet_transparent.png" --mode grid --cell-size 8 \
 
 ---
 
-## 6. 决策点（需用户确认后执行）
+## 6. 决策点（已确认并执行）
 
-1. **解析库选型**：CLI11（推荐）vs cxxopts？
-2. **破坏性变更策略**：`--remove-background` 保留 deprecated 隐藏 flag 过渡（推荐）vs 直接移除？
-3. **管道形态**：先做 JSON 桥接（推荐，零协议改动）vs 同时做 `--stdout` 二进制管道？
-4. **contract 归属**：留 split（对 alpha 轮廓收缩，推荐）vs 移入 remove-background？
-5. **本次范围**：只出指南（当前交付）vs 按 §5 开始执行 Phase 1？
+用户确认（2026-08-25）：
+
+1. **解析库**：CLI11 v2.7.2（vendored `third_party/cli11/CLI/CLI.hpp`）✅
+2. **破坏性变更**：`--remove-background` 直接移除（无 deprecated 过渡）✅
+3. **管道形态**：JSON 桥接 + `--stdout` 二进制管道 **均实现** ✅
+4. **contract**：直接删除（core + CLI + 测试）✅
+5. **范围**：按 §5 执行 Phase 1–3 全部落地 ✅（Phase 4 Command 模式整理随 CLI11 回调天然完成；
+   命令拆分多文件未做——CLI11 后 main.cpp 已从 1322 行降到 ~1000 行，解析样板移除，规模可控）
+
+## 7. 执行记录
+
+| 阶段 | 交付 | 验证结果 |
+|---|---|---|
+| 1. CLI11 | `third_party/cli11/CLI/CLI.hpp` + CLI 重构 | 六命令 help/校验正常；92 用例全绿 |
+| 2. 解耦 | split 去背景 flag；remove-background 独立 + --stdout；全命令 stdin `-`；删 --contract | 两管道（JSON/--stdout）PNG 逐字节一致；grid8 两路径均 5 组件 |
+| 3. 测试自动化 | SKILL.md 验证方法改为管道/JSON 断言（3.1-3.7 + 一键 E2E） | 全部实测通过；remote 回退验证通过 |
+| 文档 | README / SKILL.md / todo.md / 本文件同步 | 命令面一致 |

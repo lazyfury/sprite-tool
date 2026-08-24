@@ -70,17 +70,6 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
     if (options.remove_background && options.background_threshold < 0) {
         throw std::invalid_argument("sps: background_threshold must be >= 0");
     }
-    if (options.contract < 0) {
-        throw std::invalid_argument("sps: contract must be >= 0");
-    }
-    if (options.contract > 0 && !options.remove_background) {
-        // 自由选区收缩属于背景清理流程（剪切清理产生的毛边）
-        throw std::invalid_argument("sps: contract requires remove_background");
-    }
-    if (options.contract > 0 && options.mode == DetectionMode::Grid) {
-        // 网格模式没有自由选区概念，收缩无效
-        throw std::invalid_argument("sps: contract requires components-based mode");
-    }
 
     SplitResult result;
 
@@ -103,9 +92,6 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
             bg.edge_passes = options.edge_passes;
             mask = invert_mask(background_mask(image, bg));
         }
-        // 自由选区收缩：对前景轮廓向内腐蚀 N 圈（剪切毛边）后，
-        // 后续 CCL/merge 的 bbox 自动收紧到腐蚀后的轮廓
-        if (options.contract > 0) mask = erode(mask, options.contract);
     } else {
         mask = alpha_mask(image, options.alpha_threshold);
     }
@@ -118,11 +104,6 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
         if (options.mode == DetectionMode::Auto) {
             cell = auto_detect_grid_size(mask);
             if (cell > 0) {
-                // 检测到稳定网格：没有自由选区概念，contract 在此分支无意义
-                if (options.contract > 0) {
-                    throw std::invalid_argument(
-                        "sps: contract requires components-based mode");
-                }
                 // 检测到稳定网格 → 按网格切
                 auto rects = grid_detect(mask, cell);
                 for (const auto& r : rects) {

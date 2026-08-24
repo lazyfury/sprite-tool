@@ -28,11 +28,6 @@ struct SplitOptions {
     // 物体边缘的过渡相近色从背景边界向内补吃 N 圈。0=关闭，默认 3。
     int edge_passes = 3;
 
-    // 自由选区收缩（remove_background=true 时有效）：对前景自由选区（mask）
-    // 向内腐蚀 N 圈后重算包围盒裁剪，剪切物体轮廓边缘的毛边（halo）。
-    // 相比矩形四边收缩，只切轮廓、不切贴边内容。0=关闭，默认 0。
-    int contract = 0;
-
     // 过滤：小于该尺寸的连通分量被丢弃
     int min_width = 1;
     int min_height = 1;

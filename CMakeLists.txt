@@ -40,7 +40,8 @@ target_include_directories(sps_bg_remote PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/thi
 # ---------- CLI ----------
 add_executable(sprite-split cli/main.cpp)
 target_link_libraries(sprite-split PRIVATE sps_bg_remote)
-target_include_directories(sprite-split PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json)
+target_include_directories(sprite-split PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cli11)
 
 # ---------- 测试（Catch2 单头版） ----------
 enable_testing()

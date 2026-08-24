@@ -22,8 +22,10 @@ struct BackgroundRemoverOptions {
 
 // 抽象接口：移除背景功能块。
 // 输入原图，输出背景 mask（true = 背景，false = 前景）。
-// 下游统一复用 make_background_transparent / --contract / CCL 管线，
+// 下游统一复用 make_background_transparent / CCL 管线，
 // 不关心具体实现是纯算法还是远程服务。
+// 注：CLI 已解耦为独立命令 remove-background（--stdout 管道输出透明图），
+// 切分命令（split/sheet）只接受透明图做 alpha 切分。
 class BackgroundRemover {
 public:
     virtual ~BackgroundRemover() = default;
