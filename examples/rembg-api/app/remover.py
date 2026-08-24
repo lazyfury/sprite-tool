@@ -28,6 +28,9 @@ def remove(
         alpha_matting=alpha_matting,
         post_process_mask=post_process_mask,
         only_mask=only_mask,
+        alpha_matting_foreground_threshold=260,
+        alpha_matting_background_threshold=5,
+        alpha_matting_erode_size=5,
     )
     # rembg 对 bytes 输入直接返回 bytes（PNG 编码）；PIL.Image 输入返回 PIL.Image
     if isinstance(result, (bytes, bytearray)):

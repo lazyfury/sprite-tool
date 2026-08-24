@@ -58,7 +58,8 @@ bool finalize_rect(const SpriteRect& in, const SplitOptions& options, int img_w,
 
 }  // namespace
 
-SplitResult split_image(const Image& image, const SplitOptions& options) {
+SplitResult split_image(const Image& image, const SplitOptions& options,
+                        const Mask* bg_mask) {
     if (image.empty()) return {};
     if (options.alpha_threshold < 0) {
         throw std::invalid_argument("sps: alpha_threshold must be >= 0");
@@ -87,12 +88,21 @@ SplitResult split_image(const Image& image, const SplitOptions& options) {
     // Grid/CCL/Auto 共用同一 mask，保证各模式对同一素材语义一致
     Mask mask;
     if (options.remove_background) {
-        BackgroundOptions bg;
-        bg.threshold = options.background_threshold;
-        bg.has_bg_color = options.has_bg_color;
-        bg.bg_color = options.bg_color;
-        bg.edge_passes = options.edge_passes;
-        mask = invert_mask(background_mask(image, bg));
+        if (bg_mask != nullptr) {
+            // 外部背景 mask（remote/AI 后端）：必须与原图同尺寸
+            if (bg_mask->width() != image.width() || bg_mask->height() != image.height()) {
+                throw std::invalid_argument(
+                    "sps: split_image: external bg_mask size mismatch");
+            }
+            mask = invert_mask(*bg_mask);
+        } else {
+            BackgroundOptions bg;
+            bg.threshold = options.background_threshold;
+            bg.has_bg_color = options.has_bg_color;
+            bg.bg_color = options.bg_color;
+            bg.edge_passes = options.edge_passes;
+            mask = invert_mask(background_mask(image, bg));
+        }
         // 自由选区收缩：对前景轮廓向内腐蚀 N 圈（剪切毛边）后，
         // 后续 CCL/merge 的 bbox 自动收紧到腐蚀后的轮廓
         if (options.contract > 0) mask = erode(mask, options.contract);

@@ -60,16 +60,23 @@
 - [x] `--format json`：stdout 只含结果对象，进度走 stderr（管道友好，可 jq）
 - [x] `-q` 静默模式（text 模式仅摘要）与 `--version`
 - [x] 全量回归：88 用例 / 347 断言全绿
+- [x] `remove-background` 子命令：去背景整图透明导出（不切分；复用 BackgroundRemover 管线 + `used_remote` 实际后端上报；输出 `<stem>_transparent.png`；`--background-threshold < 0` 参数校验）
 
-**M3.5 验收（已达成）**：`sprite-split info input.png --format json | jq '.components'` 链路可用；五命令 help 齐全、flag 校验正确。
+**M3.5 验收（已达成）**：`sprite-split info input.png --format json | jq '.components'` 链路可用；六命令 help 齐全、flag 校验正确。
 
 ## M4 — AI 分割（可选，后期）
 
 > 方案细化见 `docs/ai-backend.md`（调研完成，决策点待确认：ORT 依赖获取方式 / 默认模型 / --bg-backend 默认值）
 
 - [x] **Remote AI 后端（已落地，替代 ONNX 内嵌路线）**：`--bg-backend remote --bg-url URL` HTTP 调用
-      `examples/rembg-api`（Python FastAPI + rembg）→ 返回透明 PNG 替换原图；失败 warning + 回退纯算法
-- [ ] BackgroundRemover 抽象接口（virtual Mask process(const Image&)）
+      `examples/rembg-api`（Python FastAPI + rembg）→ 透明 PNG；失败 warning + 回退纯算法
+- [x] **BackgroundRemover 抽象接口（已落地）**：`core/segmentation/background_remover.hpp`（
+      `virtual Mask process(const Image&)` + 注册表/工厂）；`Color` 后端内置 core，
+      `Remote` 后端在 `extra/bg_remote`（`sps_bg_remote` 库，CLI main 入口注册）；
+      统一 mask 语义 → remote 下 `--contract` 同样生效
+- [x] **remote mask 接入切分（修复）**：`split_image(image, opts, bg_mask)` 接受外部背景 mask，
+      `--bg-backend remote` 时 AI mask 替代内部 color 计算驱动 CCL/Grid（修复前只改导出 alpha，
+      rect 与 color 完全一致，AI 对切分零影响）
 - [ ] ONNX Runtime 集成 + 模型外置 `models/`（rembg/isnet/custom）
 - [ ] 失败回退纯算法（remote 后端已实现，ONNX 路线待定）
 
@@ -88,4 +95,4 @@
 
 ## 进行中
 
-（当前：M1–M3.5 全部完成，auto 已修复；M4/M5 搁置）
+（当前：M1–M3.5 全部完成 + remove-background 子命令；auto 已修复；M4/M5 搁置）

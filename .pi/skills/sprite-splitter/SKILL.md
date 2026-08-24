@@ -16,6 +16,7 @@ description: Sprite Splitter CLI 使用规范（切雪碧图 / 精灵提取 / �
 | `manual <input> [flags]` | 交互画框 + 切分导出（始终写 meta.json） |
 | `from-json <input> <meta.json>` | 从 meta.json 加载 rects 直接切图 |
 | `sheet <input> --cols N [flags]` | 重排为规整 sprite sheet（支持 `--from-json`） |
+| `remove-background <input> [flags]` | 去背景，**整图**导出透明 PNG（不切分） |
 
 ## 快速开始
 
@@ -49,6 +50,10 @@ build/sprite-split sheet grid.png --cols 8 --mode grid --cell-size 8 --output sh
 # 7) 机器可读输出（管道友好）：--format json，stdout 只含结果对象，进度/日志走 stderr
 build/sprite-split info input.png --format json | jq '.recommended'
 build/sprite-split split input.png --output sprites --format json | jq '.count'
+
+# 8) 只需一张透明图（不切分）：整图去背景，输出 <stem>_transparent.png
+build/sprite-split remove-background photo.png --output sprites
+build/sprite-split remove-background photo.png --bg-backend remote --format json | jq '.output'
 ```
 
 ## 完整参数
@@ -93,6 +98,19 @@ build/sprite-split split input.png --output sprites --format json | jq '.count'
 
 输出 `sheet.png` + `sheet_meta.json`（每张精灵 src/dst 坐标）。
 
+### remove-background（去背景，整图透明导出，不切分）
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `--output DIR` | `./sprites` | 输出目录（自动创建），文件名 `<stem>_transparent.png` |
+| `--background-threshold N` | `12` | 背景色距离阈值下限（同 split） |
+| `--edge-clean N` | `3` | 边缘过渡色清扫圈数（同 split） |
+| `--bg-color R,G,B` | 自动 | 手动指定背景色 |
+| `--bg-backend MODE` | color | `color` / `remote`（同 split） |
+| `--bg-url URL` | `http://127.0.0.1:8000` | remote 后端 base URL；不可达 → warning + 回退 color |
+
+输出**保持原图尺寸**，仅背景像素 alpha 置 0。**remote 后端成功时直接采用服务端透明图**（保留 AI 软边 / alpha matting 的渐变 alpha，与 API 直连质量一致）；color 后端与回退路径走二值 mask 透明化（硬边）。JSON 结果含 `background_pixels` / `background_percent` / `bg_backend` / `bg_color`。
+
 ### 通用
 
 | 参数 | 说明 |
@@ -117,6 +135,7 @@ build/sprite-split split input.png --output sprites --format json | jq '.count'
 - **背景色估错**（四角/边缘被内容占满）：自动环带采样会失效 → 手动 `--bg-color R,G,B` 指定背景色，配合 `--background-threshold` 形成颜色区间
 - **纯色背景但边缘有残色边（halo）**：JPEG 压缩/抗锯齿会让物体边缘产生一圈「接近背景的过渡色」。算法已内置自适应阈值 + 边缘过渡清扫自动清除；若仍残留，可适当提高 `--background-threshold`（它是下限，不会缩小自动容差）
 - **精灵边缘有杂边**（清理背景后的白边/色边 halo）：`--contract N`（须配 `--remove-background`）按自由选区收缩模式向内腐蚀 N 圈剪切毛边；若毛边是接近背景的过渡色，优先用 `--edge-clean`（零开销）
+- **半透明软边被拍平**（remote 去背景后边缘硬边、半透明=0）：`remove-background` 命令的 remote 路径**已修复**——直接采用服务端透明图保留软边 alpha（`BackgroundRemover::process_transparent`）；`split`/`sheet` 仍需二值 mask 做 CCL，软边像素按前景保留原 alpha（有意的语义差异）
 - **噪点多**：`info` 看 component_count 与中位数面积；大量小分量 → 用 `--min-width/--min-height` 过滤（推荐值为最大精灵的 1/4）
 - **`--mode auto`**：假设→打分→验证→回退。行列投影 + Pearson 自相关找候选周期 → offset 搜索对齐组件中心 → 多维评分（周期/对齐/边界/尺寸/占用）→ 谐波抑制；置信度 <0.65 或周期性 <0.25 或组件 <4 时自动**回退 components**
 - **`--merge-distance` 仅 components 模式有效**，与 grid/auto 混用会报错

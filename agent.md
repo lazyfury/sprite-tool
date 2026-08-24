@@ -82,12 +82,15 @@ sprite-tool/
 │   ├── mask/           #   mask.hpp/cpp、morphology.cpp（膨胀/腐蚀）、
 │   │                   #   mask_io.cpp（橡皮擦 mask 读写）
 │   ├── segmentation/   #   connected_components.cpp、grid_detector.cpp、
-│   │                   #   background.cpp、splitter.cpp
+│   │                   #   background.cpp、background_remover.cpp（接口+工厂）、splitter.cpp
 │   ├── model/          #   sprite_rect.hpp、split_options.hpp、split_result.hpp
 │   ├── (根)            #   analyzer.hpp/cpp（ImageStats 统计 + 参数推荐）
-│   └── export/         #   png_exporter.cpp、json_exporter.cpp、sheet.cpp（重排）
+│   └── export/         #   png_exporter.cpp（含内存编码 encode_png）、json_exporter.cpp、sheet.cpp（重排）
 │
-├── cli/                # CLI frontend（main.cpp，依赖 core）
+├── extra/              # 可选后端库（挂在 core 接口上，core 保持零网络）
+│   └── bg_remote/      #   bg_remote.cpp：Remote 背景后端（httplib，网络依赖只在此）
+│
+├── cli/                # CLI frontend（main.cpp，依赖 core + extra）
 ├── godot/              # GDExtension（Phase 5）
 │   ├── src/            #   sprite_splitter.cpp/hpp、register_types.cpp
 │   ├── project/        #   测试用 Godot 工程
@@ -97,7 +100,8 @@ sprite-tool/
 └── docs/               # 设计文档（ADR 等）
 ```
 
-**分层原则**：`core/` 不依赖 Godot 类型、不依赖 stdio/网络；CLI 与 Godot 只是 frontend，只做数据转换。
+**分层原则**：`core/` 不依赖 Godot 类型、不依赖 stdio/网络（零网络依赖的纯算法库）；
+网络相关实现放 `extra/`（挂在 core 接口上，如 `bg_remote`）；CLI 与 Godot 只是 frontend，只做数据转换。
 
 ## 4. 核心模块与里程碑
 
@@ -124,7 +128,8 @@ struct SplitOptions {
 struct SplitResult { std::vector<SpriteRect> sprites; };
 
 // core/segmentation/splitter.hpp
-SplitResult split_image(const Image& image, const SplitOptions& options);
+SplitResult split_image(const Image& image, const SplitOptions& options,
+                        const Mask* bg_mask = nullptr);  // 外部背景 mask（remote/AI）
 ```
 
 **Mask 是一等公民**：算法链路 `Image → Mask → Components → Rects → Crop`，便于以后接入 Color/FloodFill/AI 各种 mask 来源。
@@ -169,7 +174,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options);
 **验收**：白底 RPG 素材能自动去背景后正确切分。
 
 #### M3.5 — CLI 子命令化 + 机器可读输出
-- [x] 子命令化：`info` / `split` / `manual` / `from-json` / `sheet`（命令互斥、共享 flag 白名单校验）
+- [x] 子命令化：`info` / `split` / `manual` / `from-json` / `sheet` / `remove-background`（命令互斥、共享 flag 白名单校验）
 - [x] `--format json`：stdout 只含结果对象、进度走 stderr（管道友好，可 jq）
 - [x] `-q` 静默（text 模式仅摘要）与 `--version`
 - [x] 全量回归：88 用例 / 347 断言全绿
@@ -177,9 +182,9 @@ SplitResult split_image(const Image& image, const SplitOptions& options);
 **验收**：`sprite-split info input.png --format json | jq '.components'` 链路可用；五命令 help 齐全、flag 校验正确。
 
 #### M4 — AI 分割（可选，后期）
-- [ ] ONNX Runtime 集成，`BackgroundRemover` 抽象（接口已预留：`virtual Mask process(const Image&)`；方案细化见 `docs/ai-backend.md`）
+- [x] `BackgroundRemover` 抽象接口已落地（`core/segmentation/background_remover.hpp`：`virtual Mask process(const Image&)` + 注册表/工厂）：`Color` 后端内置在 core，`Remote` 后端在 `extra/bg_remote`（CLI main 入口 `register_backend()` 注册）；统一 mask 语义，remote 下 `--contract` 同样可用
+- [ ] ONNX Runtime 集成（同一接口挂新后端即可，方案见 `docs/ai-backend.md`）
 - [ ] 模型文件外置 `models/`（rembg/isnet/custom），核心不绑定模型
-- [ ] 失败时回退纯算法，不污染主流程
 
 #### M5 — Godot GDExtension 插件
 - [ ] godot-cpp submodule（`godot-4.5-stable` 或 master 10.x + api_version）
@@ -195,7 +200,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options);
 1. **构建通过**：`cmake -B build && cmake --build build -j` 无 error/warning（核心库 + CLI）
 2. **测试全绿**：`ctest` 通过；核心算法有对应单测（image/mask/components/grid/splitter/background/analyzer/mask_io/sheet）
 3. **算法正确性**：CCL 对隔离分量、U 形连通、全图单分量、空图等边界用例正确
-4. **core/ 零污染**：core 头文件不 include Godot/stdio/网络头；CLI/Godot 层只做转换
+4. **core/ 零污染**：core 头文件不 include Godot/stdio/网络头；网络类实现收敛在 `extra/`；CLI/Godot 层只做转换
 5. **确定性**：同一输入 + 同一参数 → 同一输出（便于回归测试）
 6. Godot 层（M5）：Godot 启动无脚本错误，插件功能可用
 

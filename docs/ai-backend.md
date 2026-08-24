@@ -1,6 +1,7 @@
 # AI 背景清理后端 — 技术调研与设计（--remove-background 可选后端 / M4）
 
-> 状态：⏸ 调研完成，**不执行**（决策点待用户确认）｜归属：M4 — AI 分割（可选，后期）
+> 状态：⚠️ 部分落地 —— `BackgroundRemover` 抽象已实现（core）+ `Remote` 后端（extra/bg_remote）已实现；
+> **ONNX/AI 后端仍搁置**（决策点待用户确认，见 §9）
 > 目标：给现有 `--remove-background` 增加一个**可选的深度学习后端**，替换背景 mask 的生成方式，
 > 其余管线（mask → CCL/Grid/merge → 导出）全部复用，纯算法后端保持默认、零回归。
 
@@ -16,35 +17,43 @@ BackgroundOptions → background_mask(image, bg) → Mask(背景) → make_backg
 - 无需新子命令、无需改动 split/from-json/sheet 的导出逻辑
 - M4 早已预留 `BackgroundRemover` 抽象（`virtual Mask process(const Image&)`）——本方案即该抽象的落地
 
-## 2. 架构设计
+## 2. 架构设计（已落地：Color + Remote）
 
 ```
-CliOpts --bg-backend color|ai|auto
+CliOpts --bg-backend color|remote
         │
         ▼
-BackgroundRemover (抽象接口)          ← core/segmentation/background_remover.hpp
-   ├── ColorBackgroundRemover          ← 现有四角采样 + flood fill（默认，零回归）
-   └── AiBackgroundRemover (ONNX)      ← 新增，可选编译（SPS_ENABLE_ONNX=OFF 时不存在）
+BackgroundRemover (抽象接口，core/segmentation/background_remover.hpp)  ← 已落地
+   ├── ColorBackgroundRemover            ← core 内置（四角采样 + flood fill，默认，零回归）
+   └── RemoteBackgroundRemover           ← extra/bg_remote（httplib，网络依赖收敛在此）
         │
         ▼
 Mask(背景) → 现有管线（CCL / Grid / Auto / merge / 导出）
 ```
 
+后端通过**注册表/工厂**接入：core 默认注册 `Color`；`extra/bg_remote` 提供
+`sps::bg_remote::register_backend()`（CLI main 入口调用），注册 `Remote`。
+新增后端（如 ONNX）只需实现同一接口并注册，core 零改动。
+
+> **⚠️ 关键语义**：后端 mask 必须**真正参与切分**，而不只是导出透明化。
+> `split_image(image, options, bg_mask)` 接受外部背景 mask：`--bg-backend remote` 时
+> CLI 把 AI mask 传给 split_image（覆盖内部 color 计算），CCL/Grid/contract 全部
+> 基于 AI mask 执行，导出 PNG 的 alpha 与切分边界同源。修复前 remote 只改 alpha、
+> rect 与 color 完全一致（AI 对切分零影响）——见 cli/main.cpp `apply_background_cleanup`。
+
 ```cpp
-// core/segmentation/background_remover.hpp
+// core/segmentation/background_remover.hpp（已落地，见代码注释）
 struct BackgroundRemoverOptions {
-    BackgroundOptions color{};   // 纯算法参数（threshold / bg_color / seeds）
-    std::string model_path;      // AI：模型文件（外置 models/，不入库）
-    float mask_threshold = 0.5f; // AI：概率图二值化阈值
+    BackgroundOptions color{};   // 纯算法参数（threshold / bg_color / edge_passes）
+    std::string remote_url;      // remote：服务 base URL
 };
 
 class BackgroundRemover {
 public:
     virtual ~BackgroundRemover() = default;
     virtual Mask process(const Image&) const = 0;   // 返回 true=背景
-    static std::unique_ptr<BackgroundRemover> create(BackendKind kind,
-                                                     const BackgroundRemoverOptions&);
 };
+// register_background_remover(kind, factory) / create_background_remover(kind, opts)
 ```
 
 **降级回退**（CLI 层捕获异常）：

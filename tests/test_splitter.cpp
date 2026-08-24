@@ -1,6 +1,7 @@
 #include "segmentation/splitter.hpp"
 
 #include "export/png_exporter.hpp"
+#include "mask/mask.hpp"
 
 #include <catch_amalgamated.hpp>
 
@@ -120,4 +121,56 @@ TEST_CASE("Splitter: e2e crop then png roundtrip", "[splitter]") {
     std::remove(path.c_str());
     CHECK(loaded.width() == 4);
     CHECK(loaded.height() == 4);
+}
+
+TEST_CASE("Splitter: external bg_mask drives detection (remote pipeline)", "[splitter]") {
+    // 整图不透明灰色（无纯色背景差异），remove_background 下 color 算法会把整图
+    // 当 1 个分量；外部 bg_mask 应完全决定切分，而非 color 算法。
+    Image img(20, 20);
+    for (int y = 0; y < 20; ++y)
+        for (int x = 0; x < 20; ++x) {
+            img.at(x, y).r = 200;
+            img.at(x, y).g = 200;
+            img.at(x, y).b = 200;
+            img.at(x, y).a = 255;
+        }
+    SplitOptions opts;
+    opts.remove_background = true;
+    opts.background_threshold = 12;
+
+    // 1) 不传 bg_mask：color 算法（环带采样 → 整图纯色都当背景）→ 0 个 sprite，
+    //    正好说明纯算法对非纯色/无背景差异素材失效，外部 mask 才有意义
+    auto via_color = split_image(img, opts);
+    CHECK(via_color.sprites.empty());
+
+    // 2) 外部 bg_mask 全前景（无背景）→ 1 个 sprite（无变化）
+    Mask no_bg(20, 20, false);
+    auto via_mask_whole = split_image(img, opts, &no_bg);
+    REQUIRE(via_mask_whole.sprites.size() == 1);
+    CHECK(via_mask_whole.sprites[0].width == 20);
+    CHECK(via_mask_whole.sprites[0].height == 20);
+
+    // 3) 外部 bg_mask：左半为背景 → 只切出右半 10x20
+    Mask left_bg(20, 20, false);
+    for (int y = 0; y < 20; ++y)
+        for (int x = 0; x < 10; ++x) left_bg.set(x, y, true);
+    auto via_mask_left = split_image(img, opts, &left_bg);
+    REQUIRE(via_mask_left.sprites.size() == 1);
+    CHECK(via_mask_left.sprites[0].x == 10);
+    CHECK(via_mask_left.sprites[0].width == 10);
+    CHECK(via_mask_left.sprites[0].height == 20);
+
+    // 4) 外部 bg_mask 全背景 → 无 sprite（优先级高于 color 算法）
+    Mask all_bg(20, 20, true);
+    CHECK(split_image(img, opts, &all_bg).sprites.empty());
+
+    // 5) 尺寸不匹配 → 抛异常
+    Mask wrong(19, 20, false);
+    CHECK_THROWS_AS(split_image(img, opts, &wrong), std::invalid_argument);
+
+    // 6) 非 remove_background 模式：bg_mask 被忽略，走 alpha 分割
+    SplitOptions alpha_opts;
+    Mask m(20, 20, true);
+    auto via_alpha = split_image(img, alpha_opts, &m);
+    REQUIRE(via_alpha.sprites.size() == 1);  // 整图 alpha=255 → 1 个 sprite
 }

@@ -14,7 +14,7 @@ C++ Core ──────── Godot GDExtension（Phase 5）
         └──────── macOS GUI（未来）
 ```
 
-- **C++20 核心算法库**（`core/`）：零第三方运行时依赖、不依赖 Godot，可独立测试与复用
+- **C++20 核心算法库**（`core/`）：零第三方运行时依赖、不依赖 Godot，可独立测试与复用；背景清理通过 `BackgroundRemover` 抽象接口（core）统一，网络类实现收敛在 `extra/bg_remote`（httplib）
 - 图片读写：stb_image / stb_image_write（vendored 于 `third_party/`）
 - 构建：CMake + ninja；测试：Catch2（单头版）
 
@@ -27,7 +27,8 @@ C++ Core ──────── Godot GDExtension（Phase 5）
 | M3 | 背景清理（颜色采样 + Flood Fill + 手动背景色区间）+ 透明导出 + 收缩 --contract + 图片分析 --info + 橡皮擦 --gen-masks + sheet 重排 | ✅ 完成 |
 | M3+ | Magic Wand 魔棒种子清理（--seed 指定背景点，非交互，补四角取色失效场景） | ⏸ 搁置（UI 阶段再评估） |
 | M3.5 | CLI 子命令化（info/split/manual/from-json/sheet）+ `--format json` 机器可读输出 + 管道友好 | ✅ 完成 |
-| M4a | Remote AI 后端：`--bg-backend remote --bg-url` HTTP 调用 `examples/rembg-api`（Python rembg 独立服务，含 upload/url 两接口 + 失败回退纯算法） | ✅ 完成 |
+| M3.5+ | `remove-background` 子命令：去背景整图透明导出（不切分，复用 BackgroundRemover 管线） | ✅ 完成 |
+| M4a | Remote AI 后端：`--bg-backend remote --bg-url` HTTP 调用 `examples/rembg-api`（Python rembg 独立服务，含 upload/url 两接口 + 失败回退纯算法）。统一走 `BackgroundRemover` 接口（core 抽象 + `extra/bg_remote` 实现），remote 下 `--contract` 同样可用 | ✅ 完成 |
 | M4 | AI 分割（ONNX 内嵌，可选） | ⏸ 搁置（remote 路线已覆盖主要场景） |
 | M5 | Godot GDExtension 编辑器插件（导出 PNG / AtlasTexture / SpriteFrames） | ⏸ 搁置 |
 
@@ -85,11 +86,15 @@ build/sprite-split sheet input.png --cols 8 --mode grid --cell-size 8 --output .
 build/sprite-split info input.png --format json | jq '.components'
 build/sprite-split split input.png --output ./sprites --format json | jq '.count'
 
+# 10) 只需一张透明图（不切分）：整图去背景
+build/sprite-split remove-background photo.png --output ./sprites
+build/sprite-split remove-background photo.png --format json | jq '.background_percent'
+
 # 测试
 ctest --test-dir build
 ```
 
-> 完整参数见 `build/sprite-split --help` 与 `build/sprite-split <command> --help`（split 含 --min-width/--min-height/--background-threshold/--mode/--cell-size/--merge-distance/--json/-q/--version）
+> 完整参数见 `build/sprite-split --help` 与 `build/sprite-split <command> --help`（split 含 --min-width/--min-height/--background-threshold/--mode/--cell-size/--merge-distance/--json/-q/--version；remove-background 含 --background-threshold/--edge-clean/--bg-color/--bg-backend/--bg-url）
 > 复杂不规则素材若 auto 评分偏低，可显式指定 `--mode grid --cell-size N`
 
 ## 项目结构
