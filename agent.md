@@ -8,7 +8,7 @@
 - **名称**：Sprite Splitter（雪碧图智能切割 / Sprite Sheet Analyzer）
 - **定位**：核心产品是 **Sprite Sheet Analyzer**（分析出 sprite rects），而非单纯的图像切割器；支持导出 PNG / JSON 元数据 / Godot AtlasTexture 资源；支持自动检测 + 手动框选（meta.json 往返）
 - **技术路线**：**C++20 核心算法库（零外部依赖、不依赖 Godot）+ CLI frontend + Godot GDExtension 薄封装**（Phase 5）
-- **当前状态**：M1-M3 + 手动模式 + auto 修复已完成（CLI 功能完善，76 用例全绿）；M4/M5 搁置
+- **当前状态**：M1–M3.5 已完成（CLI 子命令化 + 机器可读输出，88 用例 / 347 断言全绿）；M4/M5 搁置
 - **产品形态演进**：
   ```
   sprite-splitter
@@ -29,7 +29,7 @@
 | 编译器 | Apple clang 21.0.0（Xcode CLT） | 完整支持 C++20/23 |
 | git | 2.50.1 | — |
 | Homebrew | 6.0.18 | 可装 cmake/ninja |
-| **cmake / ninja** | ❌ 未安装 | 进入 M1 前需 `brew install cmake ninja`（环境变动，须用户确认） |
+| **cmake / ninja** | ✅ 已安装（brew） | 构建系统，M1 起已用 |
 
 ### 2.2 网络与依赖获取策略
 
@@ -47,6 +47,12 @@
 - 稳定分支：`godot-4.5-stable`；GDExtension 兼容性：**低版本扩展可在高版本 Godot 运行**（4.5 扩展可在 4.6 运行）
 - ⚠️ **godot-cpp 官方构建系统是 SCons，不是 CMake** —— Phase 5 时 godot 层用 SCons 构建动态库，或评估第三方 cmake 支持
 - 结论：**Godot 4.6 + GDExtension 路线可行**，Phase 5 再实施（当前机器有 Godot 4.6.2 可直接验证）
+
+### 2.4 魔棒背景清理调研（M3 补充，⏸ 搁置 — 待 UI 阶段再评估）
+
+现有 `--remove-background`（四角均值取色 + RGB 曼哈顿距离 + 四边播种 flood fill）的根因短板：**背景色来源不可控**（只能四角自动或手填单色）→ 前景占满四角 / 渐变阴影 / 多区域背景等场景失效。
+**结论**：魔棒不做交互 UI（明确排除点击预览），以 `--seed X,Y`（可重复）参数化加入现有 `background_mask` 的 BFS 起始集合并参与取色，最小侵入补齐短板；无 `--seed` 时行为逐字节兼容。
+详细优缺点对比与设计见 `docs/magic-wand.md`。
 
 ## 3. 技术栈与目录规划
 
@@ -73,18 +79,20 @@ sprite-tool/
 │
 ├── core/               # C++ 核心算法库（零依赖，不 import Godot）
 │   ├── image/          #   image.hpp/cpp、pixel.hpp（RGBA）
-│   ├── mask/           #   mask.hpp/cpp、morphology.cpp（膨胀/腐蚀）
+│   ├── mask/           #   mask.hpp/cpp、morphology.cpp（膨胀/腐蚀）、
+│   │                   #   mask_io.cpp（橡皮擦 mask 读写）
 │   ├── segmentation/   #   connected_components.cpp、grid_detector.cpp、
 │   │                   #   background.cpp、splitter.cpp
 │   ├── model/          #   sprite_rect.hpp、split_options.hpp、split_result.hpp
-│   └── export/         #   png_exporter.cpp、json_exporter.cpp
+│   ├── (根)            #   analyzer.hpp/cpp（ImageStats 统计 + 参数推荐）
+│   └── export/         #   png_exporter.cpp、json_exporter.cpp、sheet.cpp（重排）
 │
 ├── cli/                # CLI frontend（main.cpp，依赖 core）
 ├── godot/              # GDExtension（Phase 5）
 │   ├── src/            #   sprite_splitter.cpp/hpp、register_types.cpp
 │   ├── project/        #   测试用 Godot 工程
 │   └── godot-cpp/      #   submodule（Phase 5 引入）
-├── tests/              # Catch2 单测（test_image/mask/components/grid/splitter）
+├── tests/              # Catch2 单测（image/mask/components/grid/splitter/background/analyzer/mask_io/sheet）
 ├── third_party/        # vendored 依赖（stb/、catch2/、json/）
 └── docs/               # 设计文档（ADR 等）
 ```
@@ -124,36 +132,49 @@ SplitResult split_image(const Image& image, const SplitOptions& options);
 ### 4.2 里程碑
 
 #### M1 — C++ Core + CLI 可用工具（先做，无 UI）
-- [ ] 环境准备：`brew install cmake ninja`（须用户确认）；CMake 工程骨架 + 目录规范
-- [ ] vendoring：stb_image / stb_image_write / catch_amalgamated 入库 `third_party/`
-- [ ] `Image`：PNG 读取（stb）、RGBA 像素访问、Crop、Padding
-- [ ] `Mask`：alpha > threshold 判定
-- [ ] `Connected Components`：two-pass labeling（含并查集 union-find）→ bounding box
-- [ ] `Splitter::split_image` 主流程
-- [ ] `PNG Exporter`：裁剪输出
-- [ ] CLI：`sprite-split input.png [--alpha-threshold N] [--padding N] [--output DIR] [--json]`
-- [ ] 单测：image/mask/components/splitter 全绿
+- [x] 环境准备：`brew install cmake ninja`（须用户确认）；CMake 工程骨架 + 目录规范
+- [x] vendoring：stb_image / stb_image_write / catch_amalgamated / nlohmann-json 入库 `third_party/`
+- [x] `Image`：PNG 读取（stb）、RGBA 像素访问、Crop、Padding
+- [x] `Mask`：alpha > threshold 判定
+- [x] `Connected Components`：two-pass labeling（含并查集 union-find）→ bounding box
+- [x] `Splitter::split_image` 主流程
+- [x] `PNG Exporter`：裁剪输出
+- [x] CLI：`sprite-split input.png [--alpha-threshold N] [--padding N] [--output DIR] [--json]`（flat 形态；M3.5 重构为子命令）
+- [x] 单测：image/mask/components/splitter 全绿
 
 **验收**：`sprite-split input.png` 能正确切出全部 sprite；`--json` 输出元数据；Catch2 测试全绿；`core/` 零 Godot/stdio 依赖。
 
 #### M2 — 像素游戏优化模式
-- [ ] Grid Detection：按 cell_size 统计非透明像素，生成格子 rect
-- [ ] Auto 模式：尝试常见尺寸（8/16/32/64/128/256）自动判定
-- [ ] 最小尺寸过滤（min_width/min_height）
-- [ ] Merge Distance：附近分量合并（距离阈值）
-- [ ] Morphology：mask 膨胀→CCL→腐蚀（合并同角色部件）
-- [ ] JSON 导出（nlohmann/json）
-- [ ] 单测：grid/merge/morphology 全绿
+- [x] Grid Detection：按 cell_size 统计非透明像素，生成格子 rect
+- [x] Auto 模式：投影+自相关找周期 → offset 对齐 → 周期/对齐/边界/尺寸/占用多维评分 → 谐波抑制；低置信回退 components
+- [x] 最小尺寸过滤（min_width / min_height）
+- [x] Merge Distance：附近分量合并（膨胀 mask → CCL → 原 mask 重算精确 bbox）
+- [x] Morphology：mask 膨胀/腐蚀（曼哈顿距离，与 merge_distance 语义一致）
+- [x] JSON 导出（nlohmann/json 3.12.0，vendored）
+- [x] 单测：grid / morphology / json 全绿
 
 **验收**：16×16 角色表、有间隙的素材表均能正确识别；网格模式对空白 cell 正确跳过。
 
 #### M3 — 背景清理（纯算法，无 AI）
-- [ ] 四角颜色采样 → 背景色估计 → color distance mask
-- [ ] Flood Fill（四角向内，容差阈值）背景 mask
-- [ ] 接入 `split_image` 的 `remove_background` 选项
-- [ ] 单测：白底/黑底/纯色底用例
+- [x] 四角颜色采样 → 背景色估计 → color distance mask
+- [x] Flood Fill（四角向内，容差阈值）背景 mask
+- [x] 接入 `split_image` 的 `remove_background` 选项（+ `--bg-color R,G,B` 手动背景色覆盖采样）
+- [x] 收缩导出 `--contract`（检测后向内收缩 N px）
+- [x] 图片分析 `--info`（core/analyzer：alpha/背景/分量统计 + 参数推荐）
+- [x] 橡皮擦工作流（core/mask/mask_io + `--gen-masks`/`--erase-tl`：白=保留 / 黑=透明）
+- [x] sprite sheet 重排（core/export/sheet：按列排布，每格居中）
+- [x] 单测：白底/黑底/纯色底用例（+ test_analyzer / test_mask_io / test_sheet）
+- [ ] 魔棒补充：`--seed X,Y`（可重复）指定背景点，加入 BFS 起始集合 + 参与取色（⏸ 搁置，待 UI 阶段再评估；方案见 `docs/magic-wand.md`）
 
 **验收**：白底 RPG 素材能自动去背景后正确切分。
+
+#### M3.5 — CLI 子命令化 + 机器可读输出
+- [x] 子命令化：`info` / `split` / `manual` / `from-json` / `sheet`（命令互斥、共享 flag 白名单校验）
+- [x] `--format json`：stdout 只含结果对象、进度走 stderr（管道友好，可 jq）
+- [x] `-q` 静默（text 模式仅摘要）与 `--version`
+- [x] 全量回归：88 用例 / 347 断言全绿
+
+**验收**：`sprite-split info input.png --format json | jq '.components'` 链路可用；五命令 help 齐全、flag 校验正确。
 
 #### M4 — AI 分割（可选，后期）
 - [ ] ONNX Runtime 集成，`BackgroundRemover` 抽象（接口已预留：`virtual Mask process(const Image&)`）
@@ -172,7 +193,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options);
 ## 5. 验证标准（每模块提交前）
 
 1. **构建通过**：`cmake -B build && cmake --build build -j` 无 error/warning（核心库 + CLI）
-2. **测试全绿**：`ctest` 通过；核心算法有对应单测（image/mask/components/grid/splitter/background）
+2. **测试全绿**：`ctest` 通过；核心算法有对应单测（image/mask/components/grid/splitter/background/analyzer/mask_io/sheet）
 3. **算法正确性**：CCL 对隔离分量、U 形连通、全图单分量、空图等边界用例正确
 4. **core/ 零污染**：core 头文件不 include Godot/stdio/网络头；CLI/Godot 层只做转换
 5. **确定性**：同一输入 + 同一参数 → 同一输出（便于回归测试）
@@ -193,7 +214,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options);
 
 - **CCL 性能**：two-pass + union-find 为 O(W×H)，单张素材表足够；大规模批量处理再上 SIMD/并行（M2+ 优化项，不阻塞一版）
 - **合并策略**：merge_distance + 形态学两种实现并存，像素游戏用形态学更稳（先膨胀合并再腐蚀回原边界）
-- **Grid 自动判定**：以「非空 cell 占比」与「cell 内内容完整性」评分。⚠️ **已知问题（挂起）**：真实不规则素材上评分不稳定（8×8 网格被误判为 64）——auto 模式暂不可靠，优先用手动指定 cell_size；修复方向：基于精灵间距检测而非全局填充率
+- **Grid 自动判定**：以「非空 cell 占比」与「cell 内内容完整性」评分。✅ **已解决**：早期真实不规则素材上评分不稳定（8×8 网格被误判为 64）；已按「基于精灵间距检测」方向修复（投影+自相关找周期 + 谐波抑制 + 低置信回退 components），含 test_grid auto 用例；复杂素材上仍可显式指定 cell_size
 - **godot-cpp 10.x 为 beta**：M5 时优先用 `godot-4.5-stable` 分支（稳定），需要 4.6 API 特性再评估 master；扩展 4.5 构建可在 4.6 运行
 - **网络**：依赖已 vendoring，构建与开发不受网络抖动影响；下载依赖走 `api.github.com`
 - **AI 阶段**：模型体积与推理延迟是本机风险，设计上 AI 只是 `BackgroundRemover` 的一个实现，可随时替换/回退

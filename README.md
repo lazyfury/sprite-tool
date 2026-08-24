@@ -23,8 +23,9 @@ C++ Core ──────── Godot GDExtension（Phase 5）
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | M1 | C++ Core：Image / Mask / Connected Components / Bounding Box / Crop / PNG 导出 + CLI | ✅ 完成 |
-| M2 | Grid Detection / Auto / Padding / 最小尺寸 / Merge Distance / Morphology / JSON 导出 | ✅ 完成（auto 挂起） |
-| M3 | 背景清理（颜色采样 + Flood Fill + 手动背景色区间）+ 透明导出 + 收缩 --contract + 图片分析 --info | ✅ 完成 |
+| M2 | Grid Detection / Auto / Padding / 最小尺寸 / Merge Distance / Morphology / JSON 导出 | ✅ 完成 |
+| M3 | 背景清理（颜色采样 + Flood Fill + 手动背景色区间）+ 透明导出 + 收缩 --contract + 图片分析 --info + 橡皮擦 --gen-masks + sheet 重排 | ✅ 完成 |
+| M3+ | Magic Wand 魔棒种子清理（--seed 指定背景点，非交互，补四角取色失效场景） | ⏸ 搁置（UI 阶段再评估） |
 | M3.5 | CLI 子命令化（info/split/manual/from-json/sheet）+ `--format json` 机器可读输出 + 管道友好 | ✅ 完成 |
 | M4 | AI 分割（ONNX，可选） | ⏸ 搁置 |
 | M5 | Godot GDExtension 编辑器插件（导出 PNG / AtlasTexture / SpriteFrames） | ⏸ 搁置 |
@@ -82,12 +83,12 @@ ctest --test-dir build
 ```
 
 > 完整参数见 `build/sprite-split --help` 与 `build/sprite-split <command> --help`（split 含 --min-width/--min-height/--background-threshold/--mode/--cell-size/--merge-distance/--json/-q/--version）
-> ⚠️ `--mode auto` 暂不可靠（评分不稳定），优先手动指定 --cell-size
+> 复杂不规则素材若 auto 评分偏低，可显式指定 `--mode grid --cell-size N`
 
 ## 项目结构
 
 ```
-core/           C++ 核心算法库（image / mask / segmentation / model / export）
+core/           C++ 核心算法库（image / mask / segmentation / model / analyzer / export）
 cli/            CLI 入口
 godot/          Godot GDExtension（Phase 5）
 tests/          Catch2 单元测试
@@ -97,4 +98,4 @@ docs/           设计文档
 
 ## 状态
 
-**规划期，未开工。** 首个里程碑 M1（C++ Core + CLI）开工前需确认安装 cmake/ninja。
+**M1–M3.5 已完成**：88 用例 / 347 断言全绿；CLI 子命令化 + 机器可读 JSON 输出可用。M4（AI 分割）、M5（Godot GDExtension）搁置。
