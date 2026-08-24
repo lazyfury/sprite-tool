@@ -1,25 +1,24 @@
-// sprite-split CLI：M3 版
+// sprite-split CLI：v0.7 子命令版
 //
 // 用法：
-//   sprite-split input.png [选项]
-//   sprite-split input.png --info     # 仅输出图片信息与推荐参数，不切分
+//   sprite-split <command> [args]
 //
-// 选项：
-//   --output DIR            输出目录（默认 ./sprites）
-//   --alpha-threshold N     alpha > N 视为前景（默认 1）
-//   --padding N             精灵向外扩展像素（默认 0，须 >= 0）
-//   --min-width N           过滤小于该宽度的分量（默认 1）
-//   --min-height N          过滤小于该高度的分量（默认 1）
-//   --remove-background     用四角采样+flood fill 去掉近纯色背景，导出透明 PNG
-//   --background-threshold N 背景色距离阈值（默认 12）
-//   --mode MODE             检测模式：components | grid | auto（默认 components）
-//   --cell-size N           grid/auto 模式的格子尺寸（默认 16，须 >= 1）
-//   --merge-distance N      合并间距阈值：先膨胀合并再腐蚀回原边界（默认 0=关）
-//   --json                  同时输出 meta.json（SpriteRect 元数据）
-//   --info                  分析图片并输出推荐参数（不执行切分）
-//   -q, --quiet             只输出最终结果，不打印每个 sprite 明细
-//   --version               显示版本号
-//   --help                  显示帮助
+// 子命令：
+//   info <input>                     分析图片，输出统计与推荐参数（不切分）
+//   split <input> [flags]            自动检测 + 切分导出（components/grid/auto）
+//   manual <input> [flags]           交互式画框 + 切分导出（始终写 meta.json）
+//   from-json <input> <meta.json>    从 meta.json 加载 rects 直接切图
+//   sheet <input> --cols N [flags]   重排为规整 sprite sheet（支持 --from-json）
+//
+// 通用 flag：
+//   --output DIR          输出目录（默认 ./sprites）
+//   --format json|text    结构化 JSON 结果输出到 stdout（默认 text；json 模式
+//                         下 stdout 只含结果对象，进度/日志走 stderr，便于管道）
+//   -q, --quiet           文本模式：只输出最终摘要
+//   --version             版本号
+//   --help                帮助（子命令后跟 --help 查看该命令专属帮助）
+//
+// 退出码：0 正常 / 1 参数错误 / 2 运行错误
 
 #include "analyzer.hpp"
 #include "export/json_exporter.hpp"
@@ -30,11 +29,15 @@
 #include "segmentation/background.hpp"
 #include "segmentation/splitter.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <map>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -44,528 +47,669 @@
 
 namespace {
 
-constexpr const char* kVersion = "0.6.0";
+constexpr const char* kVersion = "0.7.0";
 
-void print_usage(const char* prog) {
+// ============================ 帮助文本 ============================
+
+void print_main_help(const char* prog) {
     std::cout
-        << "Usage: " << prog << " input.png [options]\n"
+        << "Usage: " << prog << " <command> [args]\n"
         << "\n"
-        << "Modes:\n"
-        << "  (default)              auto-detect and split\n"
-        << "  --manual               interactively draw boxes, save meta.json, split\n"
-        << "  --from-json FILE       load sprite rects from meta.json and split only\n"
-        << "  --info                 analyze image and print recommended options\n"
+        << "Commands:\n"
+        << "  info <input>                        analyze image, print stats + recommended options\n"
+        << "  split <input> [flags]               auto-detect and split (components/grid/auto)\n"
+        << "  manual <input> [flags]              interactively draw rects, export + meta.json\n"
+        << "  from-json <input> <meta.json>       load rects from meta.json, cut and export\n"
+        << "  sheet <input> --cols N [flags]      repack sprites into a grid sprite sheet\n"
         << "\n"
-        << "Options:\n"
-        << "  --output DIR             output directory (default ./sprites)\n"
-        << "  --alpha-threshold N      foreground if alpha > N (default 1)\n"
-        << "  --padding N              expand each sprite by N px (default 0)\n"
-        << "  --min-width N            drop components narrower than N (default 1)\n"
-        << "  --min-height N           drop components shorter than N (default 1)\n"
-        << "  --remove-background      remove near-uniform background, export transparent\n"
-        << "  --background-threshold N color distance threshold (default 12)\n"
-        << "  --bg-color R,G,B         manual background color (overrides corner sampling)\n"
-        << "  --contract N             shrink each sprite by N px after detection (default 0)\n"
-        << "  --mode MODE              components | grid | auto (default components)\n"
-        << "  --cell-size N            grid cell size for grid/auto (default 16)\n"
-        << "  --merge-distance N       dilate-merge components within N px (default 0)\n"
-        << "  --json                   also write meta.json with sprite rects\n"
-        << "  --json-only              export meta.json only, no PNGs (stdout if no --output)\n"
-        << "  --gen-masks              write eraser masks + meta.json, then split with them\n"
-        << "  --erase-tl WxH           with --gen-masks: erase WxH from top-left of each mask\n"
-        << "  --sheet COLS             repack sprites into a COLS-column grid sheet.png\n"
-        << "  -q, --quiet              print summary only, not per-sprite lines\n"
-        << "  --version                show version\n"
-        << "  --help                   show this help\n"
+        << "Common flags:\n"
+        << "  --output DIR          output directory (default ./sprites)\n"
+        << "  --format json|text    machine-readable JSON result on stdout (default text;\n"
+        << "                        in json mode progress goes to stderr, stdout stays pure)\n"
+        << "  -q, --quiet           text mode: summary only, no per-sprite lines\n"
+        << "  --version             show version\n"
+        << "  --help                show this help\n"
         << "\n"
+        << "Run '" << prog << " <command> --help' for command-specific flags.\n"
         << "Examples:\n"
-        << "  " << prog << " char.png --info                          # analyze + get recommended options\n"
-        << "  " << prog << " char.png --remove-background --output sprites --json\n"
-        << "  " << prog << " sheet.png --remove-background --mode grid --cell-size 8 --output sprites\n"
-        << "  " << prog << " char.png --merge-distance 3 --output sprites       # merge split parts\n"
-        << "  " << prog << " char.png --manual --output sprites                 # draw boxes manually\n"
-        << "  " << prog << " char.png --from-json meta.json --output sprites    # re-split from edited json\n"
-        << "\n"
-        << "Tips:\n"
-        << "  - Always run --info first: it reports transparency, bg color and noisy components,\n"
-        << "    then suggests a ready-to-run command.\n"
-        << "  - Fully-opaque PNG (no alpha channel) needs --remove-background; without it the\n"
-        << "    whole image is treated as one sprite.\n"
-        << "  - Noisy sheets: filter with --min-width/--min-height (suggested by --info).\n"
-        << "  - --mode auto: projection + autocorrelation + scoring (periodicity/alignment/boundary/size/occupancy); falls back to components when confidence < 0.65.\n"
-        << "  - Workflow: auto-split -> edit meta.json (or --manual) -> --from-json to re-cut exactly.\n"
-        << "  - Agent skill: see .pi/skills/sprite-splitter/SKILL.md for full usage guide.\n";
+        << "  " << prog << " info char.png\n"
+        << "  " << prog << " split char.png --remove-background --output sprites --json\n"
+        << "  " << prog << " from-json char.png sprites/meta.json --output sprites\n"
+        << "  " << prog << " sheet char.png --cols 8 --from-json sprites/meta.json\n";
 }
 
-// 返回 0 正常 / 1 参数错误 / 2 运行错误
-int parse_int(const std::string& arg, int& out, const std::string& name) {
+const char* kInfoHelp =
+    "Usage: sprite-split info <input> [flags]\n"
+    "\n"
+    "Analyze <input> and print stats + recommended options (no splitting).\n"
+    "\n"
+    "Flags:\n"
+    "  --remove-background      use background removal for the fg/bg analysis\n"
+    "  --background-threshold N color distance threshold (default 12)\n"
+    "  --bg-color R,G,B         manual background color (overrides corner sampling)\n"
+    "  --format json|text       machine-readable JSON result on stdout (default text)\n"
+    "  -q, --quiet              text mode: suppress non-essential lines\n"
+    "\n"
+    "Example:\n"
+    "  sprite-split info char.png --format json | jq '.components'\n";
+
+const char* kSplitHelp =
+    "Usage: sprite-split split <input> [flags]\n"
+    "\n"
+    "Detect sprites in <input> and export them as PNGs (optionally meta.json).\n"
+    "\n"
+    "Detection:\n"
+    "  --mode MODE            components | grid | auto (default components)\n"
+    "  --alpha-threshold N    foreground if alpha > N (default 1)\n"
+    "  --min-width N          drop components narrower than N (default 1)\n"
+    "  --min-height N         drop components shorter than N (default 1)\n"
+    "  --padding N            expand each sprite by N px (default 0)\n"
+    "  --contract N           shrink each sprite by N px after detection (default 0)\n"
+    "  --merge-distance N     merge components within N px (0 = off, components only)\n"
+    "  --cell-size N          grid cell size for grid/auto (default 16)\n"
+    "\n"
+    "Background cleanup (fully-opaque input needs this):\n"
+    "  --remove-background    remove near-uniform background, export transparent\n"
+    "  --background-threshold N  color distance threshold (default 12)\n"
+    "  --bg-color R,G,B       manual background color (overrides corner sampling)\n"
+    "\n"
+    "Export:\n"
+    "  --output DIR           output directory (default ./sprites)\n"
+    "  --json                 also write meta.json\n"
+    "  --json-only            export meta.json only, no PNGs (stdout if no --output)\n"
+    "  --gen-masks            write eraser masks + meta.json, then split with them\n"
+    "  --erase-tl WxH         with --gen-masks: erase WxH from top-left of each mask\n"
+    "  --format json|text     machine-readable JSON result on stdout (default text)\n"
+    "  -q, --quiet            text mode: summary only\n"
+    "\n"
+    "Examples:\n"
+    "  sprite-split split char.png --remove-background --output sprites --json\n"
+    "  sprite-split split sheet.png --mode grid --cell-size 8 --output sprites\n"
+    "  sprite-split split char.png --merge-distance 3 --output sprites\n";
+
+const char* kManualHelp =
+    "Usage: sprite-split manual <input> [flags]\n"
+    "\n"
+    "Interactively draw sprite rects ('x y width height' per line, empty line or 'q'\n"
+    "to finish), then export PNGs and always write meta.json.\n"
+    "\n"
+    "Flags:\n"
+    "  --output DIR           output directory (default ./sprites)\n"
+    "  --remove-background    remove near-uniform background, export transparent\n"
+    "  --background-threshold N  color distance threshold (default 12)\n"
+    "  --bg-color R,G,B       manual background color (overrides corner sampling)\n"
+    "  --format json|text     machine-readable JSON result on stdout (default text)\n"
+    "  -q, --quiet            text mode: summary only\n"
+    "\n"
+    "Example:\n"
+    "  echo '10 10 32 32' | sprite-split manual char.png --output sprites\n";
+
+const char* kFromJsonHelp =
+    "Usage: sprite-split from-json <input> <meta.json> [flags]\n"
+    "\n"
+    "Load sprite rects from meta.json, cut <input> and export PNGs.\n"
+    "Mask paths in meta.json are resolved relative to the meta.json directory.\n"
+    "\n"
+    "Flags:\n"
+    "  --output DIR           output directory (default ./sprites)\n"
+    "  --remove-background    remove near-uniform background, export transparent\n"
+    "  --background-threshold N  color distance threshold (default 12)\n"
+    "  --bg-color R,G,B       manual background color (overrides corner sampling)\n"
+    "  --format json|text     machine-readable JSON result on stdout (default text)\n"
+    "  -q, --quiet            text mode: summary only\n"
+    "\n"
+    "Example:\n"
+    "  sprite-split from-json char.png sprites/meta.json --output sprites\n";
+
+const char* kSheetHelp =
+    "Usage: sprite-split sheet <input> --cols N [flags]\n"
+    "\n"
+    "Repack sprites into a COLS-column grid sprite sheet (sheet.png + sheet_meta.json).\n"
+    "\n"
+    "Rects source:\n"
+    "  --from-json FILE      load rects from meta.json (masks applied)\n"
+    "  (default)             auto-detect with the detection flags below\n"
+    "\n"
+    "Detection flags (when not using --from-json; same as 'split'):\n"
+    "  --mode MODE            components | grid | auto (default components)\n"
+    "  --alpha-threshold N    foreground if alpha > N (default 1)\n"
+    "  --min-width N          drop components narrower than N (default 1)\n"
+    "  --min-height N         drop components shorter than N (default 1)\n"
+    "  --padding N            expand each sprite by N px (default 0)\n"
+    "  --contract N           shrink each sprite by N px after detection (default 0)\n"
+    "  --merge-distance N     merge components within N px (0 = off, components only)\n"
+    "  --cell-size N          grid cell size for grid/auto (default 16)\n"
+    "  --remove-background    remove near-uniform background before detection\n"
+    "  --background-threshold N  color distance threshold (default 12)\n"
+    "  --bg-color R,G,B       manual background color (overrides corner sampling)\n"
+    "\n"
+    "Other:\n"
+    "  --output DIR           output directory (default ./sprites)\n"
+    "  --format json|text     machine-readable JSON result on stdout (default text)\n"
+    "  -q, --quiet            text mode: summary only\n"
+    "\n"
+    "Examples:\n"
+    "  sprite-split sheet char.png --cols 8 --from-json sprites/meta.json\n"
+    "  sprite-split sheet sheet.png --cols 8 --mode grid --cell-size 8\n";
+
+// ============================ 输出抽象 ============================
+// --format json：stdout 只输出一个结果对象（res），人类可读信息走 stderr；
+// 文本模式：行为与旧版一致（进度/摘要在 stdout）。
+struct Out {
+    bool json = false;    // --format json
+    bool quiet = false;   // -q/--quiet
+    nlohmann::json res;   // json 模式的结果对象（stdout 唯一输出）
+
+    // 进度/人类可读信息：text→stdout，json→stderr（保持 stdout 纯净，管道友好）
+    void note(const std::string& s) const {
+        if (json)
+            std::cerr << s << "\n";
+        else
+            std::cout << s << "\n";
+    }
+    // 警告：一律 stderr
+    static void warn(const std::string& s) { std::cerr << "warning: " << s << "\n"; }
+    // 结束：json 模式输出结果对象
+    void finish() const {
+        if (json) std::cout << res.dump() << "\n";
+    }
+};
+
+// ============================ 参数解析 ============================
+
+struct CliOpts {
+    std::string output_dir = "sprites";
+    bool output_set = false;
+    bool quiet = false;
+    bool json_format = false;
+    sps::SplitOptions opts;  // 检测/背景清理选项（split/sheet/info 共用）
+    bool write_json = false;
+    bool json_only = false;
+    bool gen_masks = false;
+    int erase_tl_w = 0, erase_tl_h = 0;   // --erase-tl WxH
+    int sheet_cols = 0;                   // sheet --cols N
+    bool sheet_cols_set = false;
+    std::string from_json;                // sheet --from-json FILE
+};
+
+struct ArgError {
+    std::string msg;
+};
+
+int parse_int(const std::string& v, const char* name) {
     try {
         std::size_t pos = 0;
-        int v = std::stoi(arg, &pos);
-        if (pos != arg.size()) throw std::invalid_argument("trailing chars");
-        out = v;
-        return 0;
+        int out = std::stoi(v, &pos);
+        if (pos != v.size()) throw std::invalid_argument("trailing chars");
+        return out;
     } catch (...) {
-        std::cerr << "error: invalid value for " << name << ": '" << arg << "'\n";
-        return 1;
+        throw ArgError{std::string("invalid value for ") + name + ": '" + v + "'"};
     }
 }
 
-// 把 rects 裁剪导出为 PNG（可选透明化已由调用方应用到 image 上）
+void apply_output(CliOpts& o, const std::string& v) {
+    o.output_dir = v;
+    o.output_set = true;
+}
+void apply_alpha_threshold(CliOpts& o, const std::string& v) {
+    o.opts.alpha_threshold = parse_int(v, "--alpha-threshold");
+}
+void apply_padding(CliOpts& o, const std::string& v) {
+    o.opts.padding = parse_int(v, "--padding");
+}
+void apply_min_width(CliOpts& o, const std::string& v) {
+    o.opts.min_width = parse_int(v, "--min-width");
+}
+void apply_min_height(CliOpts& o, const std::string& v) {
+    o.opts.min_height = parse_int(v, "--min-height");
+}
+void apply_remove_background(CliOpts& o, const std::string&) {
+    o.opts.remove_background = true;
+}
+void apply_background_threshold(CliOpts& o, const std::string& v) {
+    o.opts.background_threshold = parse_int(v, "--background-threshold");
+}
+void apply_bg_color(CliOpts& o, const std::string& v) {
+    int r = 0, g = 0, b = 0;
+    if (std::sscanf(v.c_str(), "%d,%d,%d", &r, &g, &b) != 3 || r < 0 || r > 255 ||
+        g < 0 || g > 255 || b < 0 || b > 255) {
+        throw ArgError{"invalid --bg-color '" + v + "' (expected R,G,B in 0..255)"};
+    }
+    o.opts.has_bg_color = true;
+    o.opts.bg_color = sps::Pixel{static_cast<uint8_t>(r), static_cast<uint8_t>(g),
+                                 static_cast<uint8_t>(b), 255};
+}
+void apply_contract(CliOpts& o, const std::string& v) {
+    o.opts.contract = parse_int(v, "--contract");
+}
+void apply_mode(CliOpts& o, const std::string& v) {
+    if (v == "components")
+        o.opts.mode = sps::DetectionMode::ConnectedComponents;
+    else if (v == "grid")
+        o.opts.mode = sps::DetectionMode::Grid;
+    else if (v == "auto")
+        o.opts.mode = sps::DetectionMode::Auto;
+    else
+        throw ArgError{"unknown mode '" + v + "' (expected components|grid|auto)"};
+}
+void apply_cell_size(CliOpts& o, const std::string& v) {
+    o.opts.grid_cell_size = parse_int(v, "--cell-size");
+}
+void apply_merge_distance(CliOpts& o, const std::string& v) {
+    o.opts.merge_distance = parse_int(v, "--merge-distance");
+    o.opts.merge_nearby = true;
+}
+void apply_json(CliOpts& o, const std::string&) { o.write_json = true; }
+void apply_json_only(CliOpts& o, const std::string&) { o.json_only = true; }
+void apply_gen_masks(CliOpts& o, const std::string&) { o.gen_masks = true; }
+void apply_erase_tl(CliOpts& o, const std::string& v) {
+    int w = 0, h = 0;
+    if (std::sscanf(v.c_str(), "%dx%d", &w, &h) != 2 || w <= 0 || h <= 0)
+        throw ArgError{"invalid --erase-tl '" + v + "' (expected WxH, e.g. 30x30)"};
+    o.erase_tl_w = w;
+    o.erase_tl_h = h;
+}
+void apply_cols(CliOpts& o, const std::string& v) {
+    o.sheet_cols = parse_int(v, "--cols");
+    o.sheet_cols_set = true;
+}
+void apply_from_json(CliOpts& o, const std::string& v) { o.from_json = v; }
+void apply_format(CliOpts& o, const std::string& v) {
+    if (v == "json")
+        o.json_format = true;
+    else if (v == "text")
+        o.json_format = false;
+    else
+        throw ArgError{"invalid --format '" + v + "' (expected json|text)"};
+}
+void apply_quiet(CliOpts& o, const std::string&) { o.quiet = true; }
+
+struct FlagSpec {
+    const char* name;    // 触发名称
+    bool takes_value;    // 是否消费下一个参数
+    void (*apply)(CliOpts&, const std::string&);  // 无值 flag 时 value 为空串
+};
+
+const std::map<std::string, FlagSpec>& flag_table() {
+    static const std::map<std::string, FlagSpec> t = {
+        {"--output", {"--output", true, apply_output}},
+        {"--alpha-threshold", {"--alpha-threshold", true, apply_alpha_threshold}},
+        {"--padding", {"--padding", true, apply_padding}},
+        {"--min-width", {"--min-width", true, apply_min_width}},
+        {"--min-height", {"--min-height", true, apply_min_height}},
+        {"--remove-background", {"--remove-background", false, apply_remove_background}},
+        {"--background-threshold",
+         {"--background-threshold", true, apply_background_threshold}},
+        {"--bg-color", {"--bg-color", true, apply_bg_color}},
+        {"--contract", {"--contract", true, apply_contract}},
+        {"--mode", {"--mode", true, apply_mode}},
+        {"--cell-size", {"--cell-size", true, apply_cell_size}},
+        {"--merge-distance", {"--merge-distance", true, apply_merge_distance}},
+        {"--json", {"--json", false, apply_json}},
+        {"--json-only", {"--json-only", false, apply_json_only}},
+        {"--gen-masks", {"--gen-masks", false, apply_gen_masks}},
+        {"--erase-tl", {"--erase-tl", true, apply_erase_tl}},
+        {"--cols", {"--cols", true, apply_cols}},
+        {"--from-json", {"--from-json", true, apply_from_json}},
+        {"--format", {"--format", true, apply_format}},
+        {"-q", {"-q", false, apply_quiet}},
+        {"--quiet", {"--quiet", false, apply_quiet}},
+    };
+    return t;
+}
+
+enum class ParseResult { Ok, Error, Help };
+
+// 通用参数解析：positional 依 slots 顺序填充到 pos_out；flags 按 allowed 白名单接受
+ParseResult parse_args(CliOpts& o, const std::set<std::string>& allowed,
+                       const std::vector<std::string>& slots,
+                       const std::string& help_text, int argc, char** argv, int start,
+                       std::vector<std::string>& pos_out) {
+    pos_out.assign(slots.size(), std::string());
+    int npos = 0;
+    for (int i = start; i < argc; ++i) {
+        const std::string a = argv[i];
+        if (a == "--help" || a == "-h") {
+            std::cout << help_text;
+            return ParseResult::Help;
+        }
+        if (!a.empty() && a[0] == '-') {
+            const auto& table = flag_table();
+            auto it = table.find(a);
+            if (it == table.end()) {
+                std::cerr << "error: unknown option '" << a << "'\n";
+                return ParseResult::Error;
+            }
+            if (!allowed.count(a)) {
+                std::cerr << "error: option '" << a
+                          << "' is not valid for this command\n";
+                return ParseResult::Error;
+            }
+            const FlagSpec& spec = it->second;
+            std::string value;
+            if (spec.takes_value) {
+                if (i + 1 >= argc) {
+                    std::cerr << "error: missing value for " << spec.name << "\n";
+                    return ParseResult::Error;
+                }
+                value = argv[++i];
+            }
+            try {
+                spec.apply(o, value);
+            } catch (const ArgError& e) {
+                std::cerr << "error: " << e.msg << "\n";
+                return ParseResult::Error;
+            }
+        } else {
+            if (npos >= static_cast<int>(slots.size())) {
+                std::cerr << "error: unexpected argument '" << a << "'\n";
+                return ParseResult::Error;
+            }
+            pos_out[npos++] = a;
+        }
+    }
+    for (std::size_t k = 0; k < slots.size(); ++k) {
+        if (pos_out[k].empty()) {
+            std::cerr << "error: missing <" << slots[k] << ">\n";
+            return ParseResult::Error;
+        }
+    }
+    return ParseResult::Ok;
+}
+
+// ============================ 通用逻辑 ============================
+
+// 检测/导出选项合法性校验（split/sheet 共用）；非法时抛 ArgError
+void validate_split_opts(const CliOpts& o) {
+    if (o.opts.padding < 0) throw ArgError{"--padding must be >= 0"};
+    if (o.opts.min_width < 1) throw ArgError{"--min-width must be >= 1"};
+    if (o.opts.min_height < 1) throw ArgError{"--min-height must be >= 1"};
+    if (o.opts.mode == sps::DetectionMode::Grid && o.opts.grid_cell_size < 1)
+        throw ArgError{"--cell-size must be >= 1 in grid mode"};
+    if (o.opts.merge_nearby && o.opts.merge_distance < 0)
+        throw ArgError{"--merge-distance must be >= 0"};
+    if (o.opts.merge_nearby && o.opts.mode != sps::DetectionMode::ConnectedComponents)
+        throw ArgError{"--merge-distance only applies to components mode"};
+    if (o.opts.contract < 0) throw ArgError{"--contract must be >= 0"};
+    if (o.opts.has_bg_color && !o.opts.remove_background)
+        throw ArgError{"--bg-color requires --remove-background"};
+}
+
+// 背景清理透明化（split/manual/from-json/sheet 共用）
+void apply_background_cleanup(sps::Image& image, const CliOpts& o) {
+    if (!o.opts.remove_background) return;
+    sps::BackgroundOptions bg;
+    bg.threshold = o.opts.background_threshold;
+    bg.has_bg_color = o.opts.has_bg_color;
+    bg.bg_color = o.opts.bg_color;
+    sps::Mask background = sps::background_mask(image, bg);
+    sps::make_background_transparent(image, background);
+}
+
+// 输出 meta.json：to_stdout=true 时直接输出（text→stdout 原始 JSON，json→嵌入 res.meta，
+// 供 UI/管道捕获，stdout 必须纯净）；否则写入 output_dir/meta.json 并记录路径
+void emit_meta(const sps::Image& image, const sps::SplitResult& result,
+               const std::string& image_name, const std::string& output_dir,
+               bool to_stdout, Out& out) {
+    const std::string json = sps::export_json(image, result, image_name);
+    if (to_stdout) {
+        if (out.json) {
+            out.res["meta"] = nlohmann::json::parse(json);
+        } else {
+            std::cout << json << "\n";
+        }
+        return;
+    }
+    std::filesystem::create_directories(output_dir);
+    const std::string meta_path = (std::filesystem::path(output_dir) / "meta.json").string();
+    std::ofstream f(meta_path);
+    if (!f) throw std::runtime_error("cannot open '" + meta_path + "'");
+    f << json << "\n";
+    out.note("wrote " + meta_path);
+    if (out.json) out.res["meta_path"] = meta_path;
+}
+
+// 把 rects 裁剪导出为 PNG（可选透明化已由调用方应用到 image 上）。
+// 文本模式打印明细（-q 抑制）；json 模式收集进 res["sprites"]。
 // 返回导出的 sprite 数
 int export_rects(const sps::Image& image, const sps::SplitResult& result,
-                 const std::string& output_dir, bool quiet) {
+                 const std::string& output_dir, Out& out) {
     std::filesystem::create_directories(output_dir);
+    if (out.json) out.res["sprites"] = nlohmann::json::array();
     int count = 0;
     for (std::size_t i = 0; i < result.sprites.size(); ++i) {
         const auto& r = result.sprites[i];
         ++count;
-        std::string name = "sprite_" + std::to_string(count) + ".png";
-        std::string path = (std::filesystem::path(output_dir) / name).string();
+        const std::string name = "sprite_" + std::to_string(count) + ".png";
+        const std::string path = (std::filesystem::path(output_dir) / name).string();
         sps::Image cropped = image.cropped(r.x, r.y, r.width, r.height);
         // 应用橡皮擦 mask（若存在）：mask 是灰度图，白=保留/黑=透明
+        bool has_mask = false;
         if (i < result.mask_paths.size() && !result.mask_paths[i].empty()) {
             try {
                 auto alpha = sps::load_mask_alpha(result.mask_paths[i], r.width, r.height);
                 sps::apply_mask(cropped, alpha);
+                has_mask = true;
             } catch (const std::exception& e) {
-                std::cerr << "warning: " << e.what() << " (sprite " << count
-                          << " exported without mask)\n";
+                Out::warn(std::string(e.what()) + " (sprite " + std::to_string(count) +
+                          " exported without mask)");
             }
         }
         sps::save_png(cropped, path);
-        if (!quiet) {
+        if (!out.json && !out.quiet) {
             std::cout << "  " << name << " rect=(" << r.x << "," << r.y << " "
                       << r.width << "x" << r.height << ")"
-                      << (i < result.mask_paths.size() && !result.mask_paths[i].empty()
-                              ? " [mask]"
-                              : "")
-                      << "\n";
+                      << (has_mask ? " [mask]" : "") << "\n";
+        }
+        if (out.json) {
+            out.res["sprites"].push_back({{"name", name},
+                                          {"x", r.x},
+                                          {"y", r.y},
+                                          {"width", r.width},
+                                          {"height", r.height},
+                                          {"mask", has_mask}});
         }
     }
     return count;
 }
 
-// 输出 meta.json：to_stdout=true 时打印到 stdout（供 UI 管道捕获，stdout 必须纯净），
-// 否则写入 output_dir/meta.json 并打印路径
-void emit_meta(const sps::Image& image, const sps::SplitResult& result,
-               const std::string& image_name, const std::string& output_dir,
-               bool to_stdout) {
-    std::string json = sps::export_json(image, result, image_name);
-    if (to_stdout) {
-        std::cout << json << "\n";
-        return;
+void print_runtime_error(const Out& out, const std::exception& e) {
+    if (out.json) {
+        std::cerr << nlohmann::json{{"status", "error"}, {"error", e.what()}}.dump()
+                  << "\n";
+    } else {
+        std::cerr << "error: " << e.what() << "\n";
     }
-    std::filesystem::create_directories(output_dir);
-    std::string meta_path = (std::filesystem::path(output_dir) / "meta.json").string();
-    std::ofstream f(meta_path);
-    if (!f) throw std::runtime_error("cannot open '" + meta_path + "'");
-    f << json << "\n";
-    std::cout << "wrote " << meta_path << "\n";
 }
 
-}  // namespace
+// ============================ 子命令 ============================
 
-int main(int argc, char* argv[]) {
-    std::string input;
-    std::string output_dir = "sprites";
-    bool output_set = false;  // 是否显式传了 --output（区分默认目录）
-    std::string from_json;
-    bool manual_mode = false;
-    sps::SplitOptions opts;
-    bool write_json = false;
-    bool json_only = false;  // 只导出 meta.json，不切 PNG
-    bool gen_masks = false;  // 为每个 sprite 生成全白 mask（UI 橡皮擦起点）
-    int erase_tl_w = 0, erase_tl_h = 0;  // --erase-tl WxH：左上角擦除区域（与 --gen-masks 配合）
-    int sheet_cols = 0;  // --sheet COLS：把精灵重排成 COLS 列的规整 sprite sheet
-    bool quiet = false;
-    bool info_only = false;
-
-    for (int i = 1; i < argc; ++i) {
-        std::string a = argv[i];
-        auto next = [&](const char* name) -> const char* {
-            if (i + 1 >= argc) {
-                std::cerr << "error: missing value for " << name << "\n";
-                std::exit(1);
-            }
-            return argv[++i];
-        };
-
-        if (a == "--help" || a == "-h") {
-            print_usage(argv[0]);
-            return 0;
-        } else if (a == "--version") {
-            std::cout << "sprite-split " << kVersion << "\n";
-            return 0;
-        } else if (a == "--output") {
-            output_dir = next("--output");
-            output_set = true;
-        } else if (a == "--alpha-threshold") {
-            if (parse_int(next("--alpha-threshold"), opts.alpha_threshold,
-                          "--alpha-threshold"))
-                return 1;
-        } else if (a == "--padding") {
-            if (parse_int(next("--padding"), opts.padding, "--padding")) return 1;
-        } else if (a == "--min-width") {
-            if (parse_int(next("--min-width"), opts.min_width, "--min-width")) return 1;
-        } else if (a == "--min-height") {
-            if (parse_int(next("--min-height"), opts.min_height, "--min-height")) return 1;
-        } else if (a == "--remove-background") {
-            opts.remove_background = true;
-        } else if (a == "--background-threshold") {
-            if (parse_int(next("--background-threshold"), opts.background_threshold,
-                          "--background-threshold"))
-                return 1;
-        } else if (a == "--bg-color") {
-            std::string c = next("--bg-color");
-            int r = 0, g = 0, b = 0;
-            if (std::sscanf(c.c_str(), "%d,%d,%d", &r, &g, &b) != 3 || r < 0 || r > 255 ||
-                g < 0 || g > 255 || b < 0 || b > 255) {
-                std::cerr << "error: invalid --bg-color '" << c
-                          << "' (expected R,G,B in 0..255)\n";
-                return 1;
-            }
-            opts.has_bg_color = true;
-            opts.bg_color = sps::Pixel{static_cast<uint8_t>(r), static_cast<uint8_t>(g),
-                                       static_cast<uint8_t>(b), 255};
-        } else if (a == "--contract") {
-            if (parse_int(next("--contract"), opts.contract, "--contract")) return 1;
-        } else if (a == "--mode") {
-            std::string m = next("--mode");
-            if (m == "components") {
-                opts.mode = sps::DetectionMode::ConnectedComponents;
-            } else if (m == "grid") {
-                opts.mode = sps::DetectionMode::Grid;
-            } else if (m == "auto") {
-                opts.mode = sps::DetectionMode::Auto;
-            } else {
-                std::cerr << "error: unknown mode '" << m
-                          << "' (expected components|grid|auto)\n";
-                return 1;
-            }
-        } else if (a == "--cell-size") {
-            if (parse_int(next("--cell-size"), opts.grid_cell_size, "--cell-size")) return 1;
-        } else if (a == "--merge-distance") {
-            if (parse_int(next("--merge-distance"), opts.merge_distance, "--merge-distance"))
-                return 1;
-            opts.merge_nearby = true;
-        } else if (a == "--json") {
-            write_json = true;
-        } else if (a == "--json-only") {
-            json_only = true;
-        } else if (a == "--gen-masks") {
-            gen_masks = true;
-        } else if (a == "--erase-tl") {
-            std::string v = next("--erase-tl");
-            if (std::sscanf(v.c_str(), "%dx%d", &erase_tl_w, &erase_tl_h) != 2 ||
-                erase_tl_w <= 0 || erase_tl_h <= 0) {
-                std::cerr << "error: invalid --erase-tl '" << v
-                          << "' (expected WxH, e.g. 30x30)\n";
-                return 1;
-            }
-        } else if (a == "--sheet") {
-            if (parse_int(next("--sheet"), sheet_cols, "--sheet")) return 1;
-            if (sheet_cols <= 0) {
-                std::cerr << "error: --sheet cols must be >= 1\n";
-                return 1;
-            }
-        } else if (a == "--info") {
-            info_only = true;
-        } else if (a == "--manual") {
-            manual_mode = true;
-        } else if (a == "--from-json") {
-            from_json = next("--from-json");
-        } else if (a == "-q" || a == "--quiet") {
-            quiet = true;
-        } else if (!a.empty() && a[0] == '-') {
-            std::cerr << "error: unknown option '" << a << "'\n";
-            return 1;
-        } else if (input.empty()) {
-            input = a;
-        } else {
-            std::cerr << "error: unexpected argument '" << a << "'\n";
-            return 1;
-        }
-    }
-
-    if (input.empty()) {
-        print_usage(argv[0]);
-        return 1;
-    }
-
-    // 参数合法性校验（core 层也会抛错，这里提前给出更友好的错误与退出码）
-    auto fail_arg = [](const std::string& msg) {
-        std::cerr << "error: " << msg << "\n";
-        std::exit(1);
-    };
-    if (opts.padding < 0) fail_arg("--padding must be >= 0");
-    if (opts.min_width < 1) fail_arg("--min-width must be >= 1");
-    if (opts.min_height < 1) fail_arg("--min-height must be >= 1");
-    if (opts.grid_cell_size < 1 && opts.mode == sps::DetectionMode::Grid)
-        fail_arg("--cell-size must be >= 1 in grid mode");
-    if (opts.merge_nearby && opts.merge_distance < 0)
-        fail_arg("--merge-distance must be >= 0");
-    if (opts.merge_nearby && opts.mode != sps::DetectionMode::ConnectedComponents)
-        fail_arg("--merge-distance only applies to components mode");
-    if (opts.contract < 0) fail_arg("--contract must be >= 0");
-    if (opts.has_bg_color && !opts.remove_background)
-        fail_arg("--bg-color requires --remove-background");
-
-    // --json-only：无 --output 时 JSON 直出 stdout，stdout 必须纯净（抑制日志）
-    const bool meta_to_stdout = json_only && !output_set;
-    if (json_only && manual_mode)
-        fail_arg("--manual and --json-only cannot be combined (manual writes meta.json itself)");
-    if (json_only && !from_json.empty())
-        fail_arg("--from-json and --json-only cannot be combined (from-json already reads meta.json)");
+int run_info(int argc, char** argv, int start) {
+    CliOpts o;
+    Out out;
+    std::vector<std::string> pos;
+    const std::set<std::string> allowed = {
+        "--remove-background", "--background-threshold", "--bg-color",
+        "--format", "-q", "--quiet", "--help", "-h"};
+    auto pr = parse_args(o, allowed, {"input"}, kInfoHelp, argc, argv, start, pos);
+    if (pr == ParseResult::Help) return 0;
+    if (pr == ParseResult::Error) return 1;
+    const std::string input = pos[0];
+    out.json = o.json_format;
+    out.quiet = o.quiet;
+    if (out.json) out.res = {{"status", "ok"}, {"command", "info"}, {"input", input}};
 
     try {
         sps::Image image = sps::Image::load_png(input);
-        if (!meta_to_stdout) {
-            std::cout << "loaded " << input << " (" << image.width() << "x" << image.height()
-                      << ")\n";
+        const int bg_threshold =
+            o.opts.remove_background ? o.opts.background_threshold : 12;
+        sps::ImageStats s = sps::analyze_image(image, bg_threshold, o.opts.has_bg_color,
+                                               o.opts.bg_color);
+
+        const long total = s.total_pixels;
+        const double opaque_pct = total ? 100.0 * s.opaque_pixels / total : 0.0;
+        const double trans_pct = total ? 100.0 * s.transparent_pixels / total : 0.0;
+        const double semi_pct = total ? 100.0 * s.semi_pixels / total : 0.0;
+
+        // ---- 推荐参数（文本与 json 共用） ----
+        std::vector<std::string> rec;
+        if (!s.has_transparency) {
+            rec.push_back("--remove-background");
+            rec.push_back(s.bg_uniform
+                              ? "--background-threshold 12 (bg is uniform)"
+                              : "--background-threshold 12 (bg not uniform; tune)");
         }
+        if (s.suggested_min_width > 1 || s.suggested_min_height > 1) {
+            rec.push_back("--min-width " + std::to_string(s.suggested_min_width) +
+                          " --min-height " + std::to_string(s.suggested_min_height) +
+                          " (filter " + std::to_string(s.component_count) +
+                          " components, many are small)");
+        }
+        if (rec.empty()) rec.push_back("--alpha-threshold 1 (transparency already present)");
+        rec.push_back("--json (also export sprite metadata)");
 
-        // ---- --info：分析并推荐，不切分 ----
-        if (info_only) {
-            const int bg_threshold =
-                opts.remove_background ? opts.background_threshold : 12;
-            sps::ImageStats s = sps::analyze_image(image, bg_threshold, opts.has_bg_color,
-                                                   opts.bg_color);
+        std::string example = "sprite-split split " + input;
+        if (!s.has_transparency) example += " --remove-background";
+        if (s.suggested_min_width > 1)
+            example += " --min-width " + std::to_string(s.suggested_min_width) +
+                       " --min-height " + std::to_string(s.suggested_min_height);
+        example += " --output sprites --json";
 
-            const long total = s.total_pixels;
-            const double opaque_pct = total ? 100.0 * s.opaque_pixels / total : 0.0;
-            const double trans_pct = total ? 100.0 * s.transparent_pixels / total : 0.0;
-            const double semi_pct = total ? 100.0 * s.semi_pixels / total : 0.0;
-
+        if (out.json) {
+            out.res["width"] = s.width;
+            out.res["height"] = s.height;
+            out.res["total_pixels"] = total;
+            out.res["opaque_percent"] = std::round(opaque_pct * 10.0) / 10.0;
+            out.res["transparent_percent"] = std::round(trans_pct * 10.0) / 10.0;
+            out.res["semi_percent"] = std::round(semi_pct * 10.0) / 10.0;
+            out.res["has_transparency"] = s.has_transparency;
+            out.res["bg_estimate"] = {{"r", static_cast<int>(s.bg_estimate.r)},
+                                      {"g", static_cast<int>(s.bg_estimate.g)},
+                                      {"b", static_cast<int>(s.bg_estimate.b)}};
+            out.res["bg_uniform"] = s.bg_uniform;
+            out.res["foreground_percent"] = s.foreground_percent;
+            out.res["foreground_pixels"] = s.foreground_pixels;
+            out.res["components"] = s.component_count;
+            out.res["largest_component"] = {
+                {"x", s.largest_component.x},
+                {"y", s.largest_component.y},
+                {"width", s.largest_component.width},
+                {"height", s.largest_component.height}};
+            out.res["median_component_area"] = static_cast<long>(s.median_component_area);
+            out.res["recommended"] = rec;
+            out.res["example"] = example;
+        } else {
             std::cout << "\n=== image info ===\n"
-                      << "size:               " << s.width << " x " << s.height
-                      << " (" << total << " px)\n"
+                      << "size:               " << s.width << " x " << s.height << " ("
+                      << total << " px)\n"
                       << "alpha:              " << std::fixed << std::setprecision(1)
                       << opaque_pct << "% opaque, " << trans_pct << "% transparent, "
                       << semi_pct << "% semi  "
                       << (s.has_transparency ? "[has transparency]" : "[NO transparency]")
                       << "\n"
-                      << "bg estimate:        rgb(" << (int)s.bg_estimate.r << ","
-                      << (int)s.bg_estimate.g << "," << (int)s.bg_estimate.b << ")"
+                      << "bg estimate:        rgb(" << static_cast<int>(s.bg_estimate.r)
+                      << "," << static_cast<int>(s.bg_estimate.g) << ","
+                      << static_cast<int>(s.bg_estimate.b) << ")"
                       << (s.bg_uniform ? " [uniform corners]" : " [non-uniform]") << "\n"
                       << "foreground (t=" << bg_threshold << "): " << s.foreground_percent
                       << "% (" << s.foreground_pixels << " px)\n"
-                      << "components:         " << s.component_count
-                      << " (largest " << s.largest_component.width << "x"
-                      << s.largest_component.height << " @ (" << s.largest_component.x
-                      << "," << s.largest_component.y << "), median area "
-                      << (long)s.median_component_area << ")\n";
-
-            // ---- 推荐参数 ----
-            std::cout << "\n=== recommended ===\n";
-            std::vector<std::string> rec;
-            if (!s.has_transparency) {
-                rec.push_back("--remove-background");
-                if (s.bg_uniform) {
-                    rec.push_back("--background-threshold 12 (bg is uniform)");
-                } else {
-                    rec.push_back("--background-threshold 12 (bg not uniform; tune)");
-                }
-            }
-            if (s.suggested_min_width > 1 || s.suggested_min_height > 1) {
-                rec.push_back("--min-width " + std::to_string(s.suggested_min_width) +
-                              " --min-height " + std::to_string(s.suggested_min_height) +
-                              " (filter " + std::to_string(s.component_count) +
-                              " components, many are small)");
-            }
-            if (rec.empty()) {
-                rec.push_back("--alpha-threshold 1 (transparency already present)");
-            }
-            rec.push_back("--json (also export sprite metadata)");
+                      << "components:         " << s.component_count << " (largest "
+                      << s.largest_component.width << "x" << s.largest_component.height
+                      << " @ (" << s.largest_component.x << "," << s.largest_component.y
+                      << "), median area " << static_cast<long>(s.median_component_area)
+                      << ")\n"
+                      << "\n=== recommended ===\n";
             for (const auto& r : rec) std::cout << "  " << r << "\n";
+            std::cout << "\n  e.g. " << example << "\n";
+        }
+        out.finish();
+        return 0;
+    } catch (const std::exception& e) {
+        print_runtime_error(out, e);
+        return 2;
+    }
+}
 
-            std::cout << "\n  e.g. sprite-split " << input;
-            if (!s.has_transparency) std::cout << " --remove-background";
-            if (s.suggested_min_width > 1)
-                std::cout << " --min-width " << s.suggested_min_width << " --min-height "
-                          << s.suggested_min_height;
-            std::cout << " --output sprites --json\n";
-            return 0;
+int run_split(int argc, char** argv, int start) {
+    CliOpts o;
+    Out out;
+    std::vector<std::string> pos;
+    const std::set<std::string> allowed = {
+        "--output", "--alpha-threshold", "--padding", "--min-width", "--min-height",
+        "--remove-background", "--background-threshold", "--bg-color", "--contract",
+        "--mode", "--cell-size", "--merge-distance", "--json", "--json-only",
+        "--gen-masks", "--erase-tl", "--format", "-q", "--quiet", "--help", "-h"};
+    auto pr = parse_args(o, allowed, {"input"}, kSplitHelp, argc, argv, start, pos);
+    if (pr == ParseResult::Help) return 0;
+    if (pr == ParseResult::Error) return 1;
+    const std::string input = pos[0];
+    try {
+        validate_split_opts(o);
+    } catch (const ArgError& e) {
+        std::cerr << "error: " << e.msg << "\n";
+        return 1;
+    }
+    out.json = o.json_format;
+    out.quiet = o.quiet;
+    if (out.json) out.res = {{"status", "ok"}, {"command", "split"}, {"input", input}};
+
+    // --json-only 无 --output：meta 直出 stdout（text 模式 stdout 必须纯净）
+    const bool meta_to_stdout = o.json_only && !o.output_set;
+    const bool silent_stdout = meta_to_stdout && !out.json;
+
+    try {
+        sps::Image image = sps::Image::load_png(input);
+        if (!silent_stdout)
+            out.note("loaded " + input + " (" + std::to_string(image.width()) + "x" +
+                     std::to_string(image.height()) + ")");
+        apply_background_cleanup(image, o);
+
+        sps::SplitResult result = sps::split_image(image, o.opts);
+
+        if (result.sprites.empty()) {
+            std::string w = "no sprites detected. ";
+            w += o.opts.remove_background
+                     ? "Try lowering --background-threshold, or adjust --mode / --cell-size."
+                     : "Image may have no transparency; try --remove-background.";
+            if (out.json)
+                out.res["warning"] = w;
+            else if (!silent_stdout)
+                Out::warn(w);
         }
 
-        // ---- 背景清理透明化：三种模式共用（manual/from-json 也支持透明导出） ----
-        sps::Mask background;
-        if (opts.remove_background) {
-            sps::BackgroundOptions bg;
-            bg.threshold = opts.background_threshold;
-            bg.has_bg_color = opts.has_bg_color;
-            bg.bg_color = opts.bg_color;
-            background = sps::background_mask(image, bg);
-            sps::make_background_transparent(image, background);
-        }
-
-        // ---- --manual：交互式画框，写 meta.json 并切图 ----
-        if (manual_mode) {
-            std::cout << "manual mode: type rects as 'x y width height' (one per line).\n"
-                      << "             empty line or 'q' to finish.\n"
-                      << "             image size " << image.width() << "x"
-                      << image.height() << "\n";
-            sps::SplitResult manual;
-            std::string line;
-            while (std::getline(std::cin, line)) {
-                if (line.empty() || line == "q" || line == "quit") break;
-                std::istringstream ss(line);
-                int x, y, w, h;
-                if (!(ss >> x >> y >> w >> h) || w <= 0 || h <= 0) {
-                    std::cout << "  (skip) expected: x y width height\n";
-                    continue;
-                }
-                if (x < 0 || y < 0 || x + w > image.width() || y + h > image.height()) {
-                    std::cout << "  (skip) rect out of bounds (" << image.width() << "x"
-                              << image.height() << ")\n";
-                    continue;
-                }
-                manual.sprites.push_back({x, y, w, h});
-                std::cout << "  added rect=(" << x << "," << y << " " << w << "x" << h
-                          << ") total " << manual.sprites.size() << "\n";
-            }
-            if (manual.sprites.empty()) {
-                std::cout << "no rects entered, nothing to do.\n";
-                return 0;
-            }
-
-            int count = export_rects(image, manual, output_dir, quiet);
-
-            // 写 meta.json（无 --json 也写，因为这是 manual 的产物）
-            std::string meta_path = (std::filesystem::path(output_dir) / "meta.json").string();
-            std::ofstream f(meta_path);
-            if (!f) throw std::runtime_error("cannot open '" + meta_path + "'");
-            f << sps::export_json(image, manual, input) << "\n";
-            std::cout << "wrote " << meta_path << "\n";
-            std::cout << "done: " << count << " sprite(s) -> " << output_dir << "\n";
-            return 0;
-        }
-
-        // ---- --from-json：从 meta.json 加载 rects 直接切图（跳过自动检测） ----
-        if (!from_json.empty()) {
-            std::ifstream f(from_json);
-            if (!f) {
-                std::cerr << "error: cannot open '" << from_json << "'\n";
-                return 2;
-            }
-            std::string json_text((std::istreambuf_iterator<char>(f)),
-                                  std::istreambuf_iterator<char>());
-            sps::SplitResult loaded;
-            if (!sps::load_json(json_text, image.width(), image.height(), loaded)) {
-                std::cerr << "error: invalid meta.json '" << from_json
-                          << "' (missing/invalid sprites array)\n";
-                return 2;
-            }
-            std::cout << "loaded " << loaded.sprites.size() << " rect(s) from " << from_json
-                      << "\n";
-
-            // 解析相对 mask 路径：相对 meta.json 所在目录
-            const std::string meta_dir =
-                std::filesystem::path(from_json).parent_path().string();
-            for (auto& mp : loaded.mask_paths) {
-                if (!mp.empty() && std::filesystem::path(mp).is_relative()) {
-                    mp = (std::filesystem::path(meta_dir) / mp).string();
-                }
-            }
-
-            // ---- --sheet COLS：裁剪后重排成规整网格 sprite sheet ----
-            if (sheet_cols > 0) {
-                // 加载 mask（应用擦除）
-                std::vector<std::vector<uint8_t>> masks(loaded.sprites.size());
-                for (std::size_t i = 0; i < loaded.sprites.size(); ++i) {
-                    if (!loaded.mask_paths[i].empty()) {
-                        try {
-                            masks[i] = sps::load_mask_alpha(
-                                loaded.mask_paths[i], loaded.sprites[i].width,
-                                loaded.sprites[i].height);
-                        } catch (const std::exception& e) {
-                            std::cerr << "warning: " << e.what()
-                                      << " (sprite " << (i + 1) << " without mask)\n";
-                        }
-                    }
-                }
-                auto sprites = sps::crop_sprites(image, loaded.sprites, masks);
-                std::vector<sps::SpriteRect> new_rects;
-                sps::Image sheet = sps::repack_sheet(sprites, sheet_cols, 4, new_rects);
-                std::string sheet_path =
-                    (std::filesystem::path(output_dir) / "sheet.png").string();
-                std::filesystem::create_directories(output_dir);
-                sps::save_png(sheet, sheet_path);
-
-                // 写 sheet_meta.json：精灵在新 sheet 中的坐标 + 原始 rect
-                {
-                    nlohmann::json j;
-                    j["sheet"] = sheet_path;
-                    j["width"] = sheet.width();
-                    j["height"] = sheet.height();
-                    j["sprites"] = nlohmann::json::array();
-                    for (std::size_t i = 0; i < loaded.sprites.size(); ++i) {
-                        j["sprites"].push_back(
-                            {{"src", {{"x", loaded.sprites[i].x},
-                                     {"y", loaded.sprites[i].y},
-                                     {"width", loaded.sprites[i].width},
-                                     {"height", loaded.sprites[i].height}}},
-                             {"dst", {{"x", new_rects[i].x},
-                                     {"y", new_rects[i].y},
-                                     {"width", new_rects[i].width},
-                                     {"height", new_rects[i].height}}}});
-                    }
-                    std::string smeta_path =
-                        (std::filesystem::path(output_dir) / "sheet_meta.json").string();
-                    std::ofstream f(smeta_path);
-                    if (!f) throw std::runtime_error("cannot open '" + smeta_path + "'");
-                    f << j.dump(2) << "\n";
-                    std::cout << "wrote " << smeta_path << "\n";
-                }
-                std::cout << "done: sheet " << sheet.width() << "x" << sheet.height()
-                          << " (" << loaded.sprites.size() << " sprites, " << sheet_cols
-                          << " cols) -> " << sheet_path << "\n";
-                return 0;
-            }
-
-            int count = export_rects(image, loaded, output_dir, quiet);
-            std::cout << "done: " << count << " sprite(s) -> " << output_dir << "\n";
-            return 0;
-        }
-
-        sps::SplitResult result = sps::split_image(image, opts);
-
-        if (result.sprites.empty() && !meta_to_stdout) {
-            std::cout << "warning: no sprites detected. "
-                      << (opts.remove_background
-                              ? "Try lowering --background-threshold, or adjust --mode / --cell-size.\n"
-                              : "Image may have no transparency; try --remove-background.\n")
-                      << "       hint: use --help to see all options.\n";
-        }
-
-        // ---- --json-only：只输出 meta.json（写文件或 stdout），不切 PNG ----
-        if (json_only) {
-            emit_meta(image, result, input, output_dir, meta_to_stdout);
-            if (!meta_to_stdout) {
+        if (o.json_only) {
+            emit_meta(image, result, input, o.output_dir, meta_to_stdout, out);
+            if (out.json) {
+                out.res["count"] = static_cast<int>(result.sprites.size());
+                out.res["json_only"] = true;
+            } else if (!silent_stdout) {
                 std::cout << "done: " << result.sprites.size()
                           << " rect(s) -> meta.json (no pngs)\n";
             }
+            out.finish();
             return 0;
         }
 
         // ---- --gen-masks：为每个 sprite 生成 mask（全白或带擦除区），
         //      meta.json 写入 mask 字段，然后继续正常切图导出（应用 mask） ----
-        if (gen_masks) {
-            std::filesystem::create_directories(output_dir);
-            const std::string mask_dir = (std::filesystem::path(output_dir) / "masks").string();
+        if (o.gen_masks) {
+            std::filesystem::create_directories(o.output_dir);
+            const std::string mask_dir =
+                (std::filesystem::path(o.output_dir) / "masks").string();
             std::filesystem::create_directories(mask_dir);
             result.mask_paths.resize(result.sprites.size());
             for (std::size_t i = 0; i < result.sprites.size(); ++i) {
                 const auto& r = result.sprites[i];
-                std::string mask_name = "sprite_" + std::to_string(i + 1) + "_mask.png";
+                const std::string mask_name =
+                    "sprite_" + std::to_string(i + 1) + "_mask.png";
                 // 相对路径存进 meta.json（相对 meta.json 所在目录）
                 result.mask_paths[i] =
                     (std::filesystem::path("masks") / mask_name).generic_string();
                 sps::Image mask = sps::make_white_mask(r.width, r.height);
                 // --erase-tl WxH：左上角涂黑擦除（mask 黑=0，alpha 乘 0 → 擦除）
-                if (erase_tl_w > 0) {
-                    const int ew = std::min(erase_tl_w, r.width);
-                    const int eh = std::min(erase_tl_h, r.height);
+                if (o.erase_tl_w > 0) {
+                    const int ew = std::min(o.erase_tl_w, r.width);
+                    const int eh = std::min(o.erase_tl_h, r.height);
                     for (int y = 0; y < eh; ++y) {
                         for (int x = 0; x < ew; ++x) {
                             mask.at(x, y).r = 0;
@@ -576,36 +720,343 @@ int main(int argc, char* argv[]) {
                 }
                 sps::save_png(mask, (std::filesystem::path(mask_dir) / mask_name).string());
             }
-            if (write_json || true) {  // gen-masks 总是写 meta.json（UI 需要 mask 字段）
-                std::string meta_path =
-                    (std::filesystem::path(output_dir) / "meta.json").string();
-                std::ofstream f(meta_path);
-                if (!f) throw std::runtime_error("cannot open '" + meta_path + "'");
-                f << sps::export_json(image, result, input) << "\n";
-                std::cout << "wrote " << meta_path << " (+ " << result.sprites.size()
-                          << " masks in " << mask_dir << ")\n";
-            }
-            // 把相对 mask 路径解析为绝对路径（相对 output_dir），供 export_rects 使用
-            for (auto& mp : result.mask_paths) {
-                if (!mp.empty() && std::filesystem::path(mp).is_relative()) {
-                    mp = (std::filesystem::path(output_dir) / mp).string();
-                }
-            }
-            // 继续正常切图导出（export_rects 会应用 mask）
-        } else if (write_json) {
-            std::string meta_path = (std::filesystem::path(output_dir) / "meta.json").string();
+            // gen-masks 总是写 meta.json（UI 需要 mask 字段）
+            const std::string meta_path =
+                (std::filesystem::path(o.output_dir) / "meta.json").string();
             std::ofstream f(meta_path);
             if (!f) throw std::runtime_error("cannot open '" + meta_path + "'");
             f << sps::export_json(image, result, input) << "\n";
-            std::cout << "wrote " << meta_path << "\n";
+            out.note("wrote " + meta_path + " (+ " + std::to_string(result.sprites.size()) +
+                     " masks in " + mask_dir + ")");
+            if (out.json) {
+                out.res["meta_path"] = meta_path;
+                out.res["masks_dir"] = mask_dir;
+            }
+            // 相对 mask 路径解析为绝对（相对 output_dir），供 export_rects 使用
+            for (auto& mp : result.mask_paths) {
+                if (!mp.empty() && std::filesystem::path(mp).is_relative()) {
+                    mp = (std::filesystem::path(o.output_dir) / mp).string();
+                }
+            }
+        } else if (o.write_json) {
+            std::filesystem::create_directories(o.output_dir);
+            const std::string meta_path =
+                (std::filesystem::path(o.output_dir) / "meta.json").string();
+            std::ofstream f(meta_path);
+            if (!f) throw std::runtime_error("cannot open '" + meta_path + "'");
+            f << sps::export_json(image, result, input) << "\n";
+            out.note("wrote " + meta_path);
+            if (out.json) out.res["meta_path"] = meta_path;
         }
 
-        int count = export_rects(image, result, output_dir, quiet);
-
-        std::cout << "done: " << count << " sprite(s) -> " << output_dir << "\n";
+        const int count = export_rects(image, result, o.output_dir, out);
+        if (out.json) {
+            out.res["count"] = count;
+            out.res["output_dir"] = o.output_dir;
+        } else {
+            std::cout << "done: " << count << " sprite(s) -> " << o.output_dir << "\n";
+        }
+        out.finish();
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "error: " << e.what() << "\n";
+        print_runtime_error(out, e);
         return 2;
     }
+}
+
+int run_manual(int argc, char** argv, int start) {
+    CliOpts o;
+    Out out;
+    std::vector<std::string> pos;
+    const std::set<std::string> allowed = {
+        "--output", "--remove-background", "--background-threshold", "--bg-color",
+        "--format", "-q", "--quiet", "--help", "-h"};
+    auto pr = parse_args(o, allowed, {"input"}, kManualHelp, argc, argv, start, pos);
+    if (pr == ParseResult::Help) return 0;
+    if (pr == ParseResult::Error) return 1;
+    const std::string input = pos[0];
+    out.json = o.json_format;
+    out.quiet = o.quiet;
+    if (out.json) out.res = {{"status", "ok"}, {"command", "manual"}, {"input", input}};
+
+    try {
+        sps::Image image = sps::Image::load_png(input);
+        out.note("loaded " + input + " (" + std::to_string(image.width()) + "x" +
+                 std::to_string(image.height()) + ")");
+        apply_background_cleanup(image, o);
+
+        out.note("manual mode: type rects as 'x y width height' (one per line).");
+        out.note("             empty line or 'q' to finish.");
+        out.note("             image size " + std::to_string(image.width()) + "x" +
+                 std::to_string(image.height()));
+        sps::SplitResult manual;
+        std::string line;
+        while (std::getline(std::cin, line)) {
+            if (line.empty() || line == "q" || line == "quit") break;
+            std::istringstream ss(line);
+            int x, y, w, h;
+            if (!(ss >> x >> y >> w >> h) || w <= 0 || h <= 0) {
+                out.note("  (skip) expected: x y width height");
+                continue;
+            }
+            if (x < 0 || y < 0 || x + w > image.width() || y + h > image.height()) {
+                out.note("  (skip) rect out of bounds (" + std::to_string(image.width()) +
+                         "x" + std::to_string(image.height()) + ")");
+                continue;
+            }
+            manual.sprites.push_back({x, y, w, h});
+            out.note("  added rect=(" + std::to_string(x) + "," + std::to_string(y) + " " +
+                     std::to_string(w) + "x" + std::to_string(h) + ") total " +
+                     std::to_string(manual.sprites.size()));
+        }
+        if (manual.sprites.empty()) {
+            if (out.json) {
+                out.res["count"] = 0;
+                out.res["output_dir"] = o.output_dir;
+            } else {
+                std::cout << "no rects entered, nothing to do.\n";
+            }
+            out.finish();
+            return 0;
+        }
+
+        const int count = export_rects(image, manual, o.output_dir, out);
+        // manual 总是写 meta.json（这是 manual 的产物）
+        const std::string meta_path =
+            (std::filesystem::path(o.output_dir) / "meta.json").string();
+        std::ofstream f(meta_path);
+        if (!f) throw std::runtime_error("cannot open '" + meta_path + "'");
+        f << sps::export_json(image, manual, input) << "\n";
+        out.note("wrote " + meta_path);
+        if (out.json) {
+            out.res["count"] = count;
+            out.res["output_dir"] = o.output_dir;
+            out.res["meta_path"] = meta_path;
+        } else {
+            std::cout << "done: " << count << " sprite(s) -> " << o.output_dir << "\n";
+        }
+        out.finish();
+        return 0;
+    } catch (const std::exception& e) {
+        print_runtime_error(out, e);
+        return 2;
+    }
+}
+
+int run_from_json(int argc, char** argv, int start) {
+    CliOpts o;
+    Out out;
+    std::vector<std::string> pos;
+    const std::set<std::string> allowed = {
+        "--output", "--remove-background", "--background-threshold", "--bg-color",
+        "--format", "-q", "--quiet", "--help", "-h"};
+    auto pr = parse_args(o, allowed, {"input", "meta.json"}, kFromJsonHelp, argc, argv,
+                         start, pos);
+    if (pr == ParseResult::Help) return 0;
+    if (pr == ParseResult::Error) return 1;
+    const std::string input = pos[0];
+    const std::string meta_json = pos[1];
+    out.json = o.json_format;
+    out.quiet = o.quiet;
+    if (out.json)
+        out.res = {{"status", "ok"}, {"command", "from-json"}, {"input", input}};
+
+    try {
+        sps::Image image = sps::Image::load_png(input);
+        out.note("loaded " + input + " (" + std::to_string(image.width()) + "x" +
+                 std::to_string(image.height()) + ")");
+        std::ifstream f(meta_json);
+        if (!f) throw std::runtime_error("cannot open '" + meta_json + "'");
+        const std::string json_text((std::istreambuf_iterator<char>(f)),
+                                    std::istreambuf_iterator<char>());
+        sps::SplitResult loaded;
+        if (!sps::load_json(json_text, image.width(), image.height(), loaded))
+            throw std::runtime_error("invalid meta.json '" + meta_json +
+                                     "' (missing/invalid sprites array)");
+        out.note("loaded " + std::to_string(loaded.sprites.size()) + " rect(s) from " +
+                 meta_json);
+
+        // 解析相对 mask 路径：相对 meta.json 所在目录
+        const std::string meta_dir = std::filesystem::path(meta_json).parent_path().string();
+        for (auto& mp : loaded.mask_paths) {
+            if (!mp.empty() && std::filesystem::path(mp).is_relative()) {
+                mp = (std::filesystem::path(meta_dir) / mp).string();
+            }
+        }
+
+        apply_background_cleanup(image, o);
+        const int count = export_rects(image, loaded, o.output_dir, out);
+        if (out.json) {
+            out.res["count"] = count;
+            out.res["output_dir"] = o.output_dir;
+        } else {
+            std::cout << "done: " << count << " sprite(s) -> " << o.output_dir << "\n";
+        }
+        out.finish();
+        return 0;
+    } catch (const std::exception& e) {
+        print_runtime_error(out, e);
+        return 2;
+    }
+}
+
+int run_sheet(int argc, char** argv, int start) {
+    CliOpts o;
+    Out out;
+    std::vector<std::string> pos;
+    const std::set<std::string> allowed = {
+        "--cols", "--from-json", "--output",
+        "--alpha-threshold", "--padding", "--min-width", "--min-height",
+        "--remove-background", "--background-threshold", "--bg-color", "--contract",
+        "--mode", "--cell-size", "--merge-distance",
+        "--format", "-q", "--quiet", "--help", "-h"};
+    auto pr = parse_args(o, allowed, {"input"}, kSheetHelp, argc, argv, start, pos);
+    if (pr == ParseResult::Help) return 0;
+    if (pr == ParseResult::Error) return 1;
+    const std::string input = pos[0];
+    if (!o.sheet_cols_set) {
+        std::cerr << "error: missing --cols N (columns per row)\n";
+        return 1;
+    }
+    if (o.sheet_cols <= 0) {
+        std::cerr << "error: --cols must be >= 1\n";
+        return 1;
+    }
+    try {
+        validate_split_opts(o);
+    } catch (const ArgError& e) {
+        std::cerr << "error: " << e.msg << "\n";
+        return 1;
+    }
+    out.json = o.json_format;
+    out.quiet = o.quiet;
+    if (out.json)
+        out.res = {{"status", "ok"}, {"command", "sheet"}, {"input", input},
+                   {"cols", o.sheet_cols}};
+
+    try {
+        sps::Image image = sps::Image::load_png(input);
+        out.note("loaded " + input + " (" + std::to_string(image.width()) + "x" +
+                 std::to_string(image.height()) + ")");
+
+        // 矩形来源：--from-json（应用 mask）或自动检测
+        sps::SplitResult rects;
+        if (!o.from_json.empty()) {
+            std::ifstream f(o.from_json);
+            if (!f) throw std::runtime_error("cannot open '" + o.from_json + "'");
+            const std::string json_text((std::istreambuf_iterator<char>(f)),
+                                        std::istreambuf_iterator<char>());
+            if (!sps::load_json(json_text, image.width(), image.height(), rects))
+                throw std::runtime_error("invalid meta.json '" + o.from_json +
+                                         "' (missing/invalid sprites array)");
+            out.note("loaded " + std::to_string(rects.sprites.size()) + " rect(s) from " +
+                     o.from_json);
+            const std::string meta_dir =
+                std::filesystem::path(o.from_json).parent_path().string();
+            for (auto& mp : rects.mask_paths) {
+                if (!mp.empty() && std::filesystem::path(mp).is_relative()) {
+                    mp = (std::filesystem::path(meta_dir) / mp).string();
+                }
+            }
+            apply_background_cleanup(image, o);
+        } else {
+            apply_background_cleanup(image, o);
+            rects = sps::split_image(image, o.opts);
+            if (rects.sprites.empty())
+                Out::warn("no sprites detected. Try --remove-background, or adjust "
+                          "--mode / --cell-size.");
+        }
+
+        // 加载 mask（应用擦除）
+        std::vector<std::vector<uint8_t>> masks(rects.sprites.size());
+        for (std::size_t i = 0; i < rects.sprites.size(); ++i) {
+            if (i < rects.mask_paths.size() && !rects.mask_paths[i].empty()) {
+                try {
+                    masks[i] = sps::load_mask_alpha(rects.mask_paths[i],
+                                                    rects.sprites[i].width,
+                                                    rects.sprites[i].height);
+                } catch (const std::exception& e) {
+                    Out::warn(std::string(e.what()) + " (sprite " +
+                              std::to_string(i + 1) + " without mask)");
+                }
+            }
+        }
+        const auto sprites = sps::crop_sprites(image, rects.sprites, masks);
+        std::vector<sps::SpriteRect> new_rects;
+        sps::Image sheet = sps::repack_sheet(sprites, o.sheet_cols, 4, new_rects);
+
+        std::filesystem::create_directories(o.output_dir);
+        const std::string sheet_path =
+            (std::filesystem::path(o.output_dir) / "sheet.png").string();
+        sps::save_png(sheet, sheet_path);
+
+        // 写 sheet_meta.json：精灵在新 sheet 中的坐标 + 原始 rect
+        nlohmann::json j;
+        j["sheet"] = sheet_path;
+        j["width"] = sheet.width();
+        j["height"] = sheet.height();
+        j["sprites"] = nlohmann::json::array();
+        for (std::size_t i = 0; i < rects.sprites.size(); ++i) {
+            j["sprites"].push_back(
+                {{"src", {{"x", rects.sprites[i].x},
+                          {"y", rects.sprites[i].y},
+                          {"width", rects.sprites[i].width},
+                          {"height", rects.sprites[i].height}}},
+                 {"dst", {{"x", new_rects[i].x},
+                          {"y", new_rects[i].y},
+                          {"width", new_rects[i].width},
+                          {"height", new_rects[i].height}}}});
+        }
+        const std::string smeta_path =
+            (std::filesystem::path(o.output_dir) / "sheet_meta.json").string();
+        std::ofstream f(smeta_path);
+        if (!f) throw std::runtime_error("cannot open '" + smeta_path + "'");
+        f << j.dump(2) << "\n";
+        out.note("wrote " + smeta_path);
+
+        if (out.json) {
+            out.res["sheet_path"] = sheet_path;
+            out.res["sheet_meta_path"] = smeta_path;
+            out.res["width"] = sheet.width();
+            out.res["height"] = sheet.height();
+            out.res["count"] = static_cast<int>(rects.sprites.size());
+        } else {
+            std::cout << "done: sheet " << sheet.width() << "x" << sheet.height() << " ("
+                      << rects.sprites.size() << " sprites, " << o.sheet_cols
+                      << " cols) -> " << sheet_path << "\n";
+        }
+        out.finish();
+        return 0;
+    } catch (const std::exception& e) {
+        print_runtime_error(out, e);
+        return 2;
+    }
+}
+
+// ============================ 入口 ============================
+
+}  // namespace
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        print_main_help(argv[0]);
+        return 1;
+    }
+    const std::string cmd = argv[1];
+    if (cmd == "--version" || cmd == "version") {
+        std::cout << "sprite-split " << kVersion << "\n";
+        return 0;
+    }
+    if (cmd == "--help" || cmd == "-h" || cmd == "help") {
+        print_main_help(argv[0]);
+        return 0;
+    }
+    if (cmd == "info") return run_info(argc, argv, 2);
+    if (cmd == "split") return run_split(argc, argv, 2);
+    if (cmd == "manual") return run_manual(argc, argv, 2);
+    if (cmd == "from-json") return run_from_json(argc, argv, 2);
+    if (cmd == "sheet") return run_sheet(argc, argv, 2);
+    std::cerr << "error: unknown command '" << cmd << "'\n\n";
+    print_main_help(argv[0]);
+    return 1;
 }
