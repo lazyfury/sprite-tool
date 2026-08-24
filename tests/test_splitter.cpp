@@ -82,32 +82,6 @@ TEST_CASE("Splitter: min size filter drops small components", "[splitter]") {
     CHECK(result.sprites[0].width == 8);
 }
 
-TEST_CASE("Splitter: padding expands and clamps to image bounds", "[splitter]") {
-    Image img = image_with_blocks({{1, 1, 3, 3}}, 10, 10);
-    SplitOptions opts;
-    opts.padding = 2;
-    auto result = split_image(img, opts);
-    REQUIRE(result.sprites.size() == 1);
-    // (1,1)-(3,3) + pad 2 => x:-1..5, y:-1..5，clamp 到图像边界后为 (0,0)-(5,5) 即 6x6
-    CHECK(result.sprites[0].x == 0);
-    CHECK(result.sprites[0].y == 0);
-    CHECK(result.sprites[0].width == 6);
-    CHECK(result.sprites[0].height == 6);
-}
-
-TEST_CASE("Splitter: padding clamps at corner", "[splitter]") {
-    Image img = image_with_blocks({{0, 0, 2, 2}}, 10, 10);
-    SplitOptions opts;
-    opts.padding = 5;
-    auto result = split_image(img, opts);
-    REQUIRE(result.sprites.size() == 1);
-    // (0,0)-(1,1) + pad 5 => right/bottom = 6，clamp 后为 (0,0)-(6,6) 即 7x7
-    CHECK(result.sprites[0].x == 0);
-    CHECK(result.sprites[0].y == 0);
-    CHECK(result.sprites[0].width == 7);
-    CHECK(result.sprites[0].height == 7);
-}
-
 TEST_CASE("Splitter: unsupported options throw", "[splitter]") {
     Image img = image_with_blocks({{1, 1, 2, 2}}, 10, 10);
 

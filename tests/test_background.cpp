@@ -219,46 +219,68 @@ TEST_CASE("Splitter: manual bg color splits despite occupied corners", "[backgro
     REQUIRE(result.sprites.size() == 3);
 }
 
-TEST_CASE("Splitter: contract shrinks sprite rect", "[background]") {
-    Image img(20, 20, 0);
-    for (int y = 4; y < 12; ++y)
-        for (int x = 4; x < 12; ++x) img.at(x, y).a = 255;
-
-    SplitOptions opts;  // 无 contract
+TEST_CASE("Splitter: contract erodes foreground outline (free-lasso shrink)", "[background]") {
+    // 自由选区收缩：8x8 块 + remove-background，contract=2 → 前景轮廓向内腐蚀 2 圈，
+    // bbox 重算到腐蚀后的轮廓（只切轮廓、不切贴边内容）。
+    Image img = image_with_blocks(Pixel{253, 253, 253}, {{16, 16, 8, 8}}, Pixel{0, 0, 0}, 40, 40);
+    SplitOptions opts;
+    opts.remove_background = true;
     auto normal = split_image(img, opts);
     REQUIRE(normal.sprites.size() == 1);
+    CHECK(normal.sprites[0].x == 16);
     CHECK(normal.sprites[0].width == 8);
-    CHECK(normal.sprites[0].x == 4);
 
-    opts.contract = 2;  // 收缩 2px
+    opts.contract = 2;
     auto shrunk = split_image(img, opts);
     REQUIRE(shrunk.sprites.size() == 1);
-    CHECK(shrunk.sprites[0].x == 6);
-    CHECK(shrunk.sprites[0].y == 6);
+    CHECK(shrunk.sprites[0].x == 18);
+    CHECK(shrunk.sprites[0].y == 18);
     CHECK(shrunk.sprites[0].width == 4);
     CHECK(shrunk.sprites[0].height == 4);
 }
 
-TEST_CASE("Splitter: contract never below 1x1", "[background]") {
-    // 大块 16x16 收缩 8px → 每边缩 8，剩 0x0 → clamp 到 1x1（仍在图像内）
-    Image img(30, 30, 0);
-    for (int y = 2; y < 18; ++y)
-        for (int x = 2; x < 18; ++x) img.at(x, y).a = 255;
+TEST_CASE("Splitter: contract trims halo fringe after background removal", "[background]") {
+    // 块外一圈 1px 过渡色（压缩/AA 毛边，dist≈24 > 阈值 12）→ 成为前景的一部分，
+    // bbox 被撑到 12x12；contract=2 腐蚀后 halo 被剪掉，bbox 收紧到 8x8。
+    Image img = image_with_blocks(Pixel{253, 253, 253}, {{20, 20, 10, 10}}, Pixel{0, 0, 0}, 50, 50);
+    for (int y = 19; y <= 30; ++y)
+        for (int x = 19; x <= 30; ++x) {
+            const bool in_block = (x >= 20 && x < 30 && y >= 20 && y < 30);
+            if (!in_block) img.at(x, y) = Pixel{245, 245, 245, 255};
+        }
+
     SplitOptions opts;
-    opts.contract = 8;
-    auto result = split_image(img, opts);
-    REQUIRE(result.sprites.size() == 1);
-    CHECK(result.sprites[0].width == 1);
-    CHECK(result.sprites[0].height == 1);
-    CHECK(result.sprites[0].x == 10);
-    CHECK(result.sprites[0].y == 10);
+    opts.remove_background = true;
+    auto with_halo = split_image(img, opts);
+    REQUIRE(with_halo.sprites.size() == 1);
+    CHECK(with_halo.sprites[0].x == 19);
+    CHECK(with_halo.sprites[0].width == 12);
+
+    opts.contract = 2;
+    auto trimmed = split_image(img, opts);
+    REQUIRE(trimmed.sprites.size() == 1);
+    CHECK(trimmed.sprites[0].x == 21);
+    CHECK(trimmed.sprites[0].y == 21);
+    CHECK(trimmed.sprites[0].width == 8);
+    CHECK(trimmed.sprites[0].height == 8);
 }
 
-TEST_CASE("Splitter: contract beyond bounds drops sprite", "[background]") {
-    // 1px sprite 收缩过大 → 完全移出图像 → 丢弃（PS 语义：收缩到消失）
-    Image img(10, 10, 0);
-    img.at(5, 5).a = 255;
+TEST_CASE("Splitter: contract requires remove-background and components mode", "[background]") {
+    // contract 属于 remove-background 功能：alpha 模式或 grid 模式不允许
     SplitOptions opts;
+    opts.contract = 2;  // alpha 模式（无 remove-background）
+    CHECK_THROWS_AS(split_image(Image(8, 8), opts), std::invalid_argument);
+
+    opts.remove_background = true;
+    opts.mode = DetectionMode::Grid;  // grid 无自由选区概念
+    CHECK_THROWS_AS(split_image(Image(8, 8), opts), std::invalid_argument);
+}
+
+TEST_CASE("Splitter: contract eroding whole sprite drops it", "[background]") {
+    // 4x4 块腐蚀 10 圈 → 前景 mask 被完全腐蚀 → 无 sprite
+    Image img = image_with_blocks(Pixel{253, 253, 253}, {{10, 10, 4, 4}}, Pixel{0, 0, 0}, 30, 30);
+    SplitOptions opts;
+    opts.remove_background = true;
     opts.contract = 10;
     CHECK(split_image(img, opts).sprites.empty());
 }

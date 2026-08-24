@@ -37,41 +37,22 @@ Mask invert_mask(const Mask& background) {
     return fg;
 }
 
-// 应用 padding（向外扩展），并 clamp 回图像边界
-SpriteRect with_padding(const SpriteRect& r, int padding, int img_w, int img_h) {
-    SpriteRect out = r;
-    // 以 right/bottom 计算，避免 x clamp 后 width 不收缩
-    int right = r.x + r.width - 1 + padding;
-    int bottom = r.y + r.height - 1 + padding;
-    out.x = std::max(r.x - padding, 0);
-    out.y = std::max(r.y - padding, 0);
-    right = std::min(right, img_w - 1);
-    bottom = std::min(bottom, img_h - 1);
-    out.width = right - out.x + 1;
-    out.height = bottom - out.y + 1;
-    return out;
-}
-
-// 向内收缩 n 像素（类似 PS 收缩）：每边缩 n，最小 1x1
-SpriteRect contract_rect(const SpriteRect& r, int n) {
-    if (n <= 0) return r;
-    SpriteRect out = r;
-    out.x += n;
-    out.y += n;
-    out.width -= n * 2;
-    out.height -= n * 2;
-    if (out.width < 1) out.width = 1;
-    if (out.height < 1) out.height = 1;
-    return out;
-}
-
-// 统一的 rect 后处理：contract（收缩）→ min-size 过滤 → padding（扩展/clamp）
+// 统一的 rect 后处理：min-size 过滤 → clamp 回图像边界
 // 返回 true 表示通过并写入 out
 bool finalize_rect(const SpriteRect& in, const SplitOptions& options, int img_w, int img_h,
                    SpriteRect& out) {
-    const SpriteRect c = contract_rect(in, options.contract);
-    if (c.width < options.min_width || c.height < options.min_height) return false;
-    out = with_padding(c, options.padding, img_w, img_h);
+    if (in.width < options.min_width || in.height < options.min_height) return false;
+    out = in;
+    if (out.x < 0) {
+        out.width += out.x;
+        out.x = 0;
+    }
+    if (out.y < 0) {
+        out.height += out.y;
+        out.y = 0;
+    }
+    out.width = std::min(out.width, img_w - out.x);
+    out.height = std::min(out.height, img_h - out.y);
     return out.width > 0 && out.height > 0;
 }
 
@@ -91,6 +72,14 @@ SplitResult split_image(const Image& image, const SplitOptions& options) {
     if (options.contract < 0) {
         throw std::invalid_argument("sps: contract must be >= 0");
     }
+    if (options.contract > 0 && !options.remove_background) {
+        // 自由选区收缩属于背景清理流程（剪切清理产生的毛边）
+        throw std::invalid_argument("sps: contract requires remove_background");
+    }
+    if (options.contract > 0 && options.mode == DetectionMode::Grid) {
+        // 网格模式没有自由选区概念，收缩无效
+        throw std::invalid_argument("sps: contract requires components-based mode");
+    }
 
     SplitResult result;
 
@@ -102,7 +91,11 @@ SplitResult split_image(const Image& image, const SplitOptions& options) {
         bg.threshold = options.background_threshold;
         bg.has_bg_color = options.has_bg_color;
         bg.bg_color = options.bg_color;
+        bg.edge_passes = options.edge_passes;
         mask = invert_mask(background_mask(image, bg));
+        // 自由选区收缩：对前景轮廓向内腐蚀 N 圈（剪切毛边）后，
+        // 后续 CCL/merge 的 bbox 自动收紧到腐蚀后的轮廓
+        if (options.contract > 0) mask = erode(mask, options.contract);
     } else {
         mask = alpha_mask(image, options.alpha_threshold);
     }
@@ -115,6 +108,11 @@ SplitResult split_image(const Image& image, const SplitOptions& options) {
         if (options.mode == DetectionMode::Auto) {
             cell = auto_detect_grid_size(mask);
             if (cell > 0) {
+                // 检测到稳定网格：没有自由选区概念，contract 在此分支无意义
+                if (options.contract > 0) {
+                    throw std::invalid_argument(
+                        "sps: contract requires components-based mode");
+                }
                 // 检测到稳定网格 → 按网格切
                 auto rects = grid_detect(mask, cell);
                 for (const auto& r : rects) {

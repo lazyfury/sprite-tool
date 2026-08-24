@@ -103,8 +103,6 @@ const char* kSplitHelp =
     "  --alpha-threshold N    foreground if alpha > N (default 1)\n"
     "  --min-width N          drop components narrower than N (default 1)\n"
     "  --min-height N         drop components shorter than N (default 1)\n"
-    "  --padding N            expand each sprite by N px (default 0)\n"
-    "  --contract N           shrink each sprite by N px after detection (default 0)\n"
     "  --merge-distance N     merge components within N px (0 = off, components only)\n"
     "  --cell-size N          grid cell size for grid/auto (default 16)\n"
     "\n"
@@ -115,6 +113,8 @@ const char* kSplitHelp =
     "  --edge-clean N        edge transition cleanup rings, 1 ring ~ 1px (default 3;\n"
     "                        0 = off)\n"
     "  --bg-color R,G,B       manual background color (overrides ring sampling)\n"
+    "  --contract N           erode foreground outline by N px, re-crop to the\n"
+    "                        shrunk outline (trims halo fringe; remove-background only)\n"
     "\n"
     "Export:\n"
     "  --output DIR           output directory (default ./sprites)\n"
@@ -184,8 +184,6 @@ const char* kSheetHelp =
     "  --alpha-threshold N    foreground if alpha > N (default 1)\n"
     "  --min-width N          drop components narrower than N (default 1)\n"
     "  --min-height N         drop components shorter than N (default 1)\n"
-    "  --padding N            expand each sprite by N px (default 0)\n"
-    "  --contract N           shrink each sprite by N px after detection (default 0)\n"
     "  --merge-distance N     merge components within N px (0 = off, components only)\n"
     "  --cell-size N          grid cell size for grid/auto (default 16)\n"
     "  --remove-background    remove near-uniform background before detection\n"
@@ -194,6 +192,8 @@ const char* kSheetHelp =
     "  --edge-clean N        edge transition cleanup rings, 1 ring ~ 1px (default 3;\n"
     "                        0 = off)\n"
     "  --bg-color R,G,B       manual background color (overrides ring sampling)\n"
+    "  --contract N           erode foreground outline by N px, re-crop to the\n"
+    "                        shrunk outline (trims halo fringe; remove-background only)\n"
     "\n"
     "Other:\n"
     "  --output DIR           output directory (default ./sprites)\n"
@@ -265,9 +265,6 @@ void apply_output(CliOpts& o, const std::string& v) {
 }
 void apply_alpha_threshold(CliOpts& o, const std::string& v) {
     o.opts.alpha_threshold = parse_int(v, "--alpha-threshold");
-}
-void apply_padding(CliOpts& o, const std::string& v) {
-    o.opts.padding = parse_int(v, "--padding");
 }
 void apply_min_width(CliOpts& o, const std::string& v) {
     o.opts.min_width = parse_int(v, "--min-width");
@@ -349,7 +346,6 @@ const std::map<std::string, FlagSpec>& flag_table() {
     static const std::map<std::string, FlagSpec> t = {
         {"--output", {"--output", true, apply_output}},
         {"--alpha-threshold", {"--alpha-threshold", true, apply_alpha_threshold}},
-        {"--padding", {"--padding", true, apply_padding}},
         {"--min-width", {"--min-width", true, apply_min_width}},
         {"--min-height", {"--min-height", true, apply_min_height}},
         {"--remove-background", {"--remove-background", false, apply_remove_background}},
@@ -437,7 +433,6 @@ ParseResult parse_args(CliOpts& o, const std::set<std::string>& allowed,
 
 // 检测/导出选项合法性校验（split/sheet 共用）；非法时抛 ArgError
 void validate_split_opts(const CliOpts& o) {
-    if (o.opts.padding < 0) throw ArgError{"--padding must be >= 0"};
     if (o.opts.min_width < 1) throw ArgError{"--min-width must be >= 1"};
     if (o.opts.min_height < 1) throw ArgError{"--min-height must be >= 1"};
     if (o.opts.mode == sps::DetectionMode::Grid && o.opts.grid_cell_size < 1)
@@ -447,6 +442,10 @@ void validate_split_opts(const CliOpts& o) {
     if (o.opts.merge_nearby && o.opts.mode != sps::DetectionMode::ConnectedComponents)
         throw ArgError{"--merge-distance only applies to components mode"};
     if (o.opts.contract < 0) throw ArgError{"--contract must be >= 0"};
+    if (o.opts.contract > 0 && !o.opts.remove_background)
+        throw ArgError{"--contract requires --remove-background"};
+    if (o.opts.contract > 0 && o.opts.mode == sps::DetectionMode::Grid)
+        throw ArgError{"--contract requires components-based mode"};
     if (o.opts.edge_passes < 0) throw ArgError{"--edge-clean must be >= 0"};
     if (o.opts.has_bg_color && !o.opts.remove_background)
         throw ArgError{"--bg-color requires --remove-background"};
@@ -653,7 +652,7 @@ int run_split(int argc, char** argv, int start) {
     Out out;
     std::vector<std::string> pos;
     const std::set<std::string> allowed = {
-        "--output", "--alpha-threshold", "--padding", "--min-width", "--min-height",
+        "--output", "--alpha-threshold", "--min-width", "--min-height",
         "--remove-background", "--background-threshold", "--edge-clean", "--bg-color", "--contract",
         "--mode", "--cell-size", "--merge-distance", "--json", "--json-only",
         "--gen-masks", "--erase-tl", "--format", "-q", "--quiet", "--help", "-h"};
@@ -924,7 +923,7 @@ int run_sheet(int argc, char** argv, int start) {
     std::vector<std::string> pos;
     const std::set<std::string> allowed = {
         "--cols", "--from-json", "--output",
-        "--alpha-threshold", "--padding", "--min-width", "--min-height",
+        "--alpha-threshold", "--min-width", "--min-height",
         "--remove-background", "--background-threshold", "--edge-clean", "--bg-color", "--contract",
         "--mode", "--cell-size", "--merge-distance",
         "--format", "-q", "--quiet", "--help", "-h"};

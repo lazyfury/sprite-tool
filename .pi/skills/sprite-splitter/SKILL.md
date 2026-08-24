@@ -59,12 +59,11 @@ build/sprite-split split input.png --output sprites --format json | jq '.count'
 |---|---|---|
 | `--output DIR` | `./sprites` | 输出目录（自动创建） |
 | `--alpha-threshold N` | `1` | alpha > N 视为前景（透明素材） |
-| `--padding N` | `0` | 精灵向外扩展像素（须 ≥0） |
 | `--min-width/--min-height N` | `1` | 过滤小于该尺寸的分量（滤噪点） |
-| `--remove-background` | 关 | 四角采样 + flood fill 去背景，**导出透明 PNG** |
+| `--remove-background` | 关 | 环带采样 + flood fill 去背景，**导出透明 PNG** |
 | `--background-threshold N` | `12` | 背景色距离阈值下限（RGB 曼哈顿距离）。背景自身有压缩/渐变噪声时，有效阈值会自动放大到 `max(N, 噪声自适应值)` |
 | `--bg-color R,G,B` | 自动 | 手动指定背景色（环带采样失效时用，与 threshold 构成颜色区间） |
-| `--contract N` | `0` | 检测后向内收缩 N 像素（去杂边/PS 收缩） |
+| `--contract N` | `0` | **自由选区收缩**（须与 `--remove-background` 同用，仅 components 系模式）：对前景轮廓向内腐蚀 N 圈后重算包围盒，剪切清理背景产生的边缘毛边（halo）。只切轮廓、不切贴边内容 |
 | `--mode MODE` | components | `components`（连通分量）/ `grid`（网格）/ `auto` |
 | `--cell-size N` | `16` | grid/auto 的格子尺寸 |
 | `--merge-distance N` | `0` | 膨胀合并间距（components 模式） |
@@ -115,7 +114,7 @@ build/sprite-split split input.png --output sprites --format json | jq '.count'
 - **无透明通道素材**（全不透明 PNG）：默认 alpha 分割会把整图当 1 个 sprite。必须 `--remove-background`（或先 `info` 确认）
 - **背景色估错**（四角/边缘被内容占满）：自动环带采样会失效 → 手动 `--bg-color R,G,B` 指定背景色，配合 `--background-threshold` 形成颜色区间
 - **纯色背景但边缘有残色边（halo）**：JPEG 压缩/抗锯齿会让物体边缘产生一圈「接近背景的过渡色」。算法已内置自适应阈值 + 边缘过渡清扫自动清除；若仍残留，可适当提高 `--background-threshold`（它是下限，不会缩小自动容差）
-- **精灵边缘有杂边**（清理背景后的白边/色边）：`--contract N` 向内收缩去边（类似 PS 收缩）
+- **精灵边缘有杂边**（清理背景后的白边/色边 halo）：`--contract N`（须配 `--remove-background`）按自由选区收缩模式向内腐蚀 N 圈剪切毛边；若毛边是接近背景的过渡色，优先用 `--edge-clean`（零开销）
 - **噪点多**：`info` 看 component_count 与中位数面积；大量小分量 → 用 `--min-width/--min-height` 过滤（推荐值为最大精灵的 1/4）
 - **`--mode auto`**：假设→打分→验证→回退。行列投影 + Pearson 自相关找候选周期 → offset 搜索对齐组件中心 → 多维评分（周期/对齐/边界/尺寸/占用）→ 谐波抑制；置信度 <0.65 或周期性 <0.25 或组件 <4 时自动**回退 components**
 - **`--merge-distance` 仅 components 模式有效**，与 grid/auto 混用会报错
