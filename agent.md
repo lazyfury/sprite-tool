@@ -41,11 +41,12 @@
   - `nlohmann/json.hpp` 单头版 — JSON 导出（可选，M2 再用）
   - CLI11 — v2.7.2 单头版已 vendored（M4b 起 CLI 使用）
 
-### 2.3 godot-cpp / GDExtension 可行性
+### 2.3 godot-cpp / GDExtension 可行性（2026-08-25 更新）
 
-- godot-cpp master（10.x, beta）支持 `api_version` 参数（4.3+ 均可），或 `custom_api_file` 指定本机 `godot --dump-extension-api` 生成的 api 文件
-- 稳定分支：`godot-4.5-stable`；GDExtension 兼容性：**低版本扩展可在高版本 Godot 运行**（4.5 扩展可在 4.6 运行）
-- ⚠️ **godot-cpp 官方构建系统是 SCons，不是 CMake** —— Phase 5 时 godot 层用 SCons 构建动态库，或评估第三方 cmake 支持
+- godot-cpp master（10.x, beta）独立于 Godot 版本号，要求显式 `api_version`（支持 4.3+ 含 4.6），或 `custom_api_file` 指定本机 `godot --dump-extension-api` 生成的 api 文件
+- 稳定分支：`godot-4.5-stable`（旧绑定体系）；GDExtension 兼容性：**低版本扩展可在高版本 Godot 运行**（4.5 扩展可在 4.6 运行）
+- ✅ **godot-cpp 现已官方支持 CMake**（现代化重构，二级但活跃维护）——本机无 scons，Phase 5 用 **CMake** 构建动态库（选项前缀 `GODOTCPP_`，见 `.pi/skills/godot-gdextension/SKILL.md` §5.1）
+- ⚠️ 官方文档 C++ 章节 4.6 起迁移到 `tutorials/scripting/cpp/`（旧 `gdextension/` 路径 404）；docs 站有反爬，rst 源走 godot-docs GitHub raw
 - 结论：**Godot 4.6 + GDExtension 路线可行**，Phase 5 再实施（当前机器有 Godot 4.6.2 可直接验证）
 
 ### 2.4 魔棒背景清理调研（M3 补充，⏸ 搁置 — 待 UI 阶段再评估）
@@ -213,7 +214,22 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
 - 提交信息：`M1: implement connected components` 风格；关键算法附注释说明出处/思路
 - **每次会话结束**：将已完成/进行中任务同步到 `todo.md`；新任务随时追加到对应里程碑
 - 环境变动（安装依赖等）先说明经用户确认；大量修改先列方案
-- **agent 调用 CLI 前先读 `.pi/skills/sprite-splitter/SKILL.md`**（参数/工作流/陷阱/验证方法）
+
+### 6.1 Skill 使用规范
+
+项目 skill 以 **SKILL.md 单文件**形式维护，两份副本通过软连接同步：
+
+| skill | 内容 | 何时读取 |
+|---|---|---|
+| `sprite-splitter` | CLI 参数/推荐工作流/陷阱/验证方法 | **调用 `sprite-split` CLI 前必读** |
+| `godot-gdextension` | Godot 4.x GDExtension 制作（类注册/构建/数据转换） | 开发 `godot/`（M5）时读取 |
+
+- **源位置**：`.pi/skills/<name>/SKILL.md`（唯一权威副本，直接编辑这里）
+- **软连接**：`.workbuddy/skills/<name>` → `../../.pi/skills/<name>`（标准项目级扫描位；修改源后软连接自动生效，勿在 `.workbuddy/skills/` 直接改）
+- 读取方式：`Read .pi/skills/<name>/SKILL.md`（或经软连接路径）；godot-gdextension 内容同步可用于任何 Godot 插件开发
+- 新增 skill：在 `.pi/skills/` 建目录写 SKILL.md（frontmatter 须含 `name` + `description`），再建软连接到 `.workbuddy/skills/`
+
+> ⚠️ **WorkBuddy 专属**：`.workbuddy/skills/` 扫描位、`.workbuddy/memory/` 记忆、frontmatter（`name`/`description`）约定均为 **WorkBuddy 专属机制**，其他 agent 工具（Claude Code 等）不会识别这些路径；换工具时以 `.pi/skills/` 源文件为准（通用 SKILL.md 格式，可手动读取/迁移）。
 
 ## 7. 风险与备注
 

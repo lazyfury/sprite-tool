@@ -82,8 +82,8 @@
 
 ## M5 — Godot GDExtension 插件
 
-- [ ] godot-cpp submodule（优先 `godot-4.5-stable`；评估 master 10.x + api_version）
-- [ ] godot 层 SCons 构建配置（.gdextension 各平台动态库）
+- [ ] godot-cpp submodule（✅ 调研完成：master 10.x beta 需 api_version=4.6，或 4.5-stable 兼容 4.6；细节见 `.pi/skills/godot-gdextension/SKILL.md` §1）
+- [ ] godot 层构建配置（✅ 调研完成：**CMake 为主**——官方已现代化支持且本机无 scons；`GODOTCPP_TARGET/API_VERSION/CUSTOM_API_FILE` 选项 + 产物命名/落盘见 SKILL.md §5.1；.gdextension 各平台动态库）
 - [ ] 数据转换层：godot::Image ↔ core Image；SpriteRect → Array[Rect2i]
 - [ ] SpriteSplitter 类（GDScript 可调 `SpriteSplitter.split(image, options)`）
 - [ ] EditorPlugin：预览 → 切分 → 导出 PNG / AtlasTexture / SpriteFrames
