@@ -38,10 +38,25 @@ target_include_directories(sps_bg_remote PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/extr
 target_include_directories(sps_bg_remote PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/httplib)
 
 # ---------- CLI ----------
+# 构建时嵌入 SKILL.md（--prompt 输出给 AI 代理的完整使用规范）
+set(SKILL_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/.pi/skills/sprite-splitter/SKILL.md)
+set(SKILL_GENERATED ${CMAKE_BINARY_DIR}/generated/skill_prompt.hpp)
+add_custom_command(
+  OUTPUT ${SKILL_GENERATED}
+  COMMAND ${CMAKE_COMMAND} -DSKILL_FILE=${SKILL_SOURCE}
+                          -DOUT_FILE=${SKILL_GENERATED}
+                          -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_skill.cmake
+  DEPENDS ${SKILL_SOURCE} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_skill.cmake
+  COMMENT "Embedding SKILL.md prompt (--prompt)"
+)
+add_custom_target(skill_prompt_gen DEPENDS ${SKILL_GENERATED})
+
 add_executable(sprite-split cli/main.cpp)
+add_dependencies(sprite-split skill_prompt_gen)
 target_link_libraries(sprite-split PRIVATE sps_bg_remote)
 target_include_directories(sprite-split PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json
-                                        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cli11)
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cli11
+                                        ${CMAKE_BINARY_DIR}/generated)
 
 # ---------- 测试（Catch2 单头版） ----------
 enable_testing()

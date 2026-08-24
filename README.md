@@ -104,6 +104,7 @@ ctest --test-dir build
 > **背景移除与切分已解耦为两个命令**：`remove-background` 只做背景移除（输出整图透明 PNG，
 > `--stdout` 可直接进入管道）；`split`/`sheet` 只接受透明图做 alpha 切分（不再内嵌背景 flag）。
 > 所有命令 `input` 支持 `-`（从 stdin 读 PNG），配合 `remove-background --stdout` 实现纯管道。
+> `sprite-split --prompt` 输出完整 AI 使用规范（构建时嵌入的 `.pi/skills/sprite-splitter/SKILL.md`）。
 > 完整参数见 `build/sprite-split --help` 与 `build/sprite-split <command> --help`
 > （split 含 --mode/--alpha-threshold/--min-width/--min-height/--merge-distance/--cell-size/--json/--json-only/--gen-masks/--erase-tl；
 > remove-background 含 --background-threshold/--edge-clean/--bg-color/--bg-backend/--bg-url/--stdout）

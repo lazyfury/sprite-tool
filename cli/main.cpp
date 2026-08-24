@@ -54,9 +54,11 @@
 
 #include <nlohmann/json.hpp>
 
+#include "skill_prompt.hpp"  // 构建时嵌入的 SKILL.md（--prompt 输出）
+
 namespace {
 
-constexpr const char* kVersion = "0.9.0";
+constexpr const char* kVersion = "0.9.1";
 
 // ============================ 输出抽象 ============================
 // --format json：stdout 只输出一个结果对象（res），人类可读信息走 stderr；
@@ -856,8 +858,12 @@ int main(int argc, char* argv[]) {
     sps::bg_remote::register_backend();
 
     CLI::App app{"sprite-split: sprite sheet analyzer CLI"};
-    app.require_subcommand(1);
     app.set_version_flag("--version", kVersion);
+
+    // --prompt：输出完整 agent prompt（构建时嵌入的 SKILL.md），供 AI 代理直接获取使用规范
+    bool show_prompt = false;
+    app.add_flag("--prompt", show_prompt,
+                 "print the full agent prompt (SKILL.md) and exit");
 
     // ---- info ----
     CommandContext info_ctx;
@@ -967,6 +973,21 @@ int main(int argc, char* argv[]) {
     } catch (const std::exception& e) {
         // callback 内的业务校验（如 --bg-color 格式）在此统一捕获
         std::cerr << "error: " << e.what() << "\n";
+        return 1;
+    }
+
+    // --prompt：输出完整 agent prompt（构建时嵌入的 SKILL.md），不需要子命令
+    if (show_prompt) {
+        std::cout << sps::kSkillPrompt;
+        const std::size_t len = std::char_traits<char>::length(sps::kSkillPrompt);
+        if (len > 0 && sps::kSkillPrompt[len - 1] != '\n') std::cout << '\n';
+        return 0;
+    }
+
+    // 无子命令 → 主帮助 + 退出码 1（与 require_subcommand 语义一致）
+    if (!info->parsed() && !rb->parsed() && !split->parsed() && !manual->parsed() &&
+        !fj->parsed() && !sheet->parsed()) {
+        std::cout << app.help();
         return 1;
     }
 
