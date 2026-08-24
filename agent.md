@@ -8,7 +8,7 @@
 - **名称**：Sprite Splitter（雪碧图智能切割 / Sprite Sheet Analyzer）
 - **定位**：核心产品是 **Sprite Sheet Analyzer**（分析出 sprite rects），而非单纯的图像切割器；支持导出 PNG / JSON 元数据 / Godot AtlasTexture 资源；支持自动检测 + 手动框选（meta.json 往返）
 - **技术路线**：**C++20 核心算法库（零外部依赖、不依赖 Godot）+ CLI frontend + Godot GDExtension 薄封装**（Phase 5）
-- **当前状态**：M1–M3.5 已完成（CLI 子命令化 + 机器可读输出，88 用例 / 347 断言全绿）；M4/M5 搁置
+- **当前状态**：M1–M3.5 已完成（CLI 子命令化 + 机器可读输出，92 用例 / 2418 断言全绿；auto 回退 components 时自动滤噪）；M4/M5 搁置
 - **产品形态演进**：
   ```
   sprite-splitter
@@ -177,7 +177,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
 - [x] 子命令化：`info` / `split` / `manual` / `from-json` / `sheet` / `remove-background`（命令互斥、共享 flag 白名单校验）
 - [x] `--format json`：stdout 只含结果对象、进度走 stderr（管道友好，可 jq）
 - [x] `-q` 静默（text 模式仅摘要）与 `--version`
-- [x] 全量回归：88 用例 / 347 断言全绿
+- [x] 全量回归：92 用例 / 2418 断言全绿
 
 **验收**：`sprite-split info input.png --format json | jq '.components'` 链路可用；五命令 help 齐全、flag 校验正确。
 

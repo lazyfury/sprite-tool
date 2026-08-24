@@ -147,13 +147,12 @@ struct Comp {
     SpriteRect bounds;
 };
 
-// 搜索一个方向的偏移（center 坐标数组，周期 period，轴长度 axis_len）
-AlignmentResult best_offset(const std::vector<int>& centers, int period, int axis_len) {
+// 搜索一个方向的偏移（center 坐标数组，周期 period）
+AlignmentResult best_offset(const std::vector<int>& centers, int period) {
     AlignmentResult best{0, -1.0};
     if (centers.empty() || period <= 0) return best;
 
-    // 对每个候选 offset（0..period-1，采样步长 2 减少计算）
-    for (int off = 0; off < period; off += 1) {
+    for (int off = 0; off < period; ++off) {
         double sum = 0;
         // 组件中心到最近 cell 中心的距离（归一化到 cell 半径）
         for (int c : centers) {
@@ -300,8 +299,8 @@ GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell) {
             cand.period_y = py.period;
 
             // 偏移搜索（组件中心对齐 cell 中心）
-            const auto ax = best_offset(centers_x, px.period, w);
-            const auto ay = best_offset(centers_y, py.period, h);
+            const auto ax = best_offset(centers_x, px.period);
+            const auto ay = best_offset(centers_y, py.period);
             cand.offset_x = ax.offset;
             cand.offset_y = ay.offset;
 
@@ -374,8 +373,7 @@ GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell) {
     return result;
 }
 
-int auto_detect_grid_size(const Mask& mask, int min_component_size) {
-    (void)min_component_size;  // 新方案用自相关，不再依赖组件尺寸过滤
+int auto_detect_grid_size(const Mask& mask) {
     const GridDetection det = detect_grid(mask);
     if (!det.is_grid) return 0;
     // 返回 cell 尺寸：取两方向周期较大值（保守，避免切碎）

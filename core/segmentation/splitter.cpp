@@ -98,6 +98,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
     if (!mask.any_foreground()) return result;
 
     // ---- Grid / Auto 模式：直接按网格出 rects ----
+    bool auto_fallback = false;  // auto 未检测到网格 → 回退 components
     if (options.mode == DetectionMode::Grid ||
         options.mode == DetectionMode::Auto) {
         int cell = options.grid_cell_size;
@@ -115,6 +116,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
                 return result;
             }
             // 未检测到网格 → 回退到 connected components（fallthrough）
+            auto_fallback = true;
         } else {
             auto rects = grid_detect(mask, cell);
             for (const auto& r : rects) {
@@ -164,9 +166,25 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
     // ---- 普通 CCL ----
     auto comps = connected_components(mask);
 
+    // auto 回退 components 且用户未显式指定 min-size（两者均为默认 1）时，
+    // 自动推导噪声过滤阈值：最大分量边长的 1/4（clamp 2..64），
+    // 与 analyzer 的 suggested_min_* 同一启发式。典型场景：白底素材表
+    // 去背景后抗锯齿边缘产生大量 1~2px 碎片（数千个）。
+    // 用户显式传了任一 min-size 时不干预，尊重用户选择。
+    SplitOptions eff = options;
+    if (auto_fallback && options.min_width <= 1 && options.min_height <= 1 &&
+        comps.size() >= 20) {
+        const Component* largest = &comps[0];
+        for (const auto& c : comps) {
+            if (c.area > largest->area) largest = &c;
+        }
+        eff.min_width = std::clamp(largest->bounds.width / 4, 2, 64);
+        eff.min_height = std::clamp(largest->bounds.height / 4, 2, 64);
+    }
+
     for (const Component& c : comps) {
         SpriteRect p;
-        if (finalize_rect(c.bounds, options, image.width(), image.height(), p)) {
+        if (finalize_rect(c.bounds, eff, image.width(), image.height(), p)) {
             result.sprites.push_back(p);
         }
     }

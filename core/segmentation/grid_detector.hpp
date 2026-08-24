@@ -45,6 +45,6 @@ struct GridDetection {
 GridDetection detect_grid(const Mask& mask, int min_cell = 4, int max_cell = 0);
 
 // 兼容接口：返回最佳 cell 尺寸（非网格时 0），供 splitter 回退用
-int auto_detect_grid_size(const Mask& mask, int min_component_size = 4);
+int auto_detect_grid_size(const Mask& mask);
 
 }  // namespace sps

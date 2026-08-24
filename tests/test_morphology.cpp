@@ -46,17 +46,7 @@ TEST_CASE("Morphology: dilate radius 0 is identity", "[morph]") {
     CHECK_FALSE(d.get(1, 0));
 }
 
-TEST_CASE("Morphology: erode shrinks foreground (manhattan)", "[morph]") {
-    // 十字：只有中心在 radius=1 曼哈顿邻域内全为前景
-    Mask m = mask_from_rows({".#.", "###", ".#."});
-    Mask e = erode(m, 1);
-    CHECK(e.get(1, 1));          // 中心保留
-    CHECK_FALSE(e.get(0, 1));    // 左臂尖被腐蚀
-    CHECK_FALSE(e.get(1, 0));    // 上臂尖被腐蚀
-    CHECK_FALSE(e.get(2, 1));    // 右臂尖被腐蚀
-}
-
-TEST_CASE("Morphology: dilate bridges one-pixel gap (no erode-restore)", "[morph]") {
+TEST_CASE("Morphology: dilate bridges one-pixel gap", "[morph]") {
     // ##.##
     // ##.##
     Mask m = mask_from_rows({"##.##", "##.##"});

@@ -123,6 +123,38 @@ TEST_CASE("Splitter: e2e crop then png roundtrip", "[splitter]") {
     CHECK(loaded.height() == 4);
 }
 
+TEST_CASE("Splitter: auto fallback auto-filters noise fragments", "[splitter]") {
+    // 2 个大块 + 30 个散布 1px 噪点（模拟白底素材表去背景后的抗锯齿碎片）：
+    // 噪点位置用伪随机散布，避免排列成规则网格被 grid 检测命中
+    std::vector<std::tuple<int, int, int, int>> blocks = {
+        {5, 5, 40, 40}, {60, 60, 40, 40}};
+    for (int i = 0; i < 30; ++i) {
+        blocks.push_back({100 + (i * 7) % 90, 5 + (i * 13) % 90, 1, 1});
+    }
+    Image img = image_with_blocks(blocks, 200, 200);
+
+    // components 模式默认不过滤：32 个分量
+    SplitOptions comp_opts;
+    REQUIRE(split_image(img, comp_opts).sprites.size() == 32);
+
+    // auto 模式：检测不到网格回退 components，自动推导 min-size 滤噪 → 2 个大块
+    SplitOptions auto_opts;
+    auto_opts.mode = DetectionMode::Auto;
+    auto result = split_image(img, auto_opts);
+    REQUIRE(result.sprites.size() == 2);
+    for (const auto& r : result.sprites) {
+        CHECK(r.width == 40);
+        CHECK(r.height == 40);
+    }
+
+    // 用户显式指定 min-size 时优先于自动推导（45x45 连大块也被滤掉）
+    SplitOptions strict;
+    strict.mode = DetectionMode::Auto;
+    strict.min_width = 45;
+    strict.min_height = 45;
+    CHECK(split_image(img, strict).sprites.empty());
+}
+
 TEST_CASE("Splitter: external bg_mask drives detection (remote pipeline)", "[splitter]") {
     // 整图不透明灰色（无纯色背景差异），remove_background 下 color 算法会把整图
     // 当 1 个分量；外部 bg_mask 应完全决定切分，而非 color 算法。

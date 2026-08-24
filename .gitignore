@@ -11,3 +11,6 @@ sprites/
 
 # 系统文件
 .DS_Store
+
+# 工具工作区缓存
+.workbuddy/
