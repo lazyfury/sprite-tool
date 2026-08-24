@@ -1,6 +1,9 @@
 # 构建产物
 build/
 
+# Python venv（examples/rembg-api）
+.venv/
+
 # 输出目录（CLI 默认 ./sprites 及手工输出）
 sprites/
 *.png
