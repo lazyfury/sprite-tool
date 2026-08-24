@@ -1,0 +1,89 @@
+# Sprite Splitter
+
+雪碧图智能切割工具（Sprite Sheet Analyzer）：从 Sprite Sheet 中自动检测并切分出独立精灵，导出 PNG / JSON 元数据 / Godot AtlasTexture。
+
+**核心产品是分析器，不是单纯的切割器** —— 检测出 sprite rects 后，可自由导出为多种目标格式。
+
+## 技术路线
+
+```
+        ┌──────────── CLI（Phase 1-2）
+        │
+C++ Core ──────── Godot GDExtension（Phase 5）
+        │
+        └──────── macOS GUI（未来）
+```
+
+- **C++20 核心算法库**（`core/`）：零第三方运行时依赖、不依赖 Godot，可独立测试与复用
+- 图片读写：stb_image / stb_image_write（vendored 于 `third_party/`）
+- 构建：CMake + ninja；测试：Catch2（单头版）
+
+## 功能路线
+
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| M1 | C++ Core：Image / Mask / Connected Components / Bounding Box / Crop / PNG 导出 + CLI | ✅ 完成 |
+| M2 | Grid Detection / Auto / Padding / 最小尺寸 / Merge Distance / Morphology / JSON 导出 | ✅ 完成（auto 挂起） |
+| M3 | 背景清理（颜色采样 + Flood Fill + 手动背景色区间）+ 透明导出 + 收缩 --contract + 图片分析 --info | ✅ 完成 |
+| M4 | AI 分割（ONNX，可选） | ⏸ 搁置 |
+| M5 | Godot GDExtension 编辑器插件（导出 PNG / AtlasTexture / SpriteFrames） | ⏸ 搁置 |
+
+> 规划细节见 [`agent.md`](agent.md)，任务状态见 [`todo.md`](todo.md)。
+
+## 快速上手（可用）
+
+```bash
+# 环境准备（一次性）
+brew install cmake ninja
+
+# 构建
+cmake -B build
+cmake --build build -j
+
+# 0) 分析图片并获取推荐参数（不切分）
+build/sprite-split input.png --info
+
+# 1) 透明背景 PNG：按 alpha 切分，导出 PNG + JSON
+build/sprite-split input.png --alpha-threshold 10 --padding 2 --output ./sprites --json
+
+# 2) 白底无透明通道素材：背景清理 + 透明导出 + 网格模式（8x8）
+build/sprite-split sheet.png --remove-background --mode grid --cell-size 8 --output ./sprites
+
+# 3) 连通分量合并（角色上下块间隔 2px）
+build/sprite-split character.png --remove-background --merge-distance 3 --output ./sprites
+
+# 4) 手动画框：交互输入 'x y width height'，写 meta.json + 切图
+build/sprite-split input.png --manual --output ./sprites
+
+# 5) 从 meta.json 加载 rects 直接切图（可先自动切分再手工编辑 meta.json）
+build/sprite-split input.png --from-json meta.json --output ./sprites
+
+# 6) 仅导出 JSON（不切 PNG；无 --output 时 JSON 直出 stdout，供 UI 调用）
+build/sprite-split input.png --remove-background --json-only
+build/sprite-split input.png --remove-background --json-only --output ./sprites
+
+# 7) 橡皮擦工作流：生成全白 mask + meta.json → UI 编辑 mask（黑=擦除）→ 重切
+build/sprite-split input.png --mode auto --gen-masks --output ./sprites
+build/sprite-split input.png --from-json sprites/meta.json --output sprites_out
+
+# 测试
+ctest --test-dir build
+```
+
+> 完整参数见 `build/sprite-split --help`（含 --min-width/--min-height/--background-threshold/--mode/--cell-size/--merge-distance/--json/-q/--version）
+> ⚠️ `--mode auto` 暂不可靠（评分不稳定），优先手动指定 --cell-size
+
+## 项目结构
+
+```
+core/           C++ 核心算法库（image / mask / segmentation / model / export）
+cli/            CLI 入口
+godot/          Godot GDExtension（Phase 5）
+tests/          Catch2 单元测试
+third_party/    vendored 第三方依赖（stb / catch2 / json）
+docs/           设计文档
+```
+
+## 状态
+
+**规划期，未开工。** 首个里程碑 M1（C++ Core + CLI）开工前需确认安装 cmake/ninja。
