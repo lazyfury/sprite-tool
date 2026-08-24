@@ -12,7 +12,7 @@
 //   sheet <input> --cols N [flags]    重排为规整 sprite sheet（支持 --from-json）
 //
 // 通用 flag：
-//   --output DIR          输出目录（默认 ./sprites）
+//   --output DIR          输出目录（默认 ./out/sprites）
 //   --format json|text    结构化 JSON 结果输出到 stdout（默认 text；json 模式
 //                         下 stdout 只含结果对象，进度/日志走 stderr，便于管道）
 //   -q, --quiet           文本模式：只输出最终摘要
@@ -84,7 +84,7 @@ struct Out {
 // ============================ 共享选项 ============================
 
 struct CommonOpts {
-    std::string output_dir = "sprites";
+    std::string output_dir = "out/sprites";
     bool output_set = false;
     bool json_format = false;
     bool quiet = false;
@@ -319,7 +319,7 @@ int run_info(const CmdArgs& args, const CliOpts& o, Out& out) {
         if (s.suggested_min_width > 1)
             example += " --min-width " + std::to_string(s.suggested_min_width) +
                        " --min-height " + std::to_string(s.suggested_min_height);
-        example += " --output sprites --json";
+        example += " --output out/sprites --json";
 
         if (out.json) {
             out.res["width"] = s.width;
@@ -780,7 +780,7 @@ struct CommandContext {
 void add_common_flags(CLI::App* cmd, CommandContext& ctx) {
     auto& co = ctx.opts.common;
     cmd->add_option("--output", co.output_dir,
-                    "output directory (default ./sprites)");
+                    "output directory (default ./out/sprites)");
     cmd->add_option("--format", co.format_str, "machine-readable JSON result on stdout")
         ->check(CLI::IsMember({"json", "text"}));
     cmd->add_flag("-q,--quiet", co.quiet, "text mode: summary only");

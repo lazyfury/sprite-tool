@@ -88,11 +88,11 @@ struct BackgroundOptions {
 
 ```bash
 # 前景占满四角 → 四角取色失效，改由种子取色 + 扩散
-build/sprite-split split char.png --remove-background --seed 300,5 --seed 5,400 --output ./sprites
+build/sprite-split split char.png --remove-background --seed 300,5 --seed 5,400 --output ./out/sprites
 
 # 种子 + 显式阈值，导出透明 + JSON
 build/sprite-split split sheet.png --remove-background --seed 10,10 --background-threshold 20 \
-  --output ./sprites --json
+  --output ./out/sprites --json
 ```
 
 ## 3. 边界与回退

@@ -69,7 +69,7 @@ curl -sS http://127.0.0.1:8000/healthz
 
 # 2. C++ CLI 通过 URL 调用（其他子命令 split/manual/from-json/sheet/info 同样支持）
 build/sprite-split split char.png --remove-background --bg-backend remote \
-  --bg-url http://127.0.0.1:8000 --output sprites --json
+  --bg-url http://127.0.0.1:8000 --output out/sprites --json
 ```
 
 服务不可达时 C++ 侧会 `warning:` 并自动回退纯算法后端（四角采样 + flood fill），不影响可用性。

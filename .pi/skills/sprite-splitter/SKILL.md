@@ -35,38 +35,38 @@ cmake --build build -j
 build/sprite-split info input.png
 
 # 1) 透明背景素材：直接切分
-build/sprite-split split input.png --output sprites --json
+build/sprite-split split input.png --output out/sprites --json
 
 # 2) 白底无透明通道素材：先去背景（透明 PNG），再切分 —— 两命令
 build/sprite-split remove-background sheet.png --output tmp
-build/sprite-split split tmp/sheet_transparent.png --output sprites --json
+build/sprite-split split tmp/sheet_transparent.png --output out/sprites --json
 
 # 2.5) 一行式真管道（--stdout 输出 PNG 二进制，split 从 stdin '-' 读）
 build/sprite-split remove-background sheet.png --stdout | \
-  build/sprite-split split - --output sprites --json
+  build/sprite-split split - --output out/sprites --json
 
 # 3) 网格表：--mode grid --cell-size N（8 的倍数常用）
 build/sprite-split remove-background grid.png --stdout | \
-  build/sprite-split split - --mode grid --cell-size 8 --output sprites
+  build/sprite-split split - --mode grid --cell-size 8 --output out/sprites
 
 # 4) 角色被间隙拆开：--merge-distance N 合并
 build/sprite-split remove-background char.png --stdout | \
-  build/sprite-split split - --merge-distance 3 --output sprites
+  build/sprite-split split - --merge-distance 3 --output out/sprites
 
 # 5) 手动画框 / 从 meta.json 重切
-build/sprite-split manual input.png --output sprites
-build/sprite-split from-json input.png sprites/meta.json --output sprites
+build/sprite-split manual input.png --output out/sprites
+build/sprite-split from-json input.png out/sprites/meta.json --output out/sprites
 
 # 6) 重排 sprite sheet（from-json 或自动检测；输入透明图）
-build/sprite-split sheet input.png --cols 8 --from-json sprites/meta.json --output sheet
+build/sprite-split sheet input.png --cols 8 --from-json out/sprites/meta.json --output sheet
 build/sprite-split sheet input.png --cols 8 --mode grid --cell-size 8 --output sheet
 
 # 7) 机器可读输出（管道友好）：--format json，stdout 只含结果对象，进度/日志走 stderr
 build/sprite-split info input.png --format json | jq '.recommended'
-build/sprite-split split input.png --output sprites --format json | jq '.count'
+build/sprite-split split input.png --output out/sprites --format json | jq '.count'
 
 # 8) 只需一张透明图（不切分）：整图去背景，输出 <stem>_transparent.png
-build/sprite-split remove-background photo.png --output sprites
+build/sprite-split remove-background photo.png --output out/sprites
 build/sprite-split remove-background photo.png --bg-backend remote --format json | jq '.output'
 ```
 
@@ -76,7 +76,7 @@ build/sprite-split remove-background photo.png --bg-backend remote --format json
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| `--output DIR` | `./sprites` | 输出目录（自动创建），文件名 `<stem>_transparent.png` |
+| `--output DIR` | `./out/sprites` | 输出目录（自动创建），文件名 `<stem>_transparent.png` |
 | `--background-threshold N` | `12` | 背景色距离阈值下限（RGB 曼哈顿距离）。背景自身有压缩/渐变噪声时，有效阈值会自动放大到 `max(N, 噪声自适应值)` |
 | `--edge-clean N` | `3` | 边缘过渡色清扫圈数（物体边缘压缩/AA 残色；0 = 关） |
 | `--bg-color R,G,B` | 自动 | 手动指定背景色（环带采样失效时用，与 threshold 构成颜色区间） |
@@ -90,7 +90,7 @@ build/sprite-split remove-background photo.png --bg-backend remote --format json
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| `--output DIR` | `./sprites` | 输出目录（自动创建） |
+| `--output DIR` | `./out/sprites` | 输出目录（自动创建） |
 | `--alpha-threshold N` | `1` | alpha > N 视为前景 |
 | `--min-width/--min-height N` | `1` | 过滤小于该尺寸的分量（滤噪点） |
 | `--mode MODE` | components | `components`（连通分量）/ `grid`（网格）/ `auto` |
@@ -105,7 +105,7 @@ build/sprite-split remove-background photo.png --bg-backend remote --format json
 
 | 参数 | 说明 |
 |---|---|
-| `--output DIR` | 输出目录（默认 `./sprites`） |
+| `--output DIR` | 输出目录（默认 `./out/sprites`） |
 
 `manual` 从 **stdin** 读框（`x y width height` 每行一个，空行或 `q` 结束），始终写 meta.json；不支持 `-` 输入。
 
@@ -136,7 +136,7 @@ build/sprite-split remove-background photo.png --bg-backend remote --format json
 3. split 按推荐参数切分 → 检查输出
 4. 不满意 → 手动微调：改 meta.json 或用 manual 重画框
 5. from-json 按手工 rect 精确重切
-6. 需要整图打包 → sheet --cols N --from-json sprites/meta.json
+6. 需要整图打包 → sheet --cols N --from-json out/sprites/meta.json
 ```
 
 ## 常见陷阱

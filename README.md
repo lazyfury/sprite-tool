@@ -51,19 +51,19 @@ cmake --build build -j
 build/sprite-split info input.png
 
 # 1) 透明背景 PNG：按 alpha 切分，导出 PNG + JSON
-build/sprite-split split input.png --alpha-threshold 10 --output ./sprites --json
+build/sprite-split split input.png --alpha-threshold 10 --output ./out/sprites --json
 
 # 2) 白底无透明通道素材：先去背景（输出透明图），再切分（两命令管道）
 build/sprite-split remove-background sheet.png --output ./tmp
-build/sprite-split split ./tmp/sheet_transparent.png --mode grid --cell-size 8 --output ./sprites
+build/sprite-split split ./tmp/sheet_transparent.png --mode grid --cell-size 8 --output ./out/sprites
 
 # 2.5) 一行式管道（--stdout：PNG 二进制直出，无需中间文件）
 build/sprite-split remove-background sheet.png --stdout | \
-  build/sprite-split split - --mode grid --cell-size 8 --output ./sprites
+  build/sprite-split split - --mode grid --cell-size 8 --output ./out/sprites
 
 # 3) 连通分量合并（角色上下块间隔 2px；先去背景再切）
 build/sprite-split remove-background character.png --stdout | \
-  build/sprite-split split - --merge-distance 3 --output ./sprites
+  build/sprite-split split - --merge-distance 3 --output ./out/sprites
 
 # 3.5) AI 背景清理（remote 后端）：启动 examples/rembg-api 后，通过 URL 调用
 ./examples/rembg-api/run.sh   # 独立 Python 服务（FastAPI + rembg，端口 8000）
@@ -72,29 +72,29 @@ build/sprite-split remove-background photo.png --bg-backend remote \
 # 服务不可达时自动 warning + 回退纯算法，不影响可用性
 
 # 4) 手动画框：交互输入 'x y width height'，写 meta.json + 切图
-build/sprite-split manual input.png --output ./sprites
+build/sprite-split manual input.png --output ./out/sprites
 
 # 5) 从 meta.json 加载 rects 直接切图（可先自动切分再手工编辑 meta.json）
-build/sprite-split from-json input.png sprites/meta.json --output ./sprites
+build/sprite-split from-json input.png out/sprites/meta.json --output ./out/sprites
 
 # 6) 仅导出 JSON（不切 PNG；无 --output 时 JSON 直出 stdout，供 UI 调用）
 build/sprite-split split input.png --json-only
-build/sprite-split split input.png --json-only --output ./sprites
+build/sprite-split split input.png --json-only --output ./out/sprites
 
 # 7) 橡皮擦工作流：生成全白 mask + meta.json → UI 编辑 mask（黑=擦除）→ 重切
-build/sprite-split split input.png --mode auto --gen-masks --output ./sprites
-build/sprite-split from-json input.png sprites/meta.json --output sprites_out
+build/sprite-split split input.png --mode auto --gen-masks --output ./out/sprites
+build/sprite-split from-json input.png out/sprites/meta.json --output sprites_out
 
 # 8) 重排为规整 sprite sheet（--from-json 加载已有 rects，或自动检测）
-build/sprite-split sheet input.png --cols 8 --from-json sprites/meta.json --output ./sheet
+build/sprite-split sheet input.png --cols 8 --from-json out/sprites/meta.json --output ./sheet
 build/sprite-split sheet input.png --cols 8 --mode grid --cell-size 8 --output ./sheet
 
 # 9) 机器可读输出（管道友好）：--format json，stdout 只含结果对象，进度走 stderr
 build/sprite-split info input.png --format json | jq '.components'
-build/sprite-split split input.png --output ./sprites --format json | jq '.count'
+build/sprite-split split input.png --output ./out/sprites --format json | jq '.count'
 
 # 10) 只需一张透明图（不切分）：整图去背景
-build/sprite-split remove-background photo.png --output ./sprites
+build/sprite-split remove-background photo.png --output ./out/sprites
 build/sprite-split remove-background photo.png --format json | jq '.background_percent'
 
 # 测试
