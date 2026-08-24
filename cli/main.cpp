@@ -110,8 +110,11 @@ const char* kSplitHelp =
     "\n"
     "Background cleanup (fully-opaque input needs this):\n"
     "  --remove-background    remove near-uniform background, export transparent\n"
-    "  --background-threshold N  color distance threshold (default 12)\n"
-    "  --bg-color R,G,B       manual background color (overrides corner sampling)\n"
+    "  --background-threshold N  color distance threshold floor (default 12;\n"
+    "                        auto-grows with background noise)\n"
+    "  --edge-clean N        edge transition cleanup rings, 1 ring ~ 1px (default 3;\n"
+    "                        0 = off)\n"
+    "  --bg-color R,G,B       manual background color (overrides ring sampling)\n"
     "\n"
     "Export:\n"
     "  --output DIR           output directory (default ./sprites)\n"
@@ -136,8 +139,11 @@ const char* kManualHelp =
     "Flags:\n"
     "  --output DIR           output directory (default ./sprites)\n"
     "  --remove-background    remove near-uniform background, export transparent\n"
-    "  --background-threshold N  color distance threshold (default 12)\n"
-    "  --bg-color R,G,B       manual background color (overrides corner sampling)\n"
+    "  --background-threshold N  color distance threshold floor (default 12;\n"
+    "                        auto-grows with background noise)\n"
+    "  --edge-clean N        edge transition cleanup rings, 1 ring ~ 1px (default 3;\n"
+    "                        0 = off)\n"
+    "  --bg-color R,G,B       manual background color (overrides ring sampling)\n"
     "  --format json|text     machine-readable JSON result on stdout (default text)\n"
     "  -q, --quiet            text mode: summary only\n"
     "\n"
@@ -153,8 +159,11 @@ const char* kFromJsonHelp =
     "Flags:\n"
     "  --output DIR           output directory (default ./sprites)\n"
     "  --remove-background    remove near-uniform background, export transparent\n"
-    "  --background-threshold N  color distance threshold (default 12)\n"
-    "  --bg-color R,G,B       manual background color (overrides corner sampling)\n"
+    "  --background-threshold N  color distance threshold floor (default 12;\n"
+    "                        auto-grows with background noise)\n"
+    "  --edge-clean N        edge transition cleanup rings, 1 ring ~ 1px (default 3;\n"
+    "                        0 = off)\n"
+    "  --bg-color R,G,B       manual background color (overrides ring sampling)\n"
     "  --format json|text     machine-readable JSON result on stdout (default text)\n"
     "  -q, --quiet            text mode: summary only\n"
     "\n"
@@ -180,8 +189,11 @@ const char* kSheetHelp =
     "  --merge-distance N     merge components within N px (0 = off, components only)\n"
     "  --cell-size N          grid cell size for grid/auto (default 16)\n"
     "  --remove-background    remove near-uniform background before detection\n"
-    "  --background-threshold N  color distance threshold (default 12)\n"
-    "  --bg-color R,G,B       manual background color (overrides corner sampling)\n"
+    "  --background-threshold N  color distance threshold floor (default 12;\n"
+    "                        auto-grows with background noise)\n"
+    "  --edge-clean N        edge transition cleanup rings, 1 ring ~ 1px (default 3;\n"
+    "                        0 = off)\n"
+    "  --bg-color R,G,B       manual background color (overrides ring sampling)\n"
     "\n"
     "Other:\n"
     "  --output DIR           output directory (default ./sprites)\n"
@@ -269,6 +281,9 @@ void apply_remove_background(CliOpts& o, const std::string&) {
 void apply_background_threshold(CliOpts& o, const std::string& v) {
     o.opts.background_threshold = parse_int(v, "--background-threshold");
 }
+void apply_edge_clean(CliOpts& o, const std::string& v) {
+    o.opts.edge_passes = parse_int(v, "--edge-clean");
+}
 void apply_bg_color(CliOpts& o, const std::string& v) {
     int r = 0, g = 0, b = 0;
     if (std::sscanf(v.c_str(), "%d,%d,%d", &r, &g, &b) != 3 || r < 0 || r > 255 ||
@@ -340,6 +355,7 @@ const std::map<std::string, FlagSpec>& flag_table() {
         {"--remove-background", {"--remove-background", false, apply_remove_background}},
         {"--background-threshold",
          {"--background-threshold", true, apply_background_threshold}},
+        {"--edge-clean", {"--edge-clean", true, apply_edge_clean}},
         {"--bg-color", {"--bg-color", true, apply_bg_color}},
         {"--contract", {"--contract", true, apply_contract}},
         {"--mode", {"--mode", true, apply_mode}},
@@ -431,6 +447,7 @@ void validate_split_opts(const CliOpts& o) {
     if (o.opts.merge_nearby && o.opts.mode != sps::DetectionMode::ConnectedComponents)
         throw ArgError{"--merge-distance only applies to components mode"};
     if (o.opts.contract < 0) throw ArgError{"--contract must be >= 0"};
+    if (o.opts.edge_passes < 0) throw ArgError{"--edge-clean must be >= 0"};
     if (o.opts.has_bg_color && !o.opts.remove_background)
         throw ArgError{"--bg-color requires --remove-background"};
 }
@@ -442,6 +459,7 @@ void apply_background_cleanup(sps::Image& image, const CliOpts& o) {
     bg.threshold = o.opts.background_threshold;
     bg.has_bg_color = o.opts.has_bg_color;
     bg.bg_color = o.opts.bg_color;
+    bg.edge_passes = o.opts.edge_passes;
     sps::Mask background = sps::background_mask(image, bg);
     sps::make_background_transparent(image, background);
 }
@@ -610,7 +628,7 @@ int run_info(int argc, char** argv, int start) {
                       << "bg estimate:        rgb(" << static_cast<int>(s.bg_estimate.r)
                       << "," << static_cast<int>(s.bg_estimate.g) << ","
                       << static_cast<int>(s.bg_estimate.b) << ")"
-                      << (s.bg_uniform ? " [uniform corners]" : " [non-uniform]") << "\n"
+                      << (s.bg_uniform ? " [uniform]" : " [non-uniform]") << "\n"
                       << "foreground (t=" << bg_threshold << "): " << s.foreground_percent
                       << "% (" << s.foreground_pixels << " px)\n"
                       << "components:         " << s.component_count << " (largest "
@@ -636,7 +654,7 @@ int run_split(int argc, char** argv, int start) {
     std::vector<std::string> pos;
     const std::set<std::string> allowed = {
         "--output", "--alpha-threshold", "--padding", "--min-width", "--min-height",
-        "--remove-background", "--background-threshold", "--bg-color", "--contract",
+        "--remove-background", "--background-threshold", "--edge-clean", "--bg-color", "--contract",
         "--mode", "--cell-size", "--merge-distance", "--json", "--json-only",
         "--gen-masks", "--erase-tl", "--format", "-q", "--quiet", "--help", "-h"};
     auto pr = parse_args(o, allowed, {"input"}, kSplitHelp, argc, argv, start, pos);
@@ -769,7 +787,7 @@ int run_manual(int argc, char** argv, int start) {
     Out out;
     std::vector<std::string> pos;
     const std::set<std::string> allowed = {
-        "--output", "--remove-background", "--background-threshold", "--bg-color",
+        "--output", "--remove-background", "--background-threshold", "--edge-clean", "--bg-color",
         "--format", "-q", "--quiet", "--help", "-h"};
     auto pr = parse_args(o, allowed, {"input"}, kManualHelp, argc, argv, start, pos);
     if (pr == ParseResult::Help) return 0;
@@ -848,7 +866,7 @@ int run_from_json(int argc, char** argv, int start) {
     Out out;
     std::vector<std::string> pos;
     const std::set<std::string> allowed = {
-        "--output", "--remove-background", "--background-threshold", "--bg-color",
+        "--output", "--remove-background", "--background-threshold", "--edge-clean", "--bg-color",
         "--format", "-q", "--quiet", "--help", "-h"};
     auto pr = parse_args(o, allowed, {"input", "meta.json"}, kFromJsonHelp, argc, argv,
                          start, pos);
@@ -907,7 +925,7 @@ int run_sheet(int argc, char** argv, int start) {
     const std::set<std::string> allowed = {
         "--cols", "--from-json", "--output",
         "--alpha-threshold", "--padding", "--min-width", "--min-height",
-        "--remove-background", "--background-threshold", "--bg-color", "--contract",
+        "--remove-background", "--background-threshold", "--edge-clean", "--bg-color", "--contract",
         "--mode", "--cell-size", "--merge-distance",
         "--format", "-q", "--quiet", "--help", "-h"};
     auto pr = parse_args(o, allowed, {"input"}, kSheetHelp, argc, argv, start, pos);

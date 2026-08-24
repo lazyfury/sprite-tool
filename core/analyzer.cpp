@@ -5,29 +5,9 @@
 #include "segmentation/connected_components.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <vector>
 
 namespace sps {
-
-namespace {
-
-// 四角颜色彼此接近？
-bool corners_uniform(const Image& image) {
-    const int w = image.width();
-    const int h = image.height();
-    const Pixel c[4] = {image.at(0, 0), image.at(w - 1, 0), image.at(0, h - 1),
-                        image.at(w - 1, h - 1)};
-    for (int i = 1; i < 4; ++i) {
-        const int d = std::abs(static_cast<int>(c[i].r) - c[0].r) +
-                      std::abs(static_cast<int>(c[i].g) - c[0].g) +
-                      std::abs(static_cast<int>(c[i].b) - c[0].b);
-        if (d > 8) return false;
-    }
-    return true;
-}
-
-}  // namespace
 
 ImageStats analyze_image(const Image& image, int background_threshold, bool has_bg_color,
                          Pixel bg_color) {
@@ -55,13 +35,10 @@ ImageStats analyze_image(const Image& image, int background_threshold, bool has_
     s.uniform_alpha = (s.transparent_pixels == 0 && s.semi_pixels == 0) ||
                       (s.opaque_pixels == 0);
 
-    // ---- 背景色估计（四角均值）----
-    const Pixel tl = image.at(0, 0), tr = image.at(s.width - 1, 0);
-    const Pixel bl = image.at(0, s.height - 1), br = image.at(s.width - 1, s.height - 1);
-    s.bg_estimate.r = static_cast<uint8_t>((tl.r + tr.r + bl.r + br.r) / 4);
-    s.bg_estimate.g = static_cast<uint8_t>((tl.g + tr.g + bl.g + br.g) / 4);
-    s.bg_estimate.b = static_cast<uint8_t>((tl.b + tr.b + bl.b + br.b) / 4);
-    s.bg_uniform = corners_uniform(image);
+    // ---- 背景色估计（外圈环带中位数 + 噪声水平）----
+    const BackgroundEstimate est = estimate_background(image, has_bg_color, bg_color);
+    s.bg_estimate = est.color;
+    s.bg_uniform = est.sigma_sum <= 8.0;  // 噪声水平低 → 背景近似纯色
 
     // ---- 前景占比（flood fill 背景清理）----
     BackgroundOptions bg;

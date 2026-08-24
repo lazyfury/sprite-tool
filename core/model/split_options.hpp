@@ -20,9 +20,13 @@ struct SplitOptions {
     bool remove_background = false;
     // remove_background=true 时的颜色距离阈值（RGB 曼哈顿距离）
     int background_threshold = 12;
-    // remove_background=true 时手动指定背景色（可选；不设则四角采样）
+    // remove_background=true 时手动指定背景色（可选；不设则环带采样）
     bool has_bg_color = false;
     Pixel bg_color{};
+
+    // 边缘过渡色清扫圈数（remove_background=true 时有效）：
+    // 物体边缘的过渡相近色从背景边界向内补吃 N 圈。0=关闭，默认 3。
+    int edge_passes = 3;
 
     // 检测出 sprite 后向内收缩的像素数（类似 PS 收缩/去杂边），默认 0=不收缩
     int contract = 0;

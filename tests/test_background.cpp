@@ -268,3 +268,64 @@ TEST_CASE("Splitter: negative contract throws", "[background]") {
     opts.contract = -1;
     CHECK_THROWS_AS(split_image(Image(8, 8), opts), std::invalid_argument);
 }
+
+TEST_CASE("Background: noisy compressed-like bg is cleaned adaptively", "[background]") {
+    // 模拟 JPEG 压缩噪声：纯色背景每通道 ±5 抖动（曼哈顿距离最高 15），
+    // 旧固定阈值 12 会漏掉大量背景；自适应阈值应自动放大并清干净。
+    const Pixel base{64, 148, 73};
+    Image img(60, 60);
+    for (int y = 0; y < 60; ++y)
+        for (int x = 0; x < 60; ++x) {
+            const int off = ((x * 7 + y * 13) % 11) - 5;  // -5..5
+            img.at(x, y) = Pixel{static_cast<uint8_t>(base.r + off),
+                                 static_cast<uint8_t>(base.g + off),
+                                 static_cast<uint8_t>(base.b + off), 255};
+        }
+    // 中心深色块（远离背景色，不应被吃）
+    for (int y = 20; y < 30; ++y)
+        for (int x = 20; x < 30; ++x) img.at(x, y) = Pixel{0, 0, 0, 255};
+
+    BackgroundOptions opts;
+    opts.threshold = 12;
+    Mask bg = background_mask(img, opts);
+
+    // 背景（含噪声）全部被清理
+    CHECK(bg.get(0, 0));
+    CHECK(bg.get(59, 59));
+    CHECK(bg.get(1, 30));
+    // 物体内部仍是前景
+    CHECK_FALSE(bg.get(25, 25));
+}
+
+TEST_CASE("Background: transition halo near object edge is cleaned", "[background]") {
+    // 纯色背景 + 物体边缘一圈「过渡相近色」（压缩/AA 造成的偏色带），
+    // 应被边缘清扫吃掉，而物体内部保留。
+    const Pixel base{64, 148, 73};
+    Image img(50, 50);
+    for (int y = 0; y < 50; ++y)
+        for (int x = 0; x < 50; ++x) {
+            const int off = ((x * 5 + y * 7) % 5) - 2;  // -2..2 轻噪声
+            img.at(x, y) = Pixel{static_cast<uint8_t>(base.r + off),
+                                 static_cast<uint8_t>(base.g + off),
+                                 static_cast<uint8_t>(base.b + off), 255};
+        }
+    const int bx = 20, by = 20, bw = 10, bh = 10;
+    for (int y = by; y < by + bh; ++y)
+        for (int x = bx; x < bx + bw; ++x) img.at(x, y) = Pixel{0, 0, 0, 255};
+    // 物体外一圈 1px 过渡带：颜色介于背景与物体之间（dist ≈ 24，超过严格阈值、
+    // 低于清扫容差）。
+    for (int y = by - 1; y <= by + bh; ++y)
+        for (int x = bx - 1; x <= bx + bw; ++x) {
+            const bool in_block = (x >= bx && x < bx + bw && y >= by && y < by + bh);
+            if (!in_block) img.at(x, y) = Pixel{55, 140, 66, 255};
+        }
+
+    BackgroundOptions opts;
+    opts.threshold = 12;
+    Mask bg = background_mask(img, opts);
+
+    CHECK(bg.get(0, 0));                     // 背景
+    CHECK(bg.get(bx - 1, by));               // 过渡带（左）被清扫
+    CHECK(bg.get(by, bx + bw));              // 过渡带（右）被清扫
+    CHECK_FALSE(bg.get(bx + 2, by + 2));     // 物体内部仍是前景
+}

@@ -19,9 +19,9 @@ struct ImageStats {
     bool has_transparency = false;   // 存在透明/半透明像素
     bool uniform_alpha = false;      // 全图 alpha 一致（全不透明或全透明）
 
-    // 背景色估计（四角均值）与一致性
+    // 背景色估计（外圈环带中位数）与一致性
     Pixel bg_estimate{};
-    bool bg_uniform = false;  // 四角颜色彼此接近（差 <= 8）
+    bool bg_uniform = false;  // 背景噪声水平低（σ_sum <= 8）
 
     // 背景清理后的前景占比（threshold 由调用方给出）
     long foreground_pixels = 0;
