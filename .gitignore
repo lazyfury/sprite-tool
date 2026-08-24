@@ -4,10 +4,11 @@ build/
 # Python venv（examples/rembg-api）
 .venv/
 
-# 输出目录（CLI 默认 ./sprites 及手工输出）
-sprites/
+# 输出目录（CLI 默认 ./sprites 及手工输出；/ 锚定仓库根，不误伤 godot/project/sprites 素材）
+/sprites/
 *.png
 !tests/fixtures/*.png
+!godot/project/sprites/*.png
 
 # 系统文件
 .DS_Store

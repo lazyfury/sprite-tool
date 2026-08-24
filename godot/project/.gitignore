@@ -1,0 +1,10 @@
+# Godot 自动生成
+.godot/
+
+# 运行时测试产物
+out_sprites/
+
+# GDExtension 动态库产物（.gdextension 配置文件保留提交）
+addons/sprite_splitter/bin/macos/
+addons/sprite_splitter/bin/windows/
+addons/sprite_splitter/bin/linux/

@@ -1,0 +1,12 @@
+# Godot 自动生成
+.godot/
+*.godot
+
+# 运行时测试产物
+out_sprites/
+
+# GDExtension 构建
+build/
+godot-cpp/build/
+
+# 各平台动态库产物规则在 godot/project/.gitignore（相对 project/，含斜杠模式按所在目录解析）

@@ -35,6 +35,7 @@
 
 - `api.github.com` 快（~0.35s）；`github.com` 慢（~10s）；`raw.githubusercontent.com` 抖动（时好时坏）；代理 7890 未运行
 - **结论：所有第三方依赖 vendoring 进 `third_party/`**（源码入库，构建不依赖网络），经 `api.github.com` 下载一次后入库
+  - **例外：godot-cpp 不入库**——GDExtension 构建依赖，用 **git submodule**（gitlink 指针 + .gitmodules），参考 limboai 的"源码库不存实体"；本环境初始化走 api.github.com tarball + `git update-index --cacheinfo 160000`（github.com git clone 在代理下不通）
 - 已实测可获取：
   - `stb_image.h` (v2.30, 283KB) / `stb_image_write.h` (71KB) — 图片读写
   - `catch_amalgamated.hpp` (548KB) — 测试框架单头版
@@ -188,13 +189,18 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
 - [ ] 模型文件外置 `models/`（rembg/isnet/custom），核心不绑定模型
 
 #### M5 — Godot GDExtension 插件
-- [ ] godot-cpp submodule（`godot-4.5-stable` 或 master 10.x + api_version）
-- [ ] 数据转换层：godot::Image ↔ core Image；导出 SpriteRect 数组
-- [ ] `SpriteSplitter` 单例类（GDScript 可调：`SpriteSplitter.split(image, options) -> Array[Rect2i]`）
-- [ ] EditorPlugin：选择图片 → 预览 → 切分 → 导出 PNG / AtlasTexture / SpriteFrames
-- [ ] 用本机 Godot 4.6.2 加载验证（`.gdextension` 配置各平台动态库）
+- [x] godot-cpp 引入（**git submodule** `godot/godot-cpp`，godot-4.5-stable @ e83fd09，gitlink 指针不入库；本环境 github.com git clone 不通 → api.github.com tarball + `git update-index --cacheinfo 160000` 建指针，2026-08-25 实测）
+- [x] 数据转换层：godot::Image ↔ core Image；SpriteRect → Rect2i（`godot/src/conversion.cpp`）
+- [x] `SpriteSplitter` 类（RefCounted，GDScript 可调 `split/analyze/crop/export_sprite/split_and_export`，`godot/src/sprite_splitter.cpp`）
+- [x] addons 规范布局（`project/addons/sprite_splitter/`：plugin.cfg + editor_plugin.gd（@tool EditorPlugin）+ bin/（.gdextension + 动态库））
+- [ ] EditorPlugin GUI 验证（骨架完成；4.6.2 编辑器模式 bug 阻塞 headless 验证，需 GUI 实测：Plugins 启用 → Tools 菜单切分）
+- [x] 用本机 Godot 4.6.2 加载验证（无头冒烟 24 断言全 PASS；`.gdextension` 配置各平台动态库；addons 布局下加载正常）
 
-**验收**：Godot 编辑器内可对素材表一键切分，生成 `res://sprites/xxx_01.png` 或 atlas 资源。
+**验收**：Godot 编辑器内可对素材表一键切分，生成 `res://sprites/xxx_01.png` 或 atlas 资源。（核心类、导出链路、addons 布局已通；EditorPlugin 待 GUI 验证）
+
+**M5 调研结论（2026-08-25）**：
+- GDExtension 加载机制：运行时只读 `res://.godot/extension_list.cfg`（编辑器扫描 *.gdextension 生成，含 addons/），不扫描 res://；删缓存后须编辑器导入或手动写列表（SKILL.md §2.5）
+- 4.6.2 编辑器模式崩溃（EditorHelp 扩展文档生成 bug）：带扩展 `--import`/`-e` 退出时崩，与 reloadable 无关；规避 = 无扩展两步法导入（SKILL.md §7）
 
 ## 5. 验证标准（每模块提交前）
 
@@ -223,6 +229,11 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
 |---|---|---|
 | `sprite-splitter` | CLI 参数/推荐工作流/陷阱/验证方法 | **调用 `sprite-split` CLI 前必读** |
 | `godot-gdextension` | Godot 4.x GDExtension 制作（类注册/构建/数据转换） | 开发 `godot/`（M5）时读取 |
+| `sprite-plugin-ui` | 插件 UI 开发（布局/交互/独立场景测试/编码约定） | 开发 `godot/project/addons/sprite_splitter/ui/` 时读取 |
+
+**Godot/GDScript 编码约定（强制）**：
+- 节点路径一律用 `/` 表示子层级（`get_node("Main/Content/SidePanel/Side/SplitBtn")`），不链式 get_node、不用 `%` 唯一名
+- GDScript 变量一律显式类型标注（`var x: Type = ...`），**不用 `:=`**（`const` 语言限制除外）；函数参数/返回值标注类型
 
 - **源位置**：`.pi/skills/<name>/SKILL.md`（唯一权威副本，直接编辑这里）
 - **软连接**：`.workbuddy/skills/<name>` → `../../.pi/skills/<name>`（标准项目级扫描位；修改源后软连接自动生效，勿在 `.workbuddy/skills/` 直接改）

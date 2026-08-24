@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://cclkq32g1wpin"]
+
+[ext_resource type="Script" uid="uid://cbprljxdy0f4s" path="res://main.gd" id="1_main"]
+[ext_resource type="Texture2D" path="res://out_sprites/atlas/atlas_01.tres" id="2_h2yge"]
+[ext_resource type="Texture2D" path="res://out_sprites/atlas/atlas_03.tres" id="3_1bvp3"]
+[ext_resource type="Texture2D" path="res://out_sprites/atlas/atlas_02.tres" id="4_1bvp3"]
+
+[node name="Main" type="Node" unique_id=1160149215]
+script = ExtResource("1_main")
+
+[node name="Atlas01" type="Sprite2D" parent="." unique_id=1013882792]
+position = Vector2(94, 53)
+texture = ExtResource("2_h2yge")
+
+[node name="Atlas03" type="Sprite2D" parent="." unique_id=2050902483]
+position = Vector2(245, 85)
+texture = ExtResource("3_1bvp3")
+
+[node name="Atlas02" type="Sprite2D" parent="." unique_id=420446590]
+position = Vector2(169, 201)
+texture = ExtResource("4_1bvp3")

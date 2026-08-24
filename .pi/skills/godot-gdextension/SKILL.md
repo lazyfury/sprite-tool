@@ -29,6 +29,8 @@ description: Godot 4.x C++ 扩展（GDExtension / godot-cpp）制作指南。从
 
 ## 2. 项目结构（官方模板 layout）
 
+### 2.1 纯 GDExtension（无编辑器 UI）——官方模板
+
 ```
 gdextension_cpp_example/
 ├── project/            # Godot 测试工程（含 main.tscn）
@@ -40,9 +42,46 @@ gdextension_cpp_example/
     └── SConstruct 或 CMakeLists.txt  # 构建脚本
 ```
 
+### 2.2 带编辑器 UI（EditorPlugin）——addons 规范布局（官方插件标准）
+
+```
+project/
+├── addons/
+│   └── sprite_splitter/                # 插件目录（名 = 插件名）
+│       ├── plugin.cfg                  # EditorPlugin 注册（[plugin] name/description/author/version/script）
+│       ├── editor_plugin.gd            # @tool + extends EditorPlugin（script 字段指向）
+│       ├── bin/
+│       │   ├── sps_gdextension.gdextension   # GDExtension 配置（放 addons 下一样被扫描）
+│       │   └── macos/xxx.arm64.dylib         # 动态库（gitignore 掉，.gdextension 保留提交）
+│       └── (icon.svg 等资源)
+├── project.godot
+└── 测试脚本/素材
+```
+
+- `plugin.cfg` 是编辑器插件唯一标识：存在有效 `[plugin]` + `script` 指向 `@tool extends EditorPlugin` 脚本，才会出现在 **Project > Project Settings > Plugins** 列表（默认未启用，手动勾选或 GDScript 里 `EditorInterface.set_plugin_enabled`）
+- 插件用到的**所有 GDScript 都要 `@tool`**，否则编辑器里像空文件
+- 扩展类（C++）可直接在 editor_plugin.gd 里 `SpriteSplitter.new()` 使用——GDExtension 类对 GDScript 全局可见
 - 官方模板：`https://github.com/godotengine/godot-cpp-template`（带 CI workflow）
 - 获取 godot-cpp：`git submodule add -b <branch> https://github.com/godotengine/godot-cpp` 或直接 clone
 - 模板 CMakeLists.txt 在模板仓库根目录，是消费端最佳实践参考
+
+## 2.5 GDExtension 加载机制（4.6 源码实测）
+
+```
+编辑器启动（全项目递归扫描 *.gdextension，含 addons/）
+        │  把路径追加写入 res://.godot/extension_list.cfg（一行一个）
+        ▼
+运行/导出时 GDExtensionManager::load_extensions()
+        │  逐行读 extension_list.cfg → load_extension(path) → dlsym(entry_symbol) → 初始化
+        ▼
+类注册（GDREGISTER_CLASS）→ GDScript/编辑器可见
+```
+
+- **发现机制**：运行时**不扫描** res://，只读 `.godot/extension_list.cfg`（`ProjectSettings.get_project_data_path().path_join("extension_list.cfg")`）；该列表由编辑器维护（EditorFileSystem 扫描 .gdextension 时写入）
+- 推论：全新项目/CI 无编辑器时，需先跑一次编辑器模式生成列表（或手动写 .godot/extension_list.cfg）；`.gdextension` 放 addons/ 下与放 bin/ 无差别，都会被扫描
+- 加载时机：`Main::setup` → `GDExtensionManager::load_extensions()`（引擎早期，类注册先于脚本）；编辑器热重载走 `reload_extensions()`（仅 reloadable=true）
+- `[libraries]` 按 平台.debug|release[.arch] 匹配；导出时只打包匹配平台的那一个库
+- 运行时按需加载 `[dependencies]`（第三方动态库）
 
 ## 3. 核心代码模板
 
@@ -168,6 +207,7 @@ GDExtensionBool GDE_EXPORT example_library_init(
 entry_symbol = "example_library_init"
 compatibility_minimum = "4.1"      # 低于此版本的 Godot 拒绝加载
 reloadable = true                   # 编辑器热重载，仅 debug 构建生效
+                                    # ⚠️ 4.6.2 下 =true 会让编辑器模式崩溃（见 §7），需编辑器时改 false
 
 [libraries]
 macos.debug = "./libmyext.macos.template_debug.dylib"
@@ -180,6 +220,7 @@ linux.release.x86_64 = "./libmyext.linux.template_release.x86_64.so"
 
 - `[libraries]` 键格式：`平台.debug|release[.架构]`；导出时 Godot 只打包匹配平台的库
 - macOS 键无架构段；Linux/Windows 需带架构
+- ⚠️ **macOS 产物文件名带架构后缀**（CMake 行为）：`libmyext.macos.template_debug.arm64.dylib`，`.gdextension` 路径必须写 `.arm64`，否则加载失败
 - 也可用绝对 res:// 路径：`"res://bin/libxxx.dylib"`
 
 ## 5. 构建
@@ -196,6 +237,7 @@ linux.release.x86_64 = "./libmyext.linux.template_release.x86_64.so"
 | `GODOTCPP_API_VERSION` | (空) | 目标 API 版本，如 `4.6`；会找 `gdextension/extension_api-4-6.json` |
 | `GODOTCPP_CUSTOM_API_FILE` | (空) | 自定义 api json（优先级最高；自定义引擎/未来版本用） |
 | `GODOTCPP_PRECISION` | `single` | `single` / `double`（必须与引擎一致） |
+| `GODOTCPP_DISABLE_EXCEPTIONS` | **ON** | ⚠️ 默认 ON 且以 **PUBLIC** 传播 `-fno-exceptions` 到所有消费者目标！core 用异常的工程必须显式 `-DGODOTCPP_DISABLE_EXCEPTIONS=OFF`，否则消费者编译报 "cannot use 'throw' with exceptions disabled" |
 | `GODOTCPP_USE_HOT_RELOAD` | 空 | ON 启用热重载记录 |
 | `GODOTCPP_BINDING_HOOK_FILE` | (空) | 绑定生成钩子 py 文件（hook 类名须为 `CustomBindingGeneratorHooks`） |
 | `GODOTCPP_GDEXTENSION_DIR` | `gdextension` | 自定义接口头/API json 目录 |
@@ -281,11 +323,26 @@ scons platform=macos target=template_debug
 
 ```bash
 # 1) 构建（见 §5.1）
-# 2) 用编辑器打开测试工程 project/，检查无脚本错误
-/Applications/Godot.app/Contents/MacOS/Godot --path godot/project -e --quit   # 头铁式冒烟
+# 2) 无头冒烟：直接运行测试工程（main.gd 打印断言 + 退出码）
+/Applications/Godot.app/Contents/MacOS/Godot --headless --path godot/project; echo $?
 # 3) 场景里加 MyClass 节点 → 属性面板可见 → 运行验证逻辑
 # 4) 改代码 → 重编 → 编辑器热重载（需 reloadable=true + template_debug）
 ```
+
+⚠️ **Godot 4.6.2 编辑器模式崩溃（EditorHelp 扩展文档生成 bug，2026-08 源码+实测定位）**：
+- 症状：带 GDExtension 的项目，编辑器模式（`--import` / `-e --quit`）在**退出清理阶段**崩，栈 `EditorHelp::_gen_extensions_docs` ← `DocTools::generate` ← `CallQueue::flush` ← `Main::cleanup`（段错误）
+- 根因：`doc->generate()` 遍历扩展类生成文档时，`Main::cleanup` 已部分析构子系统 → 访问失效对象。**与 reloadable 无关**（`--doctool --gdextension-docs` 正常时序不崩；无扩展对照不崩）
+- 规避（首次导入两步法）：
+  ```bash
+  # 1) 临时移走 .gdextension，无扩展导入生成全部缓存（EXIT 0）
+  mv addons/xxx/bin/xxx.gdextension /tmp/bak
+  godot --headless --path project --import
+  # 2) 恢复 .gdextension，手动把路径写进扩展列表（编辑器下次扫描会保持它）
+  mv /tmp/bak addons/xxx/bin/xxx.gdextension
+  printf 'res://addons/xxx/bin/xxx.gdextension\n' > project/.godot/extension_list.cfg
+  # 3) 之后运行/验证走 --headless 运行模式（不触发 EditorHelp，正常）
+  ```
+- GUI 编辑器打开项目：待实测（headless 必崩）；若 GUI 也崩 → 降级 4.6.1/4.5.x 或等修复版
 
 ## 8. 常见陷阱
 
@@ -298,7 +355,11 @@ scons platform=macos target=template_debug
 7. **热重载不生效**：必须是 `template_debug`/editor 构建（Godot 的 debug 特性），且 `.gdextension` 里 `reloadable = true`
 8. **macOS 动态库签名/路径**：`.gdextension` 里路径写错、或库不在 res:// 下 → 加载失败；`libraries` 键 `macos.debug` 不带架构
 9. **官方文档路径**：4.6 起 C++ 章节在 `tutorials/scripting/cpp/`；rst 源在 `github.com/godotengine/godot-docs` master 分支（raw 直链可读，docs.godotengine.org 页面有反爬）
-10. **网络**：godot-cpp 用 submodule 引入，国内 clone 慢；可 vendored 进 `third_party/` 走 api.github.com 下载
+10. **网络**：godot-cpp 用 **git submodule** 引入（gitlink 指针 + `.gitmodules`，源码不入库，参考 limboai）。本环境 `github.com` git clone 不通（代理 502/Empty reply）→ 初始化走 **api.github.com tarball** 解压到 `godot/godot-cpp` + `git update-index --add --cacheinfo 160000,<full-sha>,godot/godot-cpp` 建立指针（sha 用 `GET api.github.com/repos/godotengine/godot-cpp/commits/<短sha>` 取全量）；其他环境 `git clone --recursive` 或 `git submodule update --init` 即可
+11. **`-fno-exceptions` 传染**（2026-08 实测）：`GODOTCPP_DISABLE_EXCEPTIONS` 默认 ON，`target_compile_options(godot-cpp PUBLIC ...)` 会把 `-fno-exceptions` 传播给所有链接它的目标；core 用 `throw` 的工程必须 `-DGODOTCPP_DISABLE_EXCEPTIONS=OFF`
+12. **macOS 产物带架构后缀**（2026-08 实测）：CMake 输出 `libxxx.macos.template_debug.arm64.dylib`，`.gdextension` 的 `macos.debug` 路径必须含 `.arm64`
+13. **4.6.2 编辑器模式崩溃**（2026-08 实测，见 §7）：带 GDExtension 的项目 `--import`/`-e --quit` 退出时 `EditorHelp::_gen_extensions_docs` 段错误；与 reloadable 无关，用 §7 两步法导入 + 运行模式验证
+14. **运行模式不扫描 res://**（4.6 源码实测）：扩展加载完全依赖 `.godot/extension_list.cfg`（编辑器生成）；删 .godot 后直接运行会加载失败/异常，必须先走一次编辑器导入或手动写列表
 
 ## 9. 参考链接
 

@@ -82,14 +82,26 @@
 
 ## M5 — Godot GDExtension 插件
 
-- [ ] godot-cpp submodule（✅ 调研完成：master 10.x beta 需 api_version=4.6，或 4.5-stable 兼容 4.6；细节见 `.pi/skills/godot-gdextension/SKILL.md` §1）
-- [ ] godot 层构建配置（✅ 调研完成：**CMake 为主**——官方已现代化支持且本机无 scons；`GODOTCPP_TARGET/API_VERSION/CUSTOM_API_FILE` 选项 + 产物命名/落盘见 SKILL.md §5.1；.gdextension 各平台动态库）
-- [ ] 数据转换层：godot::Image ↔ core Image；SpriteRect → Array[Rect2i]
-- [ ] SpriteSplitter 类（GDScript 可调 `SpriteSplitter.split(image, options)`）
-- [ ] EditorPlugin：预览 → 切分 → 导出 PNG / AtlasTexture / SpriteFrames
-- [ ] Godot 4.6.2 本机加载验证（无脚本错误）
+- [x] godot-cpp 引入（✅ 完成：**git submodule** `godot/godot-cpp`，**godot-4.5-stable** @ e83fd09（gitlink 指针，源码不入库，参考 limboai）；github.com git clone 本环境代理下不通（502/Empty reply）→ api.github.com tarball 解压 + `git update-index --cacheinfo 160000,<sha>` 建立指针；CMake 子目录方式构建）
+- [x] godot 层构建配置（✅ 完成：`godot/CMakeLists.txt` 消费端模板 + core 源码直接编入动态库；**GODOTCPP_DISABLE_EXCEPTIONS=OFF 必须显式设**——godot-cpp 的 -fno-exceptions 是 PUBLIC 传播会覆盖消费者目标；macOS 产物带 `.arm64` 后缀；产物落盘 `project/addons/sprite_splitter/bin/<platform>/`）
+- [x] 数据转换层（✅ 完成：`godot/src/conversion.cpp`：godot::Image ↔ sps::Image（RGBA8 深拷贝、非 RGBA8 重建副本后 convert 不污染调用方）、SpriteRect ↔ Rect2i）
+- [x] SpriteSplitter 类（✅ 完成：RefCounted，GDScript 可调 `split/analyze/crop/export_sprite/split_and_export`，options 字典与 CLI 参数对齐；core 异常在边界 try/catch 不泄漏）
+- [x] **addons 规范布局**（✅ 完成：`project/addons/sprite_splitter/`：plugin.cfg + editor_plugin.gd（@tool EditorPlugin，Tools 菜单 → 选 PNG → 自动切分导出）+ bin/（.gdextension + 动态库）；.gdextension 路径改 res://addons/...）
+- [ ] EditorPlugin GUI 验证（editor_plugin.gd 骨架已写、结构规范，但 **4.6.2 编辑器模式 bug 阻塞 headless 验证**，需 GUI 编辑器实测：打开工程 → Plugins 启用 Sprite Splitter → Tools 菜单切分）
+- [x] Godot 4.6.2 本机加载验证（✅ 完成：无头冒烟 24 断言全 PASS、退出码 0；断言值 = CLI golden；addons 布局下扩展正常加载）
+- [x] AtlasTexture 测试（✅ 完成：main.gd 第 10/11 步——读 `sprites/meta.json`（80 区域，复制自 out_sprites/big/meta.json）在大图上直接建 80 个 AtlasTexture，**不切图**、零文件输出；校验 region/越界/重叠 + `get_image()` 与切图产物 sprite_01.png 像素级一致；前 3 个挂 Sprite2D 演示；第 11 步 ResourceSaver 落盘 3 个 `.tres`（atlas 用 load() 导入纹理引用）重载校验一致；无头冒烟全 PASS）
+- [x] 插件 UI 独立场景（M5.1，✅ 完成：`addons/sprite_splitter/ui/sprite_splitter_ui.tscn` + `.gd` + `overlay.gd`，**不挂载编辑器**；选图/分析（自动填建议参数）/切分/预览叠加描边/导出三模式（切 PNG｜仅 meta.json｜AtlasTexture .tres）；`SPS_UI_TEST=1` headless 自动回归全 PASS（64 精灵：64 PNG + 64 tres + meta.json）；编码约定：节点路径 `/` 层级 + var 显式类型不用 `:=`；规划见 `docs/plugin-ui-plan.md`）
+- [ ] M5.2 挂载编辑器（EditorPlugin dock/bottom panel 复用 UI 场景 + 手动框选 crop/export_sprite + 从已有 meta.json 导入 rects + sheet 打包导出需 GDExtension 补 API）
 
-**M5 验收**：编辑器内一键切分，生成 `res://sprites/xxx_01.png` 或 atlas 资源。
+**M5 调研结论（2026-08-25，已入 SKILL.md §2.5/§7/§8）**：
+- **GDExtension 加载机制**：运行时只读 `res://.godot/extension_list.cfg`（每行一个 .gdextension 路径，由编辑器全项目扫描生成，含 addons/）；不扫描 res://。删 .godot 后直接运行扩展不加载 → 必须先编辑器导入或手动写列表
+- **4.6.2 编辑器模式崩溃**：带 GDExtension 的项目 `--import`/`-e --quit` 退出时 `EditorHelp::_gen_extensions_docs` 段错误（DocTools::generate 遍历扩展类时 Main::cleanup 已析构）。与 reloadable 无关（--doctool 正常、无扩展对照正常）。**规避：无扩展两步法导入**（临时移走 .gdextension → --import → 恢复 + 手动写 extension_list.cfg）
+- EditorPlugin 规范：plugin.cfg（[plugin] name/description/author/version/script）+ `@tool extends EditorPlugin` 脚本；默认未启用，Plugins 列表勾选；插件内 GDScript 都要 @tool
+
+**M5 实测坑（已补入 SKILL.md §4/§5.1/§7/§8）**：
+- godot-cpp `GODOTCPP_DISABLE_EXCEPTIONS` 默认 ON 且以 `PUBLIC` 传播 `-fno-exceptions` → 消费 core（用异常）必须配置 `-DGODOTCPP_DISABLE_EXCEPTIONS=OFF`
+- macOS 产物名带架构：`libxxx.macos.template_debug.arm64.dylib`，`.gdextension` 路径须含 `.arm64`
+- 4.6.2 编辑器模式崩溃（EditorHelp 扩展文档生成 bug）→ 两步法导入规避（见上）
 
 ---
 
@@ -108,4 +120,4 @@
 
 ## 进行中
 
-（当前：M1–M4b 全部完成；M4 ONNX 内嵌 / M5 Godot GDExtension 搁置）
+（当前：M1–M4b 全部完成；M5 核心链路 + addons 规范布局完成，EditorPlugin 骨架待 GUI 验证；M4 ONNX 内嵌搁置）
