@@ -21,6 +21,7 @@
 // 退出码：0 正常 / 1 参数错误 / 2 运行错误
 
 #include "analyzer.hpp"
+#include "bg_remote.hpp"
 #include "export/json_exporter.hpp"
 #include "export/png_exporter.hpp"
 #include "export/sheet.hpp"
@@ -116,6 +117,12 @@ const char* kSplitHelp =
     "  --contract N           erode foreground outline by N px, re-crop to the\n"
     "                        shrunk outline (trims halo fringe; remove-background only)\n"
     "\n"
+    "Background backend (remove-background only):\n"
+    "  --bg-backend MODE      color | remote (default color; remote = call the URL below)\n"
+    "  --bg-url URL           remote background service base URL\n"
+    "                        (default http://127.0.0.1:8000, e.g. examples/rembg-api)\n"
+    "                        remote unreachable -> warning + auto fallback to color\n"
+    "\n"
     "Export:\n"
     "  --output DIR           output directory (default ./sprites)\n"
     "  --json                 also write meta.json\n"
@@ -195,6 +202,12 @@ const char* kSheetHelp =
     "  --contract N           erode foreground outline by N px, re-crop to the\n"
     "                        shrunk outline (trims halo fringe; remove-background only)\n"
     "\n"
+    "Background backend (remove-background only):\n"
+    "  --bg-backend MODE      color | remote (default color; remote = call the URL below)\n"
+    "  --bg-url URL           remote background service base URL\n"
+    "                        (default http://127.0.0.1:8000, e.g. examples/rembg-api)\n"
+    "                        remote unreachable -> warning + auto fallback to color\n"
+    "\n"
     "Other:\n"
     "  --output DIR           output directory (default ./sprites)\n"
     "  --format json|text     machine-readable JSON result on stdout (default text)\n"
@@ -242,6 +255,8 @@ struct CliOpts {
     int sheet_cols = 0;                   // sheet --cols N
     bool sheet_cols_set = false;
     std::string from_json;                // sheet --from-json FILE
+    std::string bg_url = "http://127.0.0.1:8000";  // remote 背景服务 base URL
+    bool bg_backend_remote = false;       // --bg-backend remote
 };
 
 struct ArgError {
@@ -326,6 +341,15 @@ void apply_cols(CliOpts& o, const std::string& v) {
     o.sheet_cols_set = true;
 }
 void apply_from_json(CliOpts& o, const std::string& v) { o.from_json = v; }
+void apply_bg_backend(CliOpts& o, const std::string& v) {
+    if (v == "remote")
+        o.bg_backend_remote = true;
+    else if (v == "color")
+        o.bg_backend_remote = false;
+    else
+        throw ArgError{"unknown --bg-backend '" + v + "' (expected color|remote)"};
+}
+void apply_bg_url(CliOpts& o, const std::string& v) { o.bg_url = v; }
 void apply_format(CliOpts& o, const std::string& v) {
     if (v == "json")
         o.json_format = true;
@@ -363,6 +387,8 @@ const std::map<std::string, FlagSpec>& flag_table() {
         {"--erase-tl", {"--erase-tl", true, apply_erase_tl}},
         {"--cols", {"--cols", true, apply_cols}},
         {"--from-json", {"--from-json", true, apply_from_json}},
+        {"--bg-backend", {"--bg-backend", true, apply_bg_backend}},
+        {"--bg-url", {"--bg-url", true, apply_bg_url}},
         {"--format", {"--format", true, apply_format}},
         {"-q", {"-q", false, apply_quiet}},
         {"--quiet", {"--quiet", false, apply_quiet}},
@@ -449,11 +475,34 @@ void validate_split_opts(const CliOpts& o) {
     if (o.opts.edge_passes < 0) throw ArgError{"--edge-clean must be >= 0"};
     if (o.opts.has_bg_color && !o.opts.remove_background)
         throw ArgError{"--bg-color requires --remove-background"};
+    if (o.bg_backend_remote && !o.opts.remove_background)
+        throw ArgError{"--bg-backend remote requires --remove-background"};
 }
 
 // 背景清理透明化（split/manual/from-json/sheet 共用）
-void apply_background_cleanup(sps::Image& image, const CliOpts& o) {
+void apply_background_cleanup(sps::Image& image, const CliOpts& o,
+                              const std::string& input_path) {
     if (!o.opts.remove_background) return;
+
+    if (o.bg_backend_remote) {
+        // remote 后端：调用远程服务（如 examples/rembg-api），用返回的透明图替换原图。
+        // 失败 → warning + 回退纯算法后端（零回归兜底）。
+        try {
+            std::ifstream f(input_path, std::ios::binary);
+            if (!f) throw std::runtime_error("cannot open '" + input_path + "'");
+            std::vector<uint8_t> raw((std::istreambuf_iterator<char>(f)),
+                                     std::istreambuf_iterator<char>());
+            image = sps::bg_remote::remove_background(raw, o.bg_url);
+            std::cerr << "note: remote background backend: " << o.bg_url << "\n";
+            if (o.opts.contract > 0)
+                Out::warn("--contract ignored in remote background backend (no mask)");
+            return;
+        } catch (const std::exception& e) {
+            Out::warn(std::string("remote background backend failed (") + e.what() +
+                      "); falling back to color backend");
+        }
+    }
+
     sps::BackgroundOptions bg;
     bg.threshold = o.opts.background_threshold;
     bg.has_bg_color = o.opts.has_bg_color;
@@ -654,6 +703,7 @@ int run_split(int argc, char** argv, int start) {
     const std::set<std::string> allowed = {
         "--output", "--alpha-threshold", "--min-width", "--min-height",
         "--remove-background", "--background-threshold", "--edge-clean", "--bg-color", "--contract",
+        "--bg-backend", "--bg-url",
         "--mode", "--cell-size", "--merge-distance", "--json", "--json-only",
         "--gen-masks", "--erase-tl", "--format", "-q", "--quiet", "--help", "-h"};
     auto pr = parse_args(o, allowed, {"input"}, kSplitHelp, argc, argv, start, pos);
@@ -679,7 +729,7 @@ int run_split(int argc, char** argv, int start) {
         if (!silent_stdout)
             out.note("loaded " + input + " (" + std::to_string(image.width()) + "x" +
                      std::to_string(image.height()) + ")");
-        apply_background_cleanup(image, o);
+        apply_background_cleanup(image, o, input);
 
         sps::SplitResult result = sps::split_image(image, o.opts);
 
@@ -800,7 +850,7 @@ int run_manual(int argc, char** argv, int start) {
         sps::Image image = sps::Image::load_png(input);
         out.note("loaded " + input + " (" + std::to_string(image.width()) + "x" +
                  std::to_string(image.height()) + ")");
-        apply_background_cleanup(image, o);
+        apply_background_cleanup(image, o, input);
 
         out.note("manual mode: type rects as 'x y width height' (one per line).");
         out.note("             empty line or 'q' to finish.");
@@ -901,7 +951,7 @@ int run_from_json(int argc, char** argv, int start) {
             }
         }
 
-        apply_background_cleanup(image, o);
+        apply_background_cleanup(image, o, input);
         const int count = export_rects(image, loaded, o.output_dir, out);
         if (out.json) {
             out.res["count"] = count;
@@ -925,6 +975,7 @@ int run_sheet(int argc, char** argv, int start) {
         "--cols", "--from-json", "--output",
         "--alpha-threshold", "--min-width", "--min-height",
         "--remove-background", "--background-threshold", "--edge-clean", "--bg-color", "--contract",
+        "--bg-backend", "--bg-url",
         "--mode", "--cell-size", "--merge-distance",
         "--format", "-q", "--quiet", "--help", "-h"};
     auto pr = parse_args(o, allowed, {"input"}, kSheetHelp, argc, argv, start, pos);
@@ -975,9 +1026,9 @@ int run_sheet(int argc, char** argv, int start) {
                     mp = (std::filesystem::path(meta_dir) / mp).string();
                 }
             }
-            apply_background_cleanup(image, o);
+            apply_background_cleanup(image, o, input);
         } else {
-            apply_background_cleanup(image, o);
+            apply_background_cleanup(image, o, input);
             rects = sps::split_image(image, o.opts);
             if (rects.sprites.empty())
                 Out::warn("no sprites detected. Try --remove-background, or adjust "

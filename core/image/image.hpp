@@ -18,6 +18,10 @@ public:
     // 从 PNG 文件读取（stb_image），失败抛 std::runtime_error
     static Image load_png(const std::string& path);
 
+    // 从内存中的 PNG 数据解码（stb_image），失败抛 std::runtime_error。
+    // 用于网络响应/内存缓冲等无文件场景。
+    static Image load_png_from_memory(const uint8_t* data, std::size_t size);
+
     int width() const { return width_; }
     int height() const { return height_; }
     bool empty() const { return width_ == 0 || height_ == 0; }

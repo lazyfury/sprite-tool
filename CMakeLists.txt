@@ -31,9 +31,10 @@ target_include_directories(sps_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_pa
                                         ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json)
 
 # ---------- CLI ----------
-add_executable(sprite-split cli/main.cpp)
+add_executable(sprite-split cli/main.cpp cli/bg_remote.cpp)
 target_link_libraries(sprite-split PRIVATE sps_core)
-target_include_directories(sprite-split PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json)
+target_include_directories(sprite-split PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/httplib)
 
 # ---------- 测试（Catch2 单头版） ----------
 enable_testing()
@@ -54,4 +55,4 @@ add_executable(unit_tests
 target_include_directories(unit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/catch2)
 target_link_libraries(unit_tests PRIVATE sps_core)
 
-add_test(NAME unit_tests COMMAND unit_tests)
+add_test(NAME unit_tests COMMAND unit_tests WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

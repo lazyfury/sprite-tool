@@ -3,6 +3,9 @@
 
 #include <catch_amalgamated.hpp>
 
+#include <fstream>
+#include <vector>
+
 using namespace sps;
 
 TEST_CASE("Image: default empty", "[image]") {
@@ -82,4 +85,28 @@ TEST_CASE("Image: png roundtrip preserves pixels", "[image]") {
 
 TEST_CASE("Image: load nonexistent file throws", "[image]") {
     CHECK_THROWS_AS(Image::load_png("definitely_missing_file_xyz.png"), std::runtime_error);
+}
+
+TEST_CASE("Image: load_png_from_memory equals file load", "[image]") {
+    // 先用文件路径加载 fixtures 图，再读原始字节走内存解码，结果应逐像素一致
+    const std::string path = "tests/fixtures/test_sheet.png";
+    Image from_file = Image::load_png(path);
+
+    std::ifstream f(path, std::ios::binary);
+    REQUIRE(f);
+    std::vector<uint8_t> raw((std::istreambuf_iterator<char>(f)),
+                             std::istreambuf_iterator<char>());
+    Image from_memory = Image::load_png_from_memory(raw.data(), raw.size());
+
+    REQUIRE(from_memory.width() == from_file.width());
+    REQUIRE(from_memory.height() == from_file.height());
+    REQUIRE(from_memory.byte_size() == from_file.byte_size());
+    CHECK(std::equal(from_file.data(), from_file.data() + from_file.byte_size(),
+                     from_memory.data()));
+}
+
+TEST_CASE("Image: load_png_from_memory rejects garbage", "[image]") {
+    const uint8_t garbage[] = {'n', 'o', 't', 'a', 'p', 'n', 'g'};
+    CHECK_THROWS_AS(Image::load_png_from_memory(garbage, sizeof(garbage)),
+                    std::runtime_error);
 }

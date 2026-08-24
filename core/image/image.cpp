@@ -39,6 +39,22 @@ Image Image::load_png(const std::string& path) {
     return img;
 }
 
+Image Image::load_png_from_memory(const uint8_t* data, std::size_t size) {
+    int w = 0, h = 0, channels = 0;
+    unsigned char* raw =
+        stbi_load_from_memory(data, static_cast<int>(size), &w, &h, &channels, 4);
+    if (raw == nullptr) {
+        throw std::runtime_error(std::string("sps: failed to decode image from memory: ") +
+                                 (stbi_failure_reason() ? stbi_failure_reason() : "unknown"));
+    }
+
+    Image img(w, h);
+    const std::size_t n = static_cast<std::size_t>(w) * h * 4;
+    std::copy(raw, raw + n, img.data());
+    stbi_image_free(raw);
+    return img;
+}
+
 Image Image::cropped(int x, int y, int w, int h) const {
     if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > width_ || y + h > height_) {
         throw std::out_of_range("sps: crop rectangle out of image bounds");
