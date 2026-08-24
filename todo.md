@@ -67,9 +67,11 @@
 
 > 方案细化见 `docs/ai-backend.md`（调研完成，决策点待确认：ORT 依赖获取方式 / 默认模型 / --bg-backend 默认值）
 
+- [x] **Remote AI 后端（已落地，替代 ONNX 内嵌路线）**：`--bg-backend remote --bg-url URL` HTTP 调用
+      `examples/rembg-api`（Python FastAPI + rembg）→ 返回透明 PNG 替换原图；失败 warning + 回退纯算法
 - [ ] BackgroundRemover 抽象接口（virtual Mask process(const Image&)）
 - [ ] ONNX Runtime 集成 + 模型外置 `models/`（rembg/isnet/custom）
-- [ ] 失败回退纯算法
+- [ ] 失败回退纯算法（remote 后端已实现，ONNX 路线待定）
 
 ## M5 — Godot GDExtension 插件
 

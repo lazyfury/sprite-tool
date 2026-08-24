@@ -63,6 +63,8 @@ build/sprite-split split input.png --output sprites --format json | jq '.count'
 | `--remove-background` | 关 | 环带采样 + flood fill 去背景，**导出透明 PNG** |
 | `--background-threshold N` | `12` | 背景色距离阈值下限（RGB 曼哈顿距离）。背景自身有压缩/渐变噪声时，有效阈值会自动放大到 `max(N, 噪声自适应值)` |
 | `--bg-color R,G,B` | 自动 | 手动指定背景色（环带采样失效时用，与 threshold 构成颜色区间） |
+| `--bg-backend MODE` | color | 背景清理后端：`color`（纯算法，默认）\ `remote`（HTTP 调用远程 AI 服务，如 `examples/rembg-api`） |
+| `--bg-url URL` | `http://127.0.0.1:8000` | remote 后端服务 base URL；服务不可达 → `warning:` + 自动回退 color（零回归兕底） |
 | `--contract N` | `0` | **自由选区收缩**（须与 `--remove-background` 同用，仅 components 系模式）：对前景轮廓向内腐蚀 N 圈后重算包围盒，剪切清理背景产生的边缘毛边（halo）。只切轮廓、不切贴边内容 |
 | `--mode MODE` | components | `components`（连通分量）/ `grid`（网格）/ `auto` |
 | `--cell-size N` | `16` | grid/auto 的格子尺寸 |

@@ -27,7 +27,8 @@ C++ Core ──────── Godot GDExtension（Phase 5）
 | M3 | 背景清理（颜色采样 + Flood Fill + 手动背景色区间）+ 透明导出 + 收缩 --contract + 图片分析 --info + 橡皮擦 --gen-masks + sheet 重排 | ✅ 完成 |
 | M3+ | Magic Wand 魔棒种子清理（--seed 指定背景点，非交互，补四角取色失效场景） | ⏸ 搁置（UI 阶段再评估） |
 | M3.5 | CLI 子命令化（info/split/manual/from-json/sheet）+ `--format json` 机器可读输出 + 管道友好 | ✅ 完成 |
-| M4 | AI 分割（ONNX，可选） | ⏸ 搁置 |
+| M4a | Remote AI 后端：`--bg-backend remote --bg-url` HTTP 调用 `examples/rembg-api`（Python rembg 独立服务，含 upload/url 两接口 + 失败回退纯算法） | ✅ 完成 |
+| M4 | AI 分割（ONNX 内嵌，可选） | ⏸ 搁置（remote 路线已覆盖主要场景） |
 | M5 | Godot GDExtension 编辑器插件（导出 PNG / AtlasTexture / SpriteFrames） | ⏸ 搁置 |
 
 > 规划细节见 [`agent.md`](agent.md)，任务状态见 [`todo.md`](todo.md)。
@@ -55,6 +56,12 @@ build/sprite-split split sheet.png --remove-background --mode grid --cell-size 8
 
 # 3) 连通分量合并（角色上下块间隔 2px）
 build/sprite-split split character.png --remove-background --merge-distance 3 --output ./sprites
+
+# 3.5) AI 背景清理（remote 后端）：启动 examples/rembg-api 后，通过 URL 调用
+./examples/rembg-api/run.sh   # 独立 Python 服务（FastAPI + rembg，端口 8000）
+build/sprite-split split photo.png --remove-background --bg-backend remote \
+  --bg-url http://127.0.0.1:8000 --output ./sprites --json
+# 服务不可达时自动 warning + 回退纯算法，不影响可用性
 
 # 4) 手动画框：交互输入 'x y width height'，写 meta.json + 切图
 build/sprite-split manual input.png --output ./sprites
