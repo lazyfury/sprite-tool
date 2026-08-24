@@ -145,6 +145,62 @@ build/sprite-split remove-background photo.png --bg-backend remote --format json
 
 ## 验证方法
 
-- 单元测试：`ctest --test-dir build`（全绿：88 用例 / 347 断言）
-- 端到端素材：`tests/fixtures/test_sheet.png`（alpha 表）、`grid8_sheet.png`（白底 8×8 网格）、`merge_sheet.png`（间隙合并）
-- 输出检查：`build/sprite-split split tests/fixtures/grid8_sheet.png --mode grid --cell-size 8 -q` 应得 64 个 sprite；`sheet` 命令：`build/sprite-split sheet tests/fixtures/grid8_sheet.png --cols 8 --mode grid --cell-size 8 -q` 应得 128x128 的 sheet.png
+> 原则：**能用 `--format json` 断言就不要肉眼看输出**。以下所有验证均可一键复制执行，
+> 断言失败时命令退出非零（jq -e），可直接接进 CI / 脚本回归。进度日志走 stderr，不影响断言。
+
+### 1. 单元测试（core 算法层）
+
+```bash
+ctest --test-dir build          # 全绿：88 用例 / 347 断言
+```
+
+### 2. 端到端素材
+
+- `tests/fixtures/test_sheet.png`：alpha 表（默认参数下 5 个组件：3 精灵 + 半透明组件 + 噪点组件，min-size 默认 1 不过滤）
+- `tests/fixtures/grid8_sheet.png`：白底 8×8 网格（64x64）
+- `tests/fixtures/merge_sheet.png`：间隙合并
+
+### 3. 端到端验证（管道 / JSON 断言，可脚本化）
+
+```bash
+SPLIT=build/sprite-split; FIX=tests/fixtures
+
+# 3.1 info 分析 + 推荐参数
+$SPLIT info $FIX/grid8_sheet.png --format json | jq -e '.status == "ok" and .width == 64 and .height == 64 and .has_transparency == false'
+
+# 3.2 remove-background 整图透明导出（JSON 字段：output/bg_backend/background_percent）
+$SPLIT remove-background $FIX/grid8_sheet.png --output /tmp/sps_check --format json | \
+  jq -e '.status == "ok" and .bg_backend == "color" and .background_percent > 90'
+
+# 3.3 split：未去背景原图 grid 检测 → 64 个格子（仅此路径预期 64）
+$SPLIT split $FIX/grid8_sheet.png --mode grid --cell-size 8 --output /tmp/sps_check --format json | jq -e '.count == 64'
+
+# 3.4 推荐管道：先 remove-background 再 split（去背景后 grid 按 alpha 统计 → 5 个前景组件）
+out=$($SPLIT remove-background $FIX/grid8_sheet.png --output /tmp/sps_check --format json | jq -r '.output')
+$SPLIT split "$out" --mode grid --cell-size 8 --output /tmp/sps_check/s --format json | jq -e '.count == 5'
+
+# 3.5 sheet 重排（128x128 = 8 列 × 8 行 × 16px cell）
+$SPLIT sheet $FIX/grid8_sheet.png --cols 8 --mode grid --cell-size 8 --output /tmp/sps_check/sheet --format json | \
+  jq -e '.status == "ok" and .width == 128 and .height == 128 and .count == 64'
+
+# 3.6 json-only 直出 stdout（无 --output，meta 纯净可捕获；test_sheet 默认参数 5 个组件）
+$SPLIT split $FIX/test_sheet.png --json-only --format json | jq -e '.json_only == true and .count == 5'
+```
+
+> ⚠️ **grid 计数歧义**：`grid8_sheet.png` 是白底不透明图 —— 未去背景直接 grid 检测得 **64**
+> （全图非透明 → 检出 8×8 格子）；先去背景再 split 得 **5**（只保留 5 个前景物体的非透明区域）。
+> 两种预期都对，取决于是否经过 `remove-background` 阶段；断言时务必与目标路径一致。
+> （重构指南见 `docs/refactoring-guide.md`：split 与 remover 解耦后该歧义自然消除。）
+
+### 4. 一键 E2E 脚本
+
+```bash
+# 全部断言失败即退出非零；可用于本地回归 / CI
+set -e
+SPLIT=build/sprite-split; FIX=tests/fixtures; TMP=/tmp/sps_e2e; rm -rf $TMP; mkdir -p $TMP
+$SPLIT info $FIX/grid8_sheet.png --format json | jq -e '.components >= 1' >/dev/null
+$SPLIT remove-background $FIX/grid8_sheet.png --output $TMP --format json | jq -e '.background_percent > 90' >/dev/null
+out=$($SPLIT remove-background $FIX/merge_sheet.png --output $TMP --format json | jq -r '.output')
+$SPLIT split "$out" --merge-distance 3 --output $TMP/s --format json | jq -e '.count == 1' >/dev/null
+echo "E2E OK"
+```
