@@ -177,7 +177,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options);
 **验收**：`sprite-split info input.png --format json | jq '.components'` 链路可用；五命令 help 齐全、flag 校验正确。
 
 #### M4 — AI 分割（可选，后期）
-- [ ] ONNX Runtime 集成，`BackgroundRemover` 抽象（接口已预留：`virtual Mask process(const Image&)`）
+- [ ] ONNX Runtime 集成，`BackgroundRemover` 抽象（接口已预留：`virtual Mask process(const Image&)`；方案细化见 `docs/ai-backend.md`）
 - [ ] 模型文件外置 `models/`（rembg/isnet/custom），核心不绑定模型
 - [ ] 失败时回退纯算法，不污染主流程
 

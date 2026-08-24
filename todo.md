@@ -65,6 +65,8 @@
 
 ## M4 — AI 分割（可选，后期）
 
+> 方案细化见 `docs/ai-backend.md`（调研完成，决策点待确认：ORT 依赖获取方式 / 默认模型 / --bg-backend 默认值）
+
 - [ ] BackgroundRemover 抽象接口（virtual Mask process(const Image&)）
 - [ ] ONNX Runtime 集成 + 模型外置 `models/`（rembg/isnet/custom）
 - [ ] 失败回退纯算法
