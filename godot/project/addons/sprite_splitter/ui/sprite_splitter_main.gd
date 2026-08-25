@@ -57,6 +57,7 @@ var _active_reg_path: String = ""                 # 当前选中/加载的项目
 @onready var _reg_empty: Label = get_node("MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox/RegListArea/RegEmptyLabel")
 @onready var _move_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ToolBar/MoveBtn")
 @onready var _select_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ToolBar/SelectBtn")
+@onready var _edit_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ToolBar/EditBtn")
 @onready var _crop_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ToolBar/CropBtn")
 @onready var _zoom_out_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup/ZoomOutBtn")
 @onready var _zoom_label: Label = get_node("MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup/ZoomLabel")
@@ -548,18 +549,21 @@ func _save_current_project() -> void:
 			int(_side.get("_export_mode_option").selected))
 
 
-# 工具模式按钮组（单选互斥）
+# 工具模式按钮组（单选互斥：移动/选择/编辑/裁切）
 func _setup_tool_buttons() -> void:
 	var group: ButtonGroup = ButtonGroup.new()
 	_move_btn.toggle_mode = true
 	_move_btn.button_group = group
 	_select_btn.toggle_mode = true
 	_select_btn.button_group = group
+	_edit_btn.toggle_mode = true
+	_edit_btn.button_group = group
 	_crop_btn.toggle_mode = true
 	_crop_btn.button_group = group
 	_select_btn.button_pressed = true   # 默认「选择」工具
 	_move_btn.pressed.connect(_on_tool_move)
 	_select_btn.pressed.connect(_on_tool_select)
+	_edit_btn.pressed.connect(_on_tool_edit)
 	_crop_btn.pressed.connect(_on_tool_crop)
 	_zoom_out_btn.pressed.connect(_on_zoom_out)
 	_zoom_in_btn.pressed.connect(_on_zoom_in)
@@ -572,6 +576,10 @@ func _on_tool_move() -> void:
 
 func _on_tool_select() -> void:
 	_canvas.set_tool(_canvas.Tool.SELECT)
+
+
+func _on_tool_edit() -> void:
+	_canvas.set_tool(_canvas.Tool.EDIT)
 
 
 func _on_tool_crop() -> void:

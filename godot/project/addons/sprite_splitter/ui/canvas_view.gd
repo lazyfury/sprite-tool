@@ -25,8 +25,8 @@ signal view_changed
 signal drop_requested(path: String)   # 编辑器 FileSystem dock 拖入文件（确认弹窗前）
 signal geometry_committed(index: int, rect: Rect2i)   # 编辑提交：拖拽移动 / 四角缩放（松手时发）
 
-enum Tool { MOVE, SELECT, CROP }
-# 编辑拖拽模式（SELECT 选中项的几何编辑）
+enum Tool { MOVE, SELECT, EDIT, CROP }
+# 编辑拖拽模式（EDIT 工具的几何编辑：拖拽移动 / 四角缩放）
 enum DragMode { NONE, MOVE, RESIZE_NW, RESIZE_NE, RESIZE_SW, RESIZE_SE }
 
 const MIN_ZOOM: float = 0.02
@@ -327,13 +327,14 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 			_pan_start = e.position
 			_pan_center0 = _center
 		return
-	# 右键：SELECT 清空选中 / CROP 清除裁切框
+	# 右键：SELECT/EDIT 清空选中与编辑态 / CROP 清除裁切框
 	if e.button_index == MOUSE_BUTTON_RIGHT and e.pressed:
 		_dragging = false
 		_panning = false
-		if _tool == Tool.SELECT:
-			if not _selected.is_empty():
+		if _tool == Tool.SELECT or _tool == Tool.EDIT:
+			if not _selected.is_empty() or _edit_index >= 0:
 				_selected = []
+				_edit_index = -1
 				queue_redraw()
 				selection_changed.emit(_selected)
 		else:
@@ -352,8 +353,8 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 			_pan_start = e.position
 			_pan_center0 = _center
 		else:
-			# SELECT：已有编辑对象 → 手柄/本体命中优先（拖拽移动 / 四角缩放）
-			if _tool == Tool.SELECT and _edit_index >= 0 and not _is_locked(_edit_index):
+			# EDIT 工具：已有编辑对象 → 手柄/本体命中优先（拖拽移动 / 四角缩放）
+			if _tool == Tool.EDIT and _edit_index >= 0 and not _is_locked(_edit_index):
 				var wp: Vector2 = screen_to_world(e.position)
 				var hnd: int = _handle_at(wp, _rects[_edit_index])
 				if hnd != DragMode.NONE:
@@ -432,7 +433,8 @@ func _on_click_select(world_p: Vector2) -> void:
 		_edit_index = -1
 	else:
 		_selected = [_rects[idx]]
-		_edit_index = idx   # 进入编辑态（显示四角手柄）
+		# 仅 EDIT 工具进入编辑态（显示四角手柄）；SELECT 只负责选中/框选
+		_edit_index = idx if _tool == Tool.EDIT else -1
 	selection_changed.emit(_selected)
 
 
@@ -504,8 +506,8 @@ func _draw() -> void:
 			var rr: Rect2 = Rect2(Vector2(r.position), Vector2(r.size))
 			draw_rect(rr, SEL_HL_FILL, true)
 			draw_rect(rr, SEL_HL_STROKE, false, lw)
-	# 编辑手柄（SELECT 单选编辑态：四角小方块；锁定项灰色，不可拖拽/缩放）
-	if _tool == Tool.SELECT and _edit_index >= 0 and _edit_index < _rects.size():
+	# 编辑手柄（EDIT 工具单选编辑态：四角小方块；锁定项灰色，不可拖拽/缩放）
+	if _tool == Tool.EDIT and _edit_index >= 0 and _edit_index < _rects.size():
 		var er: Rect2 = Rect2(Vector2(_rects[_edit_index].position),
 				Vector2(_rects[_edit_index].size))
 		var h: float = HANDLE_SIZE / _zoom

@@ -168,6 +168,17 @@ func _auto_test() -> void:
 	_check(canvas.get_tool() == canvas.Tool.SELECT, "auto test: default tool SELECT")
 	canvas.set_tool(canvas.Tool.MOVE)
 	_check(canvas.get_tool() == canvas.Tool.MOVE, "auto test: tool switch MOVE")
+	canvas.set_tool(canvas.Tool.EDIT)
+	_check(canvas.get_tool() == canvas.Tool.EDIT, "auto test: tool switch EDIT")
+	canvas.set_tool(canvas.Tool.SELECT)
+	# 编辑模式与框选互斥：SELECT 点击只选中（无手柄），EDIT 点击进入编辑态
+	canvas._on_click_select(Vector2(6, 6))
+	_check(canvas.get("_edit_index") == -1,
+			"auto test: SELECT click keeps edit off")
+	canvas.set_tool(canvas.Tool.EDIT)
+	canvas._on_click_select(Vector2(6, 6))
+	_check(canvas.get("_edit_index") == 0,
+			"auto test: EDIT click enters edit mode")
 	canvas.set_tool(canvas.Tool.SELECT)
 	var hit: Rect2i = canvas.pick_rect_at(Vector2(8, 8))
 	_check(hit == Rect2i(4, 4, 8, 8), "auto test: pick (8,8) -> first bbox")

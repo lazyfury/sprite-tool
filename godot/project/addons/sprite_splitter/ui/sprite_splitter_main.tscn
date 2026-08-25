@@ -240,6 +240,12 @@ button_pressed = true
 button_group = SubResource("ButtonGroup_6o1d3")
 text = "选择"
 
+[node name="EditBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ToolBar"]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_6o1d3")
+text = "编辑"
+
 [node name="CropBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ToolBar" unique_id=664954117]
 layout_mode = 2
 toggle_mode = true
