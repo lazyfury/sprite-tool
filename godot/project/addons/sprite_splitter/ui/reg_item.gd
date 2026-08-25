@@ -21,8 +21,8 @@ const SEL_BG: Color = Color(0.152, 0.152, 0.181, 1.0)   # 选中高亮背景（�
 func setup(p: String, title: String, uid_text: String, time_text: String, path_text:String,
 		tex: Texture2D) -> void:
 	path = p
-	get_node("Row/Col/HBoxContainer/TitleLabel").text = title
-	get_node("Row/Col/HBoxContainer/UidLabel").text = uid_text
+	get_node("Row/Col/TitleLabel").text = title
+	get_node("Row/Col/UidLabel").text = uid_text
 	get_node("Row/Col/TimeLabel").text = time_text
 	get_node("Row/Col/PathLabel").text = path_text
 	get_node("Row/Thumb").texture = tex
@@ -64,8 +64,8 @@ func get_thumb() -> TextureRect:
 
 func get_labels() -> Array[Label]:
 	return [
-		get_node("Row/Col/HBoxContainer/TitleLabel"),
-		get_node("Row/Col/HBoxContainer/UidLabel"),
+		get_node("Row/Col/TitleLabel"),
+		get_node("Row/Col/UidLabel"),
 		get_node("Row/Col/TimeLabel"),
 		get_node("Row/Col/PathLabel"),
 	]

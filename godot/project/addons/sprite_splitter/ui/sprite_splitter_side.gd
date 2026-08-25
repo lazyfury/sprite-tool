@@ -210,11 +210,15 @@ func _on_analyze() -> void:
 		_controller.analyze()
 
 
+# 去背景：按钮禁用 + 状态提示（loading，remote 可能耗时数秒~分钟），完成后恢复
 func _on_bg_remove() -> void:
-	if _controller != null:
-		_controller.remove_background(int(_bg_thr.value),
-				_current_bg_backend(), _bg_color_enable.button_pressed,
-				_bg_color_picker.color, _bg_url.text)
+	if _controller == null:
+		return
+	_bg_remove_btn.disabled = true   # loading：防重复点击（remote 调用为同步阻塞）
+	await _controller.remove_background(int(_bg_thr.value),
+			_current_bg_backend(), _bg_color_enable.button_pressed,
+			_bg_color_picker.color, _bg_url.text)
+	_bg_remove_btn.disabled = false
 
 
 func _current_bg_backend() -> String:

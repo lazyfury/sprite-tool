@@ -460,7 +460,8 @@ func remove_background(threshold: int, backend: String, use_bg_color: bool,
 	if image == null:
 		status_changed.emit("先打开素材表", true)
 		return
-	status_changed.emit("去背景中...", false)
+	var remote_hint: String = "（remote AI 推理可能较慢）" if backend == "remote" else ""
+	status_changed.emit("去背景中（%s）%s..." % [backend, remote_hint], false)
 	await _wait_frame()
 	var opts: Dictionary = {"background_threshold": threshold, "backend": backend}
 	if backend == "color":

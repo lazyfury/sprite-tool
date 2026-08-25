@@ -225,11 +225,12 @@ theme_override_constants/separation = 8
 
 [node name="BgColorEnable" type="CheckButton" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow"]
 layout_mode = 2
-size_flags_horizontal = 3
 text = "手动吸色"
 
 [node name="BgColorPicker" type="ColorPickerButton" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow"]
+custom_minimum_size = Vector2(64, 26)
 layout_mode = 2
+size_flags_horizontal = 3
 color = Color(1, 1, 1, 1)
 
 [node name="BgThrRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
