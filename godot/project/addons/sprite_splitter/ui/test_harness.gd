@@ -564,5 +564,24 @@ func _auto_test() -> void:
 	_check(_controller.image_res_path == "res://out_sprites/sheet_transparent.png",
 			"auto test: bg remove updates image_res_path")
 
+	# 编辑安全区：点击编辑对象外扩区域保持选择，远离则清空（zoom 固定 1 保证 grow 确定）
+	_controller.load_image(DEFAULT_SHEET)   # bg remove 已清空切片，重新加载并切分
+	_side._on_split()
+	await get_tree().process_frame
+	var saved_zoom: float = canvas.get("_zoom")
+	canvas.set("_zoom", 1.0)
+	canvas.set_tool(canvas.Tool.EDIT)
+	canvas._on_click_select(Vector2(6, 6))
+	_check(canvas.get("_edit_index") == 0,
+			"auto test: edit select for safe zone")
+	canvas._click_select(Vector2(1, 1))   # 对象边缘外 4px，安全区内
+	_check(canvas.get("_edit_index") == 0,
+			"auto test: safe zone keeps edit selection")
+	canvas._click_select(Vector2(50, 50))  # 远离 → 清空
+	_check(canvas.get("_edit_index") == -1,
+			"auto test: far click clears edit selection")
+	canvas.set("_zoom", saved_zoom)
+	canvas.set_tool(canvas.Tool.SELECT)
+
 	print("[sps-ui] === auto test done (fail=%s) ===" % _fail)
 	get_tree().quit(1 if _fail else 0)

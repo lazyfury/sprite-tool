@@ -33,6 +33,7 @@ const MIN_ZOOM: float = 0.02
 const MAX_ZOOM: float = 64.0
 const ZOOM_STEP: float = 1.2
 const CLICK_THRESHOLD: float = 5.0     # 按下-松开位移小于此值视为点击（屏幕 px）
+const SAFE_ZONE: float = 8.0           # 编辑安全区（屏幕 px）：点击落在当前编辑对象外扩区内不丢失选择
 const HANDLE_SIZE: float = 7.0         # 编辑手柄命中半径（屏幕 px）
 const HANDLE_FILL: Color = Color(1.0, 1.0, 1.0, 0.95)
 const HANDLE_STROKE: Color = Color(0.25, 0.25, 0.28, 1.0)
@@ -361,10 +362,8 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 		_panning = false
 		if _tool == Tool.SELECT or _tool == Tool.EDIT:
 			if not _selected.is_empty() or _edit_index >= 0:
-				_selected = []
-				_edit_index = -1
+				_clear_selection()   # 右键清空选中与编辑态
 				queue_redraw()
-				selection_changed.emit(_selected)
 		else:
 			clear_selection()
 			selection_drawn.emit(Rect2i(0, 0, 0, 0))
@@ -419,8 +418,7 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 		if (_drag_cur - _drag_start).length() < CLICK_THRESHOLD:
 			_dragging = false
 			_drag_mode = DragMode.NONE
-			if _tool == Tool.SELECT or _tool == Tool.EDIT:
-				_on_click_select(screen_to_world(e.position))
+			_click_select(screen_to_world(e.position))
 			queue_redraw()
 			return
 		# 真正拖拽结束：提交几何变更（锁定项不提交）
@@ -437,16 +435,14 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 	_dragging = false
 	var drag_len: float = (_drag_cur - _drag_start).length()
 	if drag_len < CLICK_THRESHOLD:
-		# 点击（SELECT/EDIT 单选；CROP 无动作）
+		# 点击（SELECT/EDIT 统一走抽象选择；CROP 无动作）
 		if _tool == Tool.SELECT or _tool == Tool.EDIT:
-			_on_click_select(screen_to_world(e.position))
+			_click_select(screen_to_world(e.position))
 	else:
 		if _tool == Tool.SELECT:
-			_on_drag_select()
+			_on_drag_select()   # 选择工具：框选多选
 		elif _tool == Tool.EDIT:
-			_selected = []   # EDIT 从空白拖拽 → 清空选择（不框选）
-			_edit_index = -1
-			selection_changed.emit(_selected)
+			_clear_selection()  # 编辑工具：仅单击，拖拽空白只清空不框选
 		elif _tool == Tool.CROP:
 			_finish_crop()
 	queue_redraw()
@@ -468,20 +464,37 @@ func _handle_mouse_motion(e: InputEventMouseMotion) -> void:
 		queue_redraw()
 
 
-# ---------- 工具行为 ----------
+# ---------- 工具行为（选择逻辑抽象，SELECT/EDIT 共用） ----------
 
-func _on_click_select(world_p: Vector2) -> void:
+# 统一点击选择：命中 → 选中（EDIT 进入编辑态）；未命中 → 清空。
+# 安全区（EDIT）：点击落在当前编辑对象外扩区域内时保持选择——
+# 防止编辑（手柄/拖拽）后手抖点到对象边缘外丢失编辑对象。
+func _click_select(world_p: Vector2) -> void:
 	var idx: int = pick_sprite_index_at(world_p)
 	if idx < 0:
-		_selected = []   # 点空白清空选中
-		_edit_index = -1
+		if _tool == Tool.EDIT and _edit_index >= 0:
+			var safe: Rect2 = Rect2(Vector2(_rects[_edit_index].position),
+					Vector2(_rects[_edit_index].size)).grow(SAFE_ZONE / _zoom)
+			if safe.has_point(world_p):
+				_selected = [_rects[_edit_index]]   # 安全区：保持当前编辑对象
+				selection_changed.emit(_selected)
+				queue_redraw()
+				return
+		_clear_selection()
 	else:
 		_selected = [_rects[idx]]
-		# 仅 EDIT 工具进入编辑态（显示四角手柄）；SELECT 只负责选中/框选
-		_edit_index = idx if _tool == Tool.EDIT else -1
+		_edit_index = idx if _tool == Tool.EDIT else -1   # 仅编辑工具进编辑态
+		selection_changed.emit(_selected)
+
+
+# 清空选中与编辑态（SELECT/EDIT 共用）
+func _clear_selection() -> void:
+	_selected = []
+	_edit_index = -1
 	selection_changed.emit(_selected)
 
 
+# 框选多选（仅选择工具；编辑工具不框选）
 func _on_drag_select() -> void:
 	var drag_rect: Rect2 = _drag_world_rect()
 	var sel: Array[Rect2i] = []
@@ -491,6 +504,11 @@ func _on_drag_select() -> void:
 	_selected = sel
 	_edit_index = -1   # 框选多选不进编辑态
 	selection_changed.emit(_selected)
+
+
+# 兼容旧名（harness / 旧调用）：单击选择
+func _on_click_select(world_p: Vector2) -> void:
+	_click_select(world_p)
 
 
 func _finish_crop() -> void:
