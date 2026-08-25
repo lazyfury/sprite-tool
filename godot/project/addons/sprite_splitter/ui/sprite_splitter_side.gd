@@ -39,7 +39,7 @@ var _meta_dialog: Variant = null
 @onready var _padding: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/Padding")
 @onready var _split_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/SplitBtn")
 @onready var _auto_analyze: CheckButton = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/AutoAnalyze")
-@onready var _import_meta_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/MetaCard/MetaVBox/ImportMetaBtn")
+@onready var _import_meta_btn: Button = get_node("VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox/ImportMetaBtn")
 @onready var _count_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/CountLabel")
 @onready var _bg_thr: SpinBox = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgThrRow/BgThr")
 @onready var _bg_remove_btn: Button = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgRemoveBtn")
@@ -53,9 +53,9 @@ var _meta_dialog: Variant = null
 	get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard"),
 	get_node("VBox/TabContainer/SplitTab/VBox/ParamCard"),
 	get_node("VBox/TabContainer/SplitTab/VBox/ActionCard"),
-	get_node("VBox/TabContainer/SplitTab/VBox/MetaCard"),
 	get_node("VBox/TabContainer/BgTab/VBox/BgCard"),
 	get_node("VBox/TabContainer/ExportTab/VBox/ExportCard"),
+	get_node("VBox/TabContainer/ImportTab/VBox/ImportCard"),
 ]
 
 
@@ -82,11 +82,12 @@ func _ready() -> void:
 		EditorInterface.get_base_control().theme_changed.connect(_apply_theme)
 
 
-# 功能分组 tab（切分[含分析]/去背景/导出；选择图片+地址在顶部 Header）
+# 功能分组 tab（切分[含分析]/去背景/导出/导入；选择图片+地址在顶部 Header）
 func _setup_tabs() -> void:
 	_tabs.set_tab_title(0, "切分")
 	_tabs.set_tab_title(1, "去背景")
 	_tabs.set_tab_title(2, "导出")
+	_tabs.set_tab_title(3, "导入")
 
 
 # OptionButton 选项用代码重建（Godot 4.6 下 tscn item_N/text 不恢复文本）

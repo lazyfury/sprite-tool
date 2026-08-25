@@ -120,8 +120,9 @@ func _auto_test() -> void:
 	_check(_main.get("_split_card") != null, "auto test: split card panel themed")
 	_check(split_list.item_count == _controller.rects.size(),
 			"auto test: split list shows all rects")
-	_check(split_list.get_item_text(0).begins_with("#1  (0,0)"),
-			"auto test: split list first entry format")
+	# 新 auto 决策：COMPONENTS_IN_GRID → 首个 rect 是组件 bbox (4,4,8,8)，不是 16x16 cell
+	_check(split_list.get_item_text(0).begins_with("#1  (4,4)"),
+			"auto test: split list first entry format (bbox 4,4)")
 	_check(not split_empty.visible, "auto test: empty hint hidden when rects exist")
 
 	# 导出三模式
@@ -336,13 +337,17 @@ func _auto_test() -> void:
 	_check(split_empty.visible, "auto test: empty hint shown after close")
 	_check(_controller.load_image(DEFAULT_SHEET), "auto test: reload after close")
 
-	# 侧栏功能分组 tab（切分[含分析]/去背景/导出；卡片样式主题色）
+	# 侧栏功能分组 tab（切分[含分析]/去背景/导出/导入；卡片样式主题色）
 	var tabs: TabContainer = _side.get_node("VBox/TabContainer")
-	_check(tabs.get_tab_count() == 3, "auto test: side tabs grouped (3)")
-	_check(tabs.get_tab_title(0) == "切分" and tabs.get_tab_title(1) == "去背景",
+	_check(tabs.get_tab_count() == 4, "auto test: side tabs grouped (4)")
+	_check(tabs.get_tab_title(0) == "切分" and tabs.get_tab_title(1) == "去背景"
+			and tabs.get_tab_title(2) == "导出" and tabs.get_tab_title(3) == "导入",
 			"auto test: tab titles set")
 	tabs.current_tab = 2
 	_check(tabs.current_tab == 2, "auto test: switch to export tab")
+	# 导入按钮独立 tab（ImportTab，含导入卡片与按钮）
+	_check(_side.get_node("VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox/ImportMetaBtn") != null,
+			"auto test: import meta button in own tab")
 	# 分析并入切分 tab（分析按钮/参数/操作卡片）
 	_check(_side.get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBtn") != null,
 			"auto test: analyze merged into split tab")

@@ -183,21 +183,6 @@ text = "切分时自动分析"
 layout_mode = 2
 autowrap_mode = 3
 
-[node name="MetaCard" type="PanelContainer" parent="VBox/TabContainer/SplitTab/VBox"]
-layout_mode = 2
-
-[node name="MetaVBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/MetaCard"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="MetaTitle" type="Label" parent="VBox/TabContainer/SplitTab/VBox/MetaCard/MetaVBox"]
-layout_mode = 2
-text = "从 meta.json 导入"
-
-[node name="ImportMetaBtn" type="Button" parent="VBox/TabContainer/SplitTab/VBox/MetaCard/MetaVBox"]
-layout_mode = 2
-text = "导入 meta.json（区域）"
-
 [node name="BgTab" type="ScrollContainer" parent="VBox/TabContainer" unique_id=927735104]
 visible = false
 layout_mode = 2
@@ -285,6 +270,34 @@ text = "导出"
 layout_mode = 2
 size_flags_horizontal = 3
 text = "导出选中"
+
+[node name="ImportTab" type="ScrollContainer" parent="VBox/TabContainer"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+metadata/_tab_index = 3
+metadata/_tab_name = "导入"
+
+[node name="VBox" type="VBoxContainer" parent="VBox/TabContainer/ImportTab"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ImportCard" type="PanelContainer" parent="VBox/TabContainer/ImportTab/VBox"]
+layout_mode = 2
+
+[node name="ImportVBox" type="VBoxContainer" parent="VBox/TabContainer/ImportTab/VBox/ImportCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ImportTitle" type="Label" parent="VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox"]
+layout_mode = 2
+text = "从 meta.json 导入"
+
+[node name="ImportMetaBtn" type="Button" parent="VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox"]
+layout_mode = 2
+text = "导入 meta.json（区域）"
 
 [node name="StatusLabel" type="Label" parent="VBox"]
 layout_mode = 2
