@@ -419,13 +419,13 @@ func _auto_test() -> void:
 			"auto test: edit click event switches selection")
 	canvas._on_click_select(Vector2(6, 6))
 	canvas.set_tool(canvas.Tool.SELECT)
-	# 列表 emoji 状态显示
+	# 列表 emoji 状态显示（✅ 选中可能在前，用 contains 判断）
 	_controller.set_sprite_locked(0, true)
 	_controller.set_sprite_ignored(1, true)
 	await get_tree().process_frame
-	_check(split_list.get_item_text(0).begins_with("🔒"),
+	_check(split_list.get_item_text(0).contains("🔒"),
 			"auto test: list shows lock emoji")
-	_check(split_list.get_item_text(1).begins_with("🙈"),
+	_check(split_list.get_item_text(1).contains("🙈"),
 			"auto test: list shows ignore emoji")
 	_controller.set_sprite_locked(0, false)
 	_controller.set_sprite_ignored(1, false)
@@ -638,6 +638,30 @@ func _auto_test() -> void:
 	canvas._on_click_select(Vector2(50, 50))  # 空白 → 清空
 	_check(not split_list.is_selected(1),
 			"auto test: canvas clear deselects list")
+	# 多选 → 数据 selected 状态 + 列表 ✅ emoji
+	canvas.set("_drag_start", canvas.world_to_screen(Vector2(0, 0)))
+	canvas.set("_drag_cur", canvas.world_to_screen(Vector2(64, 64)))
+	canvas._on_drag_select()
+	await get_tree().process_frame
+	var sel_n: int = 0
+	for s2: Dictionary in _controller.sprites:
+		if bool(s2.get("selected", false)):
+			sel_n += 1
+	_check(sel_n >= 4,
+			"auto test: multi-select writes selected state")
+	_check(split_list.get_item_text(0).contains("✅"),
+			"auto test: list renders selected emoji")
+	# 单击单选 → 唯一选中状态
+	canvas._on_click_select(Vector2(6, 6))
+	await get_tree().process_frame
+	var sel_one: int = 0
+	for s2: Dictionary in _controller.sprites:
+		if bool(s2.get("selected", false)):
+			sel_one += 1
+	_check(sel_one == 1,
+			"auto test: single select writes one selected state")
+	canvas._on_click_select(Vector2(50, 50))   # 清空
+	await get_tree().process_frame
 
 	print("[sps-ui] === auto test done (fail=%s) ===" % _fail)
 	get_tree().quit(1 if _fail else 0)

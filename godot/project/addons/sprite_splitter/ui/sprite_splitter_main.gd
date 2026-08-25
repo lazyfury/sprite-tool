@@ -625,9 +625,11 @@ func _on_sprites_changed(sprites_in: Array[Dictionary]) -> void:
 	_split_list.visible = not empty
 
 
-# 列表项文本：{🔒锁定}{🙈忽略}#N 名称  (x,y) w×h
+# 列表项文本：{✅选中}{🔒锁定}{🙈忽略}#N 名称  (x,y) w×h
 func _sprite_label(s: Dictionary, index: int) -> String:
 	var mark: String = ""
+	if bool(s.get("selected", false)):
+		mark += "✅ "
 	if bool(s.get("locked", false)):
 		mark += "🔒 "
 	if bool(s.get("ignored", false)):

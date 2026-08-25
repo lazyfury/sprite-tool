@@ -157,6 +157,7 @@ func _make_sprite(rect: Rect2i, index: int) -> Dictionary:
 		"height": rect.size.y,
 		"locked": false,
 		"ignored": false,
+		"selected": false,   # 选中状态（UI：列表 emoji + 画布高亮），不参与持久化语义
 	}
 
 
@@ -182,6 +183,8 @@ func _sprites_from_any(src: Array) -> Array[Dictionary]:
 				s["locked"] = false
 			if not s.has("ignored"):
 				s["ignored"] = false
+			if not s.has("selected"):
+				s["selected"] = false
 			out.append(s)
 		index += 1
 	return out
@@ -705,8 +708,21 @@ func set_crop_rect(rect_world: Rect2i) -> void:
 			selection.position.x, selection.position.y], false)
 
 
+# 画布选中 → 写入切片数据 selected 字段（列表 emoji 渲染 + 画布高亮显示统一走数据）。
+# 选中是 UI 状态：不 mark_dirty（不算项目修改）、不 _sync_rects（避免画布交互态被重建干扰）。
 func on_canvas_selection(selected: Array[Rect2i]) -> void:
 	status_changed.emit("选中 %d 个精灵" % selected.size(), false)
+	var selected_set: Dictionary = {}
+	for r: Rect2i in selected:
+		selected_set[r] = true
+	var changed: bool = false
+	for i: int in sprites.size():
+		var want: bool = selected_set.has(_rect_of(sprites[i]))
+		if bool(sprites[i].get("selected", false)) != want:
+			sprites[i]["selected"] = want
+			changed = true
+	if changed:
+		sprites_changed.emit(sprites)
 
 
 # ---------- 导出 ----------

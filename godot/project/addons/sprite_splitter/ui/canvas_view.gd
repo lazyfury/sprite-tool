@@ -119,10 +119,14 @@ func set_sprites(sprites_in: Array[Dictionary]) -> void:
 	if keep_edit >= 0 and _is_locked(keep_edit):
 		keep_edit = -1   # 编辑对象被锁定 → 取消选择
 	_edit_index = keep_edit
-	if keep_edit >= 0:
-		_selected = [_rects[keep_edit]]   # 保留单选（编辑对象）
-	else:
-		_selected = []
+	# 从数据 selected 重建选中集（与列表 ✅ emoji 一致）：
+	# 框选多选/单击单选回流后 _selected 不丢；无选中且保留编辑对象时回退到编辑对象
+	_selected = []
+	for i: int in _sprites.size():
+		if bool(_sprites[i].get("selected", false)):
+			_selected.append(_rects[i])
+	if _selected.is_empty() and keep_edit >= 0:
+		_selected = [_rects[keep_edit]]
 	_drag_mode = DragMode.NONE
 	queue_redraw()
 
@@ -582,12 +586,14 @@ func _draw() -> void:
 		var r: Rect2i = _rects[i]
 		var frame: Color = LOCKED_RECT_COLOR if _is_locked(i) else RECT_COLOR
 		draw_rect(Rect2(Vector2(r.position), Vector2(r.size)), frame, false, lw)
-	# SELECT/EDIT：选中方块高亮（黄）
+	# SELECT/EDIT：选中方块高亮（黄）——由数据 selected 字段渲染（与列表 emoji 一致，
+	# 框选多选回流 set_sprites 后不丢高亮）
 	if _tool == Tool.SELECT or _tool == Tool.EDIT:
-		for r: Rect2i in _selected:
-			var rr: Rect2 = Rect2(Vector2(r.position), Vector2(r.size))
-			draw_rect(rr, SEL_HL_FILL, true)
-			draw_rect(rr, SEL_HL_STROKE, false, lw)
+		for i: int in _sprites.size():
+			if bool(_sprites[i].get("selected", false)):
+				var rr: Rect2 = Rect2(Vector2(_rects[i].position), Vector2(_rects[i].size))
+				draw_rect(rr, SEL_HL_FILL, true)
+				draw_rect(rr, SEL_HL_STROKE, false, lw)
 	# 编辑手柄（EDIT 工具单选编辑态：四角小方块；锁定项灰色，不可拖拽/缩放）
 	if _tool == Tool.EDIT and _edit_index >= 0 and _edit_index < _rects.size():
 		var er: Rect2 = Rect2(Vector2(_rects[_edit_index].position),
