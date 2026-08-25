@@ -23,13 +23,20 @@ signal selection_drawn(rect_world: Rect2i)
 signal selection_changed(rects: Array[Rect2i])
 signal view_changed
 signal drop_requested(path: String)   # 编辑器 FileSystem dock 拖入文件（确认弹窗前）
+signal geometry_committed(index: int, rect: Rect2i)   # 编辑提交：拖拽移动 / 四角缩放（松手时发）
 
 enum Tool { MOVE, SELECT, CROP }
+# 编辑拖拽模式（SELECT 选中项的几何编辑）
+enum DragMode { NONE, MOVE, RESIZE_NW, RESIZE_NE, RESIZE_SW, RESIZE_SE }
 
 const MIN_ZOOM: float = 0.02
 const MAX_ZOOM: float = 64.0
 const ZOOM_STEP: float = 1.2
 const CLICK_THRESHOLD: float = 5.0     # 按下-松开位移小于此值视为点击（屏幕 px）
+const HANDLE_SIZE: float = 7.0         # 编辑手柄命中半径（屏幕 px）
+const HANDLE_FILL: Color = Color(1.0, 1.0, 1.0, 0.95)
+const HANDLE_STROKE: Color = Color(0.25, 0.25, 0.28, 1.0)
+const HANDLE_LOCKED: Color = Color(0.6, 0.6, 0.62, 0.5)   # 锁定项手柄（灰）
 const BG_COLOR: Color = Color(0.097, 0.104, 0.1, 1.0)
 const RECT_COLOR: Color = Color(1.0, 0.25, 0.25, 0.95)          # 切分红框
 const GRID_COLOR: Color = Color(0.75, 0.75, 0.78, 0.35)         # Auto 网格布局线（灰，调试决策用）
@@ -39,7 +46,8 @@ const CROP_FILL: Color = Color(0.3, 0.9, 1.0, 0.18)             # CROP 裁切框
 const CROP_STROKE: Color = Color(0.3, 0.9, 1.0, 0.95)           # CROP 裁切框描边
 
 var _texture: Texture2D = null
-var _rects: Array[Rect2i] = []
+var _sprites: Array[Dictionary] = []   # 复杂切片结构（含 name/locked/ignored）
+var _rects: Array[Rect2i] = []         # 由 _sprites 派生（绘制/命中）
 var _grid: Dictionary = {}   # Auto 网格布局 overlay（auto_diag：cell_w/h、columns/rows、offset_x/y；空 = 不画）
 var _zoom: float = 1.0
 var _center: Vector2 = Vector2.ZERO      # 视口中心对应的世界坐标（图片像素）
@@ -53,6 +61,10 @@ var _dragging: bool = false              # 左键拖拽（SELECT 框选 / CROP �
 var _drag_start: Vector2 = Vector2.ZERO  # 拖拽起点（屏幕坐标）
 var _drag_cur: Vector2 = Vector2.ZERO    # 拖拽当前点（屏幕坐标）
 var _pending_fit: bool = false           # 布局未完成时标记，RESIZED 后执行 fit
+var _edit_index: int = -1                # SELECT 编辑对象（显示手柄）：sprite 索引；-1 无
+var _drag_mode: int = DragMode.NONE      # 编辑拖拽模式（MOVE/RESIZE_*）
+var _drag_origin: Rect2i = Rect2i()      # 编辑拖拽起始 rect
+var _drag_anchor: Vector2 = Vector2.ZERO # 编辑拖拽起始鼠标世界坐标
 
 
 # ---------- 数据注入 ----------
@@ -60,16 +72,48 @@ var _pending_fit: bool = false           # 布局未完成时标记，RESIZED �
 func set_texture(tex: Texture2D) -> void:
 	_texture = tex
 	_rects = []
+	_sprites = []
 	_grid = {}
 	_selection = Rect2i(-1, -1, 0, 0)
 	_selected = []
+	_edit_index = -1
+	_drag_mode = DragMode.NONE
 	_pending_fit = true   # 等布局完成（RESIZED）后适应窗口
 	queue_redraw()
 
 
-func set_rects(rects: Array[Rect2i]) -> void:
-	_rects = rects
+func set_rects(rects_in: Array[Rect2i]) -> void:
+	# 兼容旧接口：转为复杂结构（uid/name 自动生成）
+	var sp: Array[Dictionary] = []
+	for i: int in rects_in.size():
+		var r: Rect2i = rects_in[i]
+		sp.append({
+			"uid": "sprite_%d" % (i + 1),
+			"name": "精灵 %d" % (i + 1),
+			"x": r.position.x, "y": r.position.y,
+			"width": r.size.x, "height": r.size.y,
+			"locked": false, "ignored": false,
+		})
+	set_sprites(sp)
+
+
+# 复杂切片结构注入（controller sprites_changed → main 转发）
+func set_sprites(sprites_in: Array[Dictionary]) -> void:
+	_sprites = sprites_in
+	_rects = []
+	for s: Dictionary in _sprites:
+		_rects.append(Rect2i(int(s.get("x", 0)), int(s.get("y", 0)),
+				int(s.get("width", 0)), int(s.get("height", 0))))
+	_edit_index = -1
+	_selected = []
+	_drag_mode = DragMode.NONE
 	queue_redraw()
+
+
+func _is_locked(index: int) -> bool:
+	if index < 0 or index >= _sprites.size():
+		return true
+	return bool(_sprites[index].get("locked", false))
 
 
 # Auto 网格布局 overlay（controller auto_diag_changed → 主视图转发）。空字典清除。
@@ -112,6 +156,8 @@ func set_tool(tool: int) -> void:
 	_tool = tool
 	_dragging = false
 	_panning = false
+	_drag_mode = DragMode.NONE
+	_edit_index = -1   # 切工具清编辑态
 	queue_redraw()
 
 
@@ -126,6 +172,71 @@ func pick_rect_at(world_p: Vector2) -> Rect2i:
 		if Rect2(Vector2(r.position), Vector2(r.size)).has_point(world_p):
 			hit = r
 	return hit
+
+
+# 返回命中的 sprite 索引（编辑用）；无命中 -1
+func pick_sprite_index_at(world_p: Vector2) -> int:
+	for i: int in range(_rects.size() - 1, -1, -1):
+		var r: Rect2i = _rects[i]
+		if Rect2(Vector2(r.position), Vector2(r.size)).has_point(world_p):
+			return i
+	return -1
+
+
+# 四角手柄命中：返回 DragMode（RESIZE_NW/NE/SW/SE）；未命中 DragMode.NONE
+func _handle_at(world_p: Vector2, r: Rect2i) -> int:
+	var h: float = HANDLE_SIZE / _zoom
+	var corners: Array[Vector2] = [
+		Vector2(r.position),                                   # NW
+		Vector2(r.end.x, r.position.y),                        # NE
+		Vector2(r.position.x, r.end.y),                        # SW
+		Vector2(r.end),                                        # SE
+	]
+	for i: int in corners.size():
+		if world_p.distance_to(corners[i]) <= h:
+			return DragMode.RESIZE_NW + i
+	return DragMode.NONE
+
+
+# 编辑拖拽应用：根据 _drag_mode 计算新 rect（move 平移 / resize 按角调整），clamp 图内
+func _apply_edit_drag(wp: Vector2) -> void:
+	if _edit_index < 0 or _drag_mode == DragMode.NONE:
+		return
+	var delta: Vector2 = wp - _drag_anchor
+	var o: Rect2i = _drag_origin
+	var img: Vector2 = get_image_size()
+	var x0: float = o.position.x
+	var y0: float = o.position.y
+	var x1: float = o.end.x
+	var y1: float = o.end.y
+	match _drag_mode:
+		DragMode.MOVE:
+			x0 = o.position.x + delta.x
+			y0 = o.position.y + delta.y
+			x1 = o.end.x + delta.x
+			y1 = o.end.y + delta.y
+		DragMode.RESIZE_NW:
+			x0 = minf(o.end.x - 1, o.position.x + delta.x)
+			y0 = minf(o.end.y - 1, o.position.y + delta.y)
+		DragMode.RESIZE_NE:
+			x1 = maxf(o.position.x + 1, o.end.x + delta.x)
+			y0 = minf(o.end.y - 1, o.position.y + delta.y)
+		DragMode.RESIZE_SW:
+			x0 = minf(o.end.x - 1, o.position.x + delta.x)
+			y1 = maxf(o.position.y + 1, o.end.y + delta.y)
+		DragMode.RESIZE_SE:
+			x1 = maxf(o.position.x + 1, o.end.x + delta.x)
+			y1 = maxf(o.position.y + 1, o.end.y + delta.y)
+	# clamp 到图像边界
+	if img.x > 0.0:
+		x0 = clampf(x0, 0.0, img.x - 1.0)
+		x1 = clampf(x1, 1.0, img.x)
+	if img.y > 0.0:
+		y0 = clampf(y0, 0.0, img.y - 1.0)
+		y1 = clampf(y1, 1.0, img.y)
+	_rects[_edit_index] = Rect2i(int(round(x0)), int(round(y0)),
+			int(round(x1 - x0)), int(round(y1 - y0)))
+	queue_redraw()
 
 
 func get_selected_rects() -> Array[Rect2i]:
@@ -241,6 +352,26 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 			_pan_start = e.position
 			_pan_center0 = _center
 		else:
+			# SELECT：已有编辑对象 → 手柄/本体命中优先（拖拽移动 / 四角缩放）
+			if _tool == Tool.SELECT and _edit_index >= 0 and not _is_locked(_edit_index):
+				var wp: Vector2 = screen_to_world(e.position)
+				var hnd: int = _handle_at(wp, _rects[_edit_index])
+				if hnd != DragMode.NONE:
+					_drag_mode = hnd
+					_drag_origin = _rects[_edit_index]
+					_drag_anchor = wp
+					_dragging = true
+					queue_redraw()
+					return
+				var er: Rect2 = Rect2(Vector2(_rects[_edit_index].position),
+						Vector2(_rects[_edit_index].size))
+				if er.has_point(wp):
+					_drag_mode = DragMode.MOVE
+					_drag_origin = _rects[_edit_index]
+					_drag_anchor = wp
+					_dragging = true
+					queue_redraw()
+					return
 			_dragging = true
 			_drag_start = e.position
 			_drag_cur = e.position
@@ -249,6 +380,16 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 	# 左键松开
 	if _panning:
 		_panning = false
+		return
+	if _dragging and _drag_mode != DragMode.NONE:
+		# 编辑拖拽结束：提交几何变更（锁定项不提交）
+		var idx: int = _edit_index
+		var new_rect: Rect2i = _rects[idx]
+		_dragging = false
+		_drag_mode = DragMode.NONE
+		if not _is_locked(idx):
+			geometry_committed.emit(idx, new_rect)
+		queue_redraw()
 		return
 	if not _dragging:
 		return
@@ -275,17 +416,23 @@ func _handle_mouse_motion(e: InputEventMouseMotion) -> void:
 		return
 	if _dragging:
 		_drag_cur = e.position
+		if _drag_mode != DragMode.NONE:
+			# 编辑拖拽：本地实时更新显示（松手才提交）
+			_apply_edit_drag(screen_to_world(e.position))
+			return
 		queue_redraw()
 
 
 # ---------- 工具行为 ----------
 
 func _on_click_select(world_p: Vector2) -> void:
-	var hit: Rect2i = pick_rect_at(world_p)
-	if hit.size.x <= 0:
+	var idx: int = pick_sprite_index_at(world_p)
+	if idx < 0:
 		_selected = []   # 点空白清空选中
+		_edit_index = -1
 	else:
-		_selected = [hit]
+		_selected = [_rects[idx]]
+		_edit_index = idx   # 进入编辑态（显示四角手柄）
 	selection_changed.emit(_selected)
 
 
@@ -296,6 +443,7 @@ func _on_drag_select() -> void:
 		if Rect2(Vector2(r.position), Vector2(r.size)).intersects(drag_rect):
 			sel.append(r)
 	_selected = sel
+	_edit_index = -1   # 框选多选不进编辑态
 	selection_changed.emit(_selected)
 
 
@@ -356,6 +504,20 @@ func _draw() -> void:
 			var rr: Rect2 = Rect2(Vector2(r.position), Vector2(r.size))
 			draw_rect(rr, SEL_HL_FILL, true)
 			draw_rect(rr, SEL_HL_STROKE, false, lw)
+	# 编辑手柄（SELECT 单选编辑态：四角小方块；锁定项灰色，不可拖拽/缩放）
+	if _tool == Tool.SELECT and _edit_index >= 0 and _edit_index < _rects.size():
+		var er: Rect2 = Rect2(Vector2(_rects[_edit_index].position),
+				Vector2(_rects[_edit_index].size))
+		var h: float = HANDLE_SIZE / _zoom
+		var fill: Color = HANDLE_LOCKED if _is_locked(_edit_index) else HANDLE_FILL
+		var corners: Array[Vector2] = [er.position,
+				Vector2(er.end.x, er.position.y),
+				Vector2(er.position.x, er.end.y),
+				er.end]
+		for c: Vector2 in corners:
+			draw_rect(Rect2(c - Vector2(h, h), Vector2(h * 2, h * 2)), fill, true)
+			draw_rect(Rect2(c - Vector2(h, h), Vector2(h * 2, h * 2)),
+					HANDLE_STROKE, false, 1.0 / _zoom)
 	# CROP：裁切框（青）
 	if _tool == Tool.CROP and _selection.size.x > 0 and _selection.size.y > 0:
 		var cr: Rect2 = Rect2(Vector2(_selection.position), Vector2(_selection.size))

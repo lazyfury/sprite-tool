@@ -67,6 +67,7 @@ func set_controller(c: SpsController) -> void:
 	_canvas.selection_changed.connect(_on_canvas_selection_changed)
 	_canvas.view_changed.connect(_on_canvas_view_changed)
 	_canvas.drop_requested.connect(_on_canvas_drop_requested)
+	_canvas.geometry_committed.connect(_on_canvas_geometry_committed)
 	_controller.registry_updated.connect(_on_registry_updated)
 	_controller.data_path_changed.connect(_on_data_path_changed)
 	_on_registry_updated()   # 初始填充注册表列表
@@ -537,6 +538,12 @@ func _on_canvas_selection_drawn(rect_world: Rect2i) -> void:
 func _on_canvas_selection_changed(selected: Array[Rect2i]) -> void:
 	if _controller != null:
 		_controller.on_canvas_selection(selected)
+
+
+# 画布编辑提交（拖拽移动 / 四角缩放）→ 更新切片数据
+func _on_canvas_geometry_committed(index: int, rect: Rect2i) -> void:
+	if _controller != null:
+		_controller.update_sprite_geometry(index, rect)
 
 
 func _on_canvas_view_changed() -> void:
