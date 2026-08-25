@@ -9,6 +9,7 @@ build/
 /sprites/
 *.png
 !tests/fixtures/*.png
+!tests/fixtures/auto/*.png
 !godot/project/sprites/*.png
 
 # 系统文件

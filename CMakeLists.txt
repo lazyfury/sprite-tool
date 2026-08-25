@@ -73,6 +73,7 @@ add_executable(unit_tests
   tests/test_background_remover.cpp
   tests/test_grid.cpp
   tests/test_auto.cpp
+  tests/test_auto_fixtures.cpp
   tests/test_morphology.cpp
   tests/test_json.cpp
   tests/test_sheet.cpp

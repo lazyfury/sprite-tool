@@ -425,11 +425,14 @@ GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell,
             // ---- 网格几何统计（修正：不再 max(px,py) 压方形，用真实 period + offset）----
             const GridStats st = grid_stats(mask, px.period, py.period, cand.offset_x,
                                             cand.offset_y, kMinOpaqueCellPixels);
-            cand.columns = st.columns;
-            cand.rows = st.rows;
             cand.cell_occupancy = st.avg_foreground_ratio;
 
             // ---- Component → Cell mapping：每组件一个 cell 线性索引，统计占用 cell ----
+            // rows/columns 用「组件实际覆盖的 cell 范围」而非几何覆盖——
+            // 避免 offset 微调（如 -1px）在布局边界多算一行/列空白（如鱼图 4×7 报成 4×8）。
+            int min_cx = std::numeric_limits<int>::max();
+            int min_cy = std::numeric_limits<int>::max();
+            int max_cx = -1, max_cy = -1;
             std::vector<int> indices;
             indices.reserve(n_comps);
             std::vector<int> sorted;
@@ -437,10 +440,16 @@ GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell,
             for (const auto& c : comps) {
                 const int cx = component_cell_index(c.cx, cand.offset_x, px.period, st.columns);
                 const int cy = component_cell_index(c.cy, cand.offset_y, py.period, st.rows);
+                min_cx = std::min(min_cx, cx);
+                min_cy = std::min(min_cy, cy);
+                max_cx = std::max(max_cx, cx);
+                max_cy = std::max(max_cy, cy);
                 const int lin = cy * st.columns + cx;
                 indices.push_back(lin);
                 sorted.push_back(lin);
             }
+            cand.columns = max_cx - min_cx + 1;
+            cand.rows = max_cy - min_cy + 1;
             std::sort(sorted.begin(), sorted.end());
             const int unique_cells =
                 static_cast<int>(std::unique(sorted.begin(), sorted.end()) - sorted.begin());
