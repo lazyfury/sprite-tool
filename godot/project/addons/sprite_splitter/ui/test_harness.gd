@@ -380,9 +380,23 @@ func _auto_test() -> void:
 	_check(_side.get_node("VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox/ImportMetaBtn") != null,
 			"auto test: import meta button in own tab")
 	# 分析并入切分 tab（分析按钮/参数/操作卡片）
-	_check(_side.get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBtn") != null,
+	_check(_side.get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody/AnalyzeBtn") != null,
 			"auto test: analyze merged into split tab")
 	_check(_side.get("_cards").size() == 6, "auto test: side has 6 themed cards")
+	# 检查器风格折叠分组：header 箭头 + 点击收起/展开 body
+	var param_header: Button = _side.get_node(
+			"VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamHeader")
+	_check(param_header != null and param_header.text.begins_with("▾"),
+			"auto test: param header foldable (arrow)")
+	var param_body: Control = _side.get_node(
+			"VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody")
+	_check(param_body.visible, "auto test: param body expanded by default")
+	param_header.button_pressed = false
+	await get_tree().process_frame
+	_check(not param_body.visible, "auto test: param body collapsed on toggle")
+	param_header.button_pressed = true
+	await get_tree().process_frame
+	_check(param_body.visible, "auto test: param body expanded again")
 
 	# 应用配置 → 统一入口（配套场景：配置素材=当前图 → 图片保持 + 区域加载）
 	var cfg: SpriteSplitterData = _controller.data.duplicate()

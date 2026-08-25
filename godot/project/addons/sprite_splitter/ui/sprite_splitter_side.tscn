@@ -58,17 +58,27 @@ layout_mode = 2
 
 [node name="AnalyzeVBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard"]
 layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AnalyzeHeader" type="Button" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+flat = true
+toggle_mode = true
+button_pressed = true
+text = "分析"
+alignment = 0
+
+[node name="AnalyzeBody" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox"]
+layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="AnalyzeTitle" type="Label" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox"]
+[node name="AnalyzeBtn" type="Button" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody"]
 layout_mode = 2
-text = "分析"
-
-[node name="AnalyzeBtn" type="Button" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox"]
-layout_mode = 2
+size_flags_horizontal = 3
 text = "分析素材"
 
-[node name="InfoLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox"]
+[node name="InfoLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody"]
 layout_mode = 2
 autowrap_mode = 3
 text = "打开素材后点「分析素材」获取推荐参数"
@@ -78,83 +88,93 @@ layout_mode = 2
 
 [node name="ParamVBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/ParamCard"]
 layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ParamHeader" type="Button" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+flat = true
+toggle_mode = true
+button_pressed = true
+text = "参数"
+alignment = 0
+
+[node name="ParamBody" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox"]
+layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="ParamTitle" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox"]
+[node name="ModeOption" type="OptionButton" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody"]
 layout_mode = 2
-text = "参数"
+size_flags_horizontal = 3
 
-[node name="ModeOption" type="OptionButton" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox"]
-layout_mode = 2
-
-[node name="ParamGrid" type="GridContainer" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox"]
+[node name="ParamGrid" type="GridContainer" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody"]
 layout_mode = 2
 theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 4
 columns = 2
 
-[node name="MinWLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="MinWLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 text = "最小宽"
 
-[node name="MinW" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="MinW" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 min_value = 1.0
 max_value = 2048.0
 value = 2.0
 
-[node name="MinHLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="MinHLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 text = "最小高"
 
-[node name="MinH" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="MinH" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 min_value = 1.0
 max_value = 2048.0
 value = 2.0
 
-[node name="CellSizeLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="CellSizeLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 text = "格子尺寸 (grid)"
 
-[node name="CellSize" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="CellSize" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 min_value = 1.0
 max_value = 512.0
 value = 16.0
 
-[node name="MergeDistLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="MergeDistLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 text = "合并距离 (components)"
 
-[node name="MergeDist" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="MergeDist" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 min_value = 0.0
 max_value = 64.0
 value = 0.0
 
-[node name="AlphaThrLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="AlphaThrLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 text = "alpha 阈值"
 
-[node name="AlphaThr" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="AlphaThr" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 min_value = 0.0
 max_value = 255.0
 value = 1.0
 
-[node name="SlicePolicyLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="SlicePolicyLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 text = "切割策略 (auto)"
 
-[node name="SlicePolicy" type="OptionButton" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="SlicePolicy" type="OptionButton" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 
-[node name="PaddingLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="PaddingLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 text = "Padding (auto)"
 
-[node name="Padding" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+[node name="Padding" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid"]
 layout_mode = 2
 max_value = 64.0
 value = 0.0
@@ -164,22 +184,32 @@ layout_mode = 2
 
 [node name="ActionVBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/ActionCard"]
 layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ActionHeader" type="Button" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+flat = true
+toggle_mode = true
+button_pressed = true
+text = "操作"
+alignment = 0
+
+[node name="ActionBody" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="ActionTitle" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+[node name="SplitBtn" type="Button" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody"]
 layout_mode = 2
-text = "操作"
-
-[node name="SplitBtn" type="Button" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
-layout_mode = 2
+size_flags_horizontal = 3
 text = "切分"
 
-[node name="AutoAnalyze" type="CheckButton" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+[node name="AutoAnalyze" type="CheckButton" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody"]
 layout_mode = 2
 button_pressed = true
 text = "切分时自动分析"
 
-[node name="CountLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+[node name="CountLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody"]
 layout_mode = 2
 autowrap_mode = 3
 

@@ -31,20 +31,20 @@ var _meta_dialog: Variant = null
 @onready var _project_name_edit: LineEdit = get_node("VBox/ProjectRow/ProjectNameEdit")
 @onready var _save_btn: Button = get_node("VBox/ProjectRow/SaveBtn")
 @onready var _save_state_label: Label = get_node("VBox/ProjectRow/SaveStateLabel")
-@onready var _analyze_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBtn")
-@onready var _info_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/InfoLabel")
-@onready var _mode_option: OptionButton = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ModeOption")
-@onready var _min_w: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/MinW")
-@onready var _min_h: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/MinH")
-@onready var _cell_size: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/CellSize")
-@onready var _merge_dist: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/MergeDist")
-@onready var _alpha_thr: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/AlphaThr")
-@onready var _slice_policy: OptionButton = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/SlicePolicy")
-@onready var _padding: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/Padding")
-@onready var _split_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/SplitBtn")
-@onready var _auto_analyze: CheckButton = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/AutoAnalyze")
+@onready var _analyze_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody/AnalyzeBtn")
+@onready var _info_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody/InfoLabel")
+@onready var _mode_option: OptionButton = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ModeOption")
+@onready var _min_w: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/MinW")
+@onready var _min_h: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/MinH")
+@onready var _cell_size: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/CellSize")
+@onready var _merge_dist: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/MergeDist")
+@onready var _alpha_thr: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/AlphaThr")
+@onready var _slice_policy: OptionButton = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/SlicePolicy")
+@onready var _padding: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/Padding")
+@onready var _split_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody/SplitBtn")
+@onready var _auto_analyze: CheckButton = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody/AutoAnalyze")
 @onready var _import_meta_btn: Button = get_node("VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox/ImportMetaBtn")
-@onready var _count_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/CountLabel")
+@onready var _count_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody/CountLabel")
 @onready var _bg_thr: SpinBox = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgThrRow/BgThr")
 @onready var _bg_backend_option: OptionButton = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BackendRow/BackendOption")
 @onready var _bg_color_enable: CheckButton = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow/BgColorEnable")
@@ -84,6 +84,7 @@ func set_controller(c: SpsController) -> void:
 func _ready() -> void:
 	_setup_tabs()
 	_rebuild_options()
+	_setup_fold_headers()
 	_connect_signals()
 	_apply_theme()
 	if Engine.is_editor_hint():
@@ -96,6 +97,28 @@ func _setup_tabs() -> void:
 	_tabs.set_tab_title(1, "去背景")
 	_tabs.set_tab_title(2, "导出")
 	_tabs.set_tab_title(3, "导入")
+
+
+# 检查器风格折叠分组（原生 Button flat + toggle）：header 点击 → body 展开/收起，
+# 箭头 ▾/▸ 同步。tscn 的 header 已设 flat/toggle/左对齐，这里补箭头前缀与连接。
+func _setup_fold_header(header: Button, body: Control) -> void:
+	header.text = "▾ " + header.text
+	header.toggled.connect(func(on: bool) -> void:
+		body.visible = on
+		header.text = ("▾ " if on else "▸ ") + header.text.trim_prefix("▾ ").trim_prefix("▸ ")
+	)
+
+
+func _setup_fold_headers() -> void:
+	_setup_fold_header(
+			get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeHeader"),
+			get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody"))
+	_setup_fold_header(
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamHeader"),
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody"))
+	_setup_fold_header(
+			get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionHeader"),
+			get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody"))
 
 
 # OptionButton 选项用代码重建（Godot 4.6 下 tscn item_N/text 不恢复文本）
