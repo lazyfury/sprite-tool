@@ -655,6 +655,17 @@ func _on_canvas_selection_drawn(rect_world: Rect2i) -> void:
 func _on_canvas_selection_changed(selected: Array[Rect2i]) -> void:
 	if _controller != null:
 		_controller.on_canvas_selection(selected)
+	# 画布选中 → 列表选中状态同步（ItemList 原生选中高亮）：
+	# 单选 → 高亮对应项；多选/无选 → 取消高亮。锁定项画布不选中，此处自然不同步。
+	if selected.size() == 1:
+		var rects: Array = _canvas.get("_rects")
+		for i: int in rects.size():
+			if rects[i] == selected[0]:
+				_split_list.select(i)
+				return
+		_split_list.deselect_all()
+	else:
+		_split_list.deselect_all()
 
 
 # 画布编辑提交（拖拽移动 / 四角缩放）→ 更新切片数据

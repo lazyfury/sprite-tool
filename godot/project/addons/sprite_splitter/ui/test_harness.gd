@@ -274,9 +274,9 @@ func _auto_test() -> void:
 	_check(_controller.data.source_texture != null,
 			"auto test: source_texture kept after registry click (apply_data sync)")
 	_check(first_item.selected, "auto test: active registry item selected")
-	# 选中样式回归：active 高亮 SEL_BG；取消后恢复 tscn 透明面板（set_selected 曾误删 tscn override）
+	# 选中样式回归：active 高亮 SEL_BG（颜色以 reg_item.gd SEL_BG 为准）；取消后恢复 tscn 透明面板
 	var sb_sel: StyleBox = first_item.get_theme_stylebox("panel")
-	_check((sb_sel as StyleBoxFlat).bg_color.is_equal_approx(Color(0.152, 0.152, 0.181, 1.0)),
+	_check((sb_sel as StyleBoxFlat).bg_color.is_equal_approx(Color(0.19, 0.19, 0.21, 1.0)),
 			"auto test: selected item highlighted with SEL_BG")
 	first_item.call("set_selected", false)
 	var sb_unsel: StyleBox = first_item.get_theme_stylebox("panel")
@@ -628,6 +628,16 @@ func _auto_test() -> void:
 			"auto test: list selection syncs canvas")
 	split_list.emit_signal("item_selected", 0)
 	await get_tree().process_frame
+	# 画布选中 → 列表高亮同步（双向联动）
+	canvas._on_click_select(Vector2(6, 6))   # sprite0
+	_check(split_list.is_selected(0),
+			"auto test: canvas select highlights list item")
+	canvas._on_click_select(Vector2(22, 6))  # sprite1
+	_check(split_list.is_selected(1),
+			"auto test: canvas select moves list highlight")
+	canvas._on_click_select(Vector2(50, 50))  # 空白 → 清空
+	_check(not split_list.is_selected(1),
+			"auto test: canvas clear deselects list")
 
 	print("[sps-ui] === auto test done (fail=%s) ===" % _fail)
 	get_tree().quit(1 if _fail else 0)
