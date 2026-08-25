@@ -389,6 +389,8 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 					_drag_mode = hnd
 					_drag_origin = _rects[_edit_index]
 					_drag_anchor = wp
+					_drag_start = e.position   # 单击判定需要屏幕位移
+					_drag_cur = e.position
 					_dragging = true
 					queue_redraw()
 					return
@@ -398,6 +400,8 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 					_drag_mode = DragMode.MOVE
 					_drag_origin = _rects[_edit_index]
 					_drag_anchor = wp
+					_drag_start = e.position
+					_drag_cur = e.position
 					_dragging = true
 					queue_redraw()
 					return
@@ -411,7 +415,15 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 		_panning = false
 		return
 	if _dragging and _drag_mode != DragMode.NONE:
-		# 编辑拖拽结束：提交几何变更（锁定项不提交）
+		# 单击（位移小于阈值）：取消编辑拖拽，转为点击选择（不与单击冲突）
+		if (_drag_cur - _drag_start).length() < CLICK_THRESHOLD:
+			_dragging = false
+			_drag_mode = DragMode.NONE
+			if _tool == Tool.SELECT or _tool == Tool.EDIT:
+				_on_click_select(screen_to_world(e.position))
+			queue_redraw()
+			return
+		# 真正拖拽结束：提交几何变更（锁定项不提交）
 		var idx: int = _edit_index
 		var new_rect: Rect2i = _rects[idx]
 		_dragging = false
@@ -425,12 +437,16 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 	_dragging = false
 	var drag_len: float = (_drag_cur - _drag_start).length()
 	if drag_len < CLICK_THRESHOLD:
-		# 点击（SELECT 模式单选）
-		if _tool == Tool.SELECT:
+		# 点击（SELECT/EDIT 单选；CROP 无动作）
+		if _tool == Tool.SELECT or _tool == Tool.EDIT:
 			_on_click_select(screen_to_world(e.position))
 	else:
 		if _tool == Tool.SELECT:
 			_on_drag_select()
+		elif _tool == Tool.EDIT:
+			_selected = []   # EDIT 从空白拖拽 → 清空选择（不框选）
+			_edit_index = -1
+			selection_changed.emit(_selected)
 		elif _tool == Tool.CROP:
 			_finish_crop()
 	queue_redraw()

@@ -389,6 +389,36 @@ func _auto_test() -> void:
 			"auto test: selection kept after commit")
 	_controller.update_sprite_geometry(0, rc1)   # 还原
 	canvas.set_tool(canvas.Tool.SELECT)
+	# EDIT 单击事件（完整鼠标管线）：点选/切换选择，不触发提交
+	canvas.set_tool(canvas.Tool.EDIT)
+	canvas._on_click_select(Vector2(6, 6))
+	var ev_p: InputEventMouseButton = InputEventMouseButton.new()
+	ev_p.button_index = MOUSE_BUTTON_LEFT
+	ev_p.pressed = true
+	ev_p.position = canvas.world_to_screen(Vector2(6, 6))
+	canvas._handle_mouse_button(ev_p)
+	var ev_r: InputEventMouseButton = InputEventMouseButton.new()
+	ev_r.button_index = MOUSE_BUTTON_LEFT
+	ev_r.pressed = false
+	ev_r.position = canvas.world_to_screen(Vector2(6, 6))
+	canvas._handle_mouse_button(ev_r)
+	_check(canvas.get("_edit_index") == 0,
+			"auto test: edit click event keeps selection")
+	# 单击切换选择（点另一个切片区域）
+	var ev_p2: InputEventMouseButton = InputEventMouseButton.new()
+	ev_p2.button_index = MOUSE_BUTTON_LEFT
+	ev_p2.pressed = true
+	ev_p2.position = canvas.world_to_screen(Vector2(22, 6))
+	canvas._handle_mouse_button(ev_p2)
+	var ev_r2: InputEventMouseButton = InputEventMouseButton.new()
+	ev_r2.button_index = MOUSE_BUTTON_LEFT
+	ev_r2.pressed = false
+	ev_r2.position = canvas.world_to_screen(Vector2(22, 6))
+	canvas._handle_mouse_button(ev_r2)
+	_check(canvas.get("_edit_index") == 1,
+			"auto test: edit click event switches selection")
+	canvas._on_click_select(Vector2(6, 6))
+	canvas.set_tool(canvas.Tool.SELECT)
 	# 列表 emoji 状态显示
 	_controller.set_sprite_locked(0, true)
 	_controller.set_sprite_ignored(1, true)
