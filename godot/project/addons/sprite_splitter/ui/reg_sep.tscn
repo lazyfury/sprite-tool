@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://pmp5x7ofnkwq"]
+
+[ext_resource type="Script" uid="uid://bwokr8v870t17" path="res://addons/sprite_splitter/ui/reg_sep.gd" id="1_sep"]
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_ncwkk"]
+color = Color(0.18538326, 0.18538326, 0.18538326, 1)
+
+[node name="RegSep" type="HSeparator" unique_id=2058859784]
+offset_right = 118.0
+offset_bottom = 4.0
+theme_override_styles/separator = SubResource("StyleBoxLine_ncwkk")
+script = ExtResource("1_sep")

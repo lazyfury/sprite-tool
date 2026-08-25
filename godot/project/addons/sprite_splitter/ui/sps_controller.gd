@@ -15,6 +15,7 @@ signal count_changed(text: String)
 signal analyze_done(stats: Dictionary)
 signal exporting_changed(exporting: bool)
 signal data_loaded(data: SpriteSplitterData)
+signal data_path_changed(path: String)   # 当前项目数据路径变化（打开图片/配置后，UI 据此同步注册表选中项；外部素材为 ""）
 signal data_dirty_changed(dirty: bool)
 signal data_saved()
 signal registry_updated()   # 注册表变化（新增/加载）→ UI 刷新列表
@@ -120,6 +121,62 @@ func _wait_frame() -> void:
 
 # ---------- 加载 / 分析 / 切分 ----------
 
+# 绑定编辑器文件系统信号：源文件重命名/移动会触发重导入流程（resources_reimported /
+# filesystem_changed），借此自动修复注册表里 source_image 失效的配置路径。
+# 仅编辑器模式可用（EditorInterface）；运行模式（headless 测试）直接跳过。
+func connect_fs_signals() -> void:
+	if not Engine.is_editor_hint():
+		return
+	var fs: EditorFileSystem = EditorInterface.get_resource_filesystem()
+	fs.resources_reimported.connect(_on_fs_changed)
+	fs.filesystem_changed.connect(_on_fs_changed)
+
+
+func _on_fs_changed(_res: Variant = null) -> void:
+	_repair_stale_registry_paths()
+
+
+# 扫描注册表：source_image 失效（源文件更名/移动）的配置 → 用 sheet_uid 反查
+# uid 缓存拿当前路径，修复并持久化；有修复则刷新注册表列表（缩略图重新生成）。
+func _repair_stale_registry_paths() -> void:
+	if registry == null:
+		return
+	var repaired: bool = false
+	for p: String in registry.entries:
+		if not ResourceLoader.exists(p):
+			continue   # 死条目（registry 有独立清理）
+		var d: Variant = load(p)
+		if not (d is SpriteSplitterData):
+			continue
+		if not String(d.source_image).is_empty() \
+				and not ResourceLoader.exists(d.source_image):
+			var src: String = _resolve_source_path(d)
+			if src.is_empty() or src == d.source_image:
+				continue
+			d.source_image = src
+			d.source_texture = load(src) if src.begins_with("res://") \
+					else null
+			if ResourceSaver.save(d, p) == OK:
+				repaired = true
+	if repaired:
+		registry_updated.emit()
+
+
+# 按 uid 加载素材：uid://... 文本 → uid 缓存反查当前路径 → load_image。
+# 源文件更名/移动后路径变化也能定位（依赖 Godot uid 缓存，编辑器维护）。
+# 失败（uid 无效/缓存无此 uid/文件不存在）返回 false，不改变当前图。
+func load_image_by_uid(uid_text: String) -> bool:
+	if uid_text.is_empty():
+		return false
+	var id: int = ResourceUID.text_to_id(uid_text)
+	if id == ResourceUID.INVALID_ID:
+		return false
+	var path: String = ResourceUID.get_id_path(id)
+	if not path.begins_with("res://") or not ResourceLoader.exists(path):
+		return false
+	return load_image(path)
+
+
 func load_image(path: String) -> bool:
 	var img: Image = Image.load_from_file(path)
 	if img == null:
@@ -142,11 +199,52 @@ func load_image(path: String) -> bool:
 
 # ---------- 项目数据（uid 关联的 .tres，兼容 meta.json rects） ----------
 
+# 源路径同步：data.source_image 跟随当前实际加载的素材路径。
+# 源文件更名后 uid 保留（Godot 重命名不换 uid），拖入新图会按 uid 匹配到旧配置——
+# 此处把配置里的旧路径就地修正为当前路径，下次保存/重启不再失效。
+func _sync_source_path() -> void:
+	if data == null:
+		return
+	if image_res_path.begins_with("res://") and data.source_image != image_res_path:
+		data.source_image = image_res_path
+
+
+# 配置素材路径解析：source_image 失效（源文件更名/移动）时，用 sheet_uid 反查
+# uid 缓存（ResourceUID.get_id_path）拿当前有效路径；找不到返回 ""。
+func _resolve_source_path(d: SpriteSplitterData) -> String:
+	if d == null:
+		return ""
+	var p: String = d.source_image
+	if p.begins_with("res://") and ResourceLoader.exists(p):
+		return p
+	if not d.sheet_uid.is_empty():
+		var id: int = ResourceUID.text_to_id(d.sheet_uid)
+		if id != ResourceUID.INVALID_ID:
+			var p2: String = ResourceUID.get_id_path(id)
+			if p2.begins_with("res://") and ResourceLoader.exists(p2):
+				return p2
+	return ""
+
+
+# 源纹理同步：按 data.source_image 存导入纹理引用（可序列化进 .tres），
+# 注册表缩略图直接用 source_texture，免每次从路径 load+缩放。
+# 外部素材 / 内存处理图（remove_background 后）不存——动态 ImageTexture 无法内联 .tres。
+func _sync_source_texture() -> void:
+	if data == null:
+		return
+	var src: String = data.source_image
+	if src.begins_with("res://") and ResourceLoader.exists(src):
+		data.source_texture = load(src)
+	else:
+		data.source_texture = null
+
+
 # 按素材 uid 查找 res://sps_data/<uid>.tres；有则加载恢复，无则初始化（自动填项目名）并落盘
 func _load_or_create_data() -> void:
 	data = null
 	data_path = ""
 	if not image_res_path.begins_with("res://"):
+		data_path_changed.emit("")   # 外部素材：无关联项目数据 → 注册表取消选中
 		return   # 项目外素材：不关联项目数据
 	var uid_id: int = ResourceLoader.get_resource_uid(image_res_path)
 	var uid: String = ""
@@ -163,10 +261,14 @@ func _load_or_create_data() -> void:
 		data.sheet_uid = uid
 		data.source_image = image_res_path
 		data.project_name = image_name.get_basename()
+		data.out_dir = "res://out_sprites/ui/" + tag   # 默认导出目录按素材 uid 再加一层
 		data.modified_at = int(Time.get_unix_time_from_system())
 		DirAccess.make_dir_recursive_absolute(data_dir)
 		ResourceSaver.save(data, data_path)
 		_register_data(data_path)   # 新增项目数据自动注册
+	_sync_source_path()
+	_sync_source_texture()
+	data_path_changed.emit(data_path)
 	data_loaded.emit(data)
 	is_dirty = false   # 新素材/恢复数据后无未保存修改
 	data_dirty_changed.emit(false)
@@ -190,13 +292,21 @@ func _mark_clean() -> void:
 # 应用外部加载的 SpriteSplitterData 配置（「打开配置」文件对话框 / 拖入 .tres）
 # 统一入口：素材 → 项目数据 → 配套区域 → 参数 UI，一条链路
 func apply_data(d: SpriteSplitterData, path: String) -> void:
-	# 1) 素材：配置带素材且与当前图不同 → 统一走 load_image（素材缺失则保持当前图并提示）
+	# 1) 素材：配置带素材且与当前图不同 → 统一走 load_image（素材缺失则保持当前图并提示）。
+	#    source_image 可能因源文件更名失效 → 用 sheet_uid 反查 uid 缓存拿当前有效路径，并就地修复配置
 	if not d.source_image.is_empty() and image_res_path != d.source_image:
-		if not load_image(d.source_image):
+		var src: String = _resolve_source_path(d)
+		if src.is_empty():
 			status_changed.emit("配置素材加载失败，保持当前图片: " + d.source_image, true)
+		else:
+			if load_image(src):
+				d.source_image = src   # 修复失效的源路径（更名后 uid 反查）
+			else:
+				status_changed.emit("配置素材加载失败，保持当前图片: " + src, true)
 	# 2) 项目数据以所选配置为准（load_image 内部可能按 uid 关联了其他 data，此处强制覆盖）
 	data = d
 	data_path = path
+	data_path_changed.emit(path)   # 打开配置 → 注册表选中项同步到该路径
 	# 3) 区域：配置 sprites 与当前图配套（全部落在图像范围内）才加载，否则清空并提示
 	if image != null and _sprites_fit_image(d.sprites):
 		rects = d.sprites.duplicate()
@@ -211,6 +321,7 @@ func apply_data(d: SpriteSplitterData, path: String) -> void:
 	# 4) 恢复侧栏 UI（参数/项目名/导出位置）+ 重置脏数据
 	is_dirty = false
 	data_dirty_changed.emit(false)
+	_sync_source_texture()
 	data_loaded.emit(d)
 	if not rects.is_empty():
 		status_changed.emit("已加载配置: " + path, false)
@@ -247,6 +358,7 @@ func save_project(project_name: String, options: Dictionary, out_dir: String,
 	data.export_mode = export_mode
 	data.sprites = rects.duplicate()   # 始终同步当前区域（含空）→ 配置与当前状态一致
 	data.modified_at = int(Time.get_unix_time_from_system())   # 最后修改时间
+	_sync_source_texture()   # 保存前同步源纹理（配置来源/内存图场景兜底）
 	var err: Error = ResourceSaver.save(data, data_path)
 	if err == OK:
 		status_changed.emit("项目已保存 → " + data_path, false)
@@ -303,6 +415,10 @@ func split(options: Dictionary) -> void:
 
 # ---------- 去背景（独立操作，替换当前图） ----------
 
+# 去背景：处理图写盘为新 PNG（res://out_sprites/<原名>_transparent.png，与 CLI 同名），
+# 并更新项目数据源（source_image / source_texture / sheet_uid）与 image_res_path。
+# 编辑器模式：触发扫描导入 → 等新 PNG 的 uid 生成 → 更新 uid/纹理 + 迁移 data_path；
+# 运行模式（无导入流程）：仅更新路径，uid/纹理留待编辑器扫描后生效。
 func remove_background(threshold: int) -> void:
 	if image == null:
 		status_changed.emit("先打开素材表", true)
@@ -314,16 +430,81 @@ func remove_background(threshold: int) -> void:
 		status_changed.emit("去背景失败（图像格式不支持）", true)
 		return
 	image = out
-	image_res_path = ""   # 内存处理图：AtlasTexture .tres 不可用
+	var new_path: String = _write_transparent_png(out)
+	image_res_path = new_path   # 新 PNG 成为当前素材（可 uid 关联、AtlasTexture 可用；写盘失败为 "" 回退内存图）
 	rects = []
 	selection = Rect2i(-1, -1, 0, 0)
 	if data != null:
 		data.sprites = []   # 图已变，旧 rects 失效
 		mark_dirty()
+	if not new_path.is_empty():
+		await _commit_bg_source(new_path)
 	image_loaded.emit(ImageTexture.create_from_image(out))
 	rects_changed.emit([] as Array[Rect2i])   # 图已变：清空画布红框与切片列表
 	count_changed.emit("")
 	status_changed.emit("已去背景（背景透明）", false)
+
+
+# 去背景图写盘：res://out_sprites/<原名stem>_transparent.png（与 CLI remove-background 一致）
+func _write_transparent_png(img: Image) -> String:
+	var stem: String = image_name.get_basename() if not image_name.is_empty() else "sprite"
+	var dir: String = "res://out_sprites"
+	DirAccess.make_dir_recursive_absolute(dir)
+	var p: String = dir + "/" + stem + "_transparent.png"
+	if img.save_png(p) != OK:
+		status_changed.emit("去背景图写盘失败，保持内存图", true)
+		return ""
+	return p
+
+
+# 去背景后更新项目数据源。编辑器模式：扫描导入新 PNG → 等 uid 生成 → 更新 uid/纹理 + 迁移 data_path。
+func _commit_bg_source(new_path: String) -> void:
+	if data == null:
+		return
+	data.source_image = new_path
+	_sync_source_texture()   # 已导入则直接生效；未导入 load 失败自动置 null
+	if not Engine.is_editor_hint():
+		return   # 运行模式：无导入流程，uid/纹理留待编辑器
+	_refresh_filesystem()   # 触发编辑器扫描导入新 PNG
+	var uid_text: String = await _wait_uid_ready(new_path)
+	if uid_text.is_empty():
+		status_changed.emit("去背景图导入超时，路径已更新（uid 待下次扫描）", true)
+		return
+	data.sheet_uid = uid_text
+	data.source_texture = load(new_path)
+	_migrate_data_path(new_path, uid_text)
+
+
+# 轮询等待新 PNG 导入完成（.uid 文件出现 / uid 缓存可查），返回 uid 文本；超时返回 ""。
+func _wait_uid_ready(path: String, max_frames: int = 180) -> String:
+	var uid_file: String = path + ".uid"
+	for _i: int in max_frames:
+		if FileAccess.file_exists(uid_file):
+			var text: String = FileAccess.get_file_as_string(uid_file).strip_edges()
+			if text.begins_with("uid://"):
+				return text
+		var id: int = ResourceLoader.get_resource_uid(path)
+		if id != ResourceUID.INVALID_ID:
+			return ResourceUID.id_to_text(id)
+		await _wait_frame()
+	return ""
+
+
+# uid 更新后迁移项目数据文件：<旧uid>.tres → <新uid>.tres（_load_or_create_data 按 uid 推文件名），
+# 同步更新注册表与选中项；旧文件删除。
+func _migrate_data_path(new_path: String, uid_text: String) -> void:
+	var tag: String = uid_text.trim_prefix("uid://")
+	var new_data_path: String = data_dir + "/" + tag + ".tres"
+	var old_path: String = data_path
+	data_path = new_data_path
+	if registry != null and registry.entries.has(old_path):
+		registry.entries.erase(old_path)   # 旧条目（文件将删）移除
+	_register_data(new_data_path)   # 登记新条目 + 保存 registry + 刷新列表
+	ResourceSaver.save(data, new_data_path)   # 立即落盘，保证 uid 关联一致
+	if old_path != new_data_path and not old_path.is_empty() \
+			and ResourceLoader.exists(old_path):
+		DirAccess.remove_absolute(old_path)
+	data_path_changed.emit(new_data_path)   # 注册表选中项跟随新路径
 
 
 # ---------- 画布事件转发（主视图 → 侧栏状态） ----------

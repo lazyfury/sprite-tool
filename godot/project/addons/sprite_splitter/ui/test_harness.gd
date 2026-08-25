@@ -6,6 +6,9 @@ extends Control
 
 const DEFAULT_SHEET: String = "res://sprites/sheet.png"
 const AUTO_TEST_FLAG: String = "--sps-ui-test"
+const AUTO_PROBE_FLAG: String = "--sps-ui-probe"
+const PROBE_OUT: String = "res://out_probe/ui_probe.json"
+const UiProbeScript: GDScript = preload("res://addons/sprite_splitter/ui/ui_probe.gd")
 
 var _controller: SpsController = null
 var _main: Control = null
@@ -44,6 +47,8 @@ func _ready() -> void:
 	_selftest()
 	if _auto_test_requested():
 		_auto_test()
+	if _auto_probe_requested():
+		_auto_probe()
 
 
 func _check(cond: bool, msg: String) -> void:
@@ -60,6 +65,28 @@ func _auto_test_requested() -> bool:
 	return OS.get_cmdline_user_args().has(AUTO_TEST_FLAG)
 
 
+func _auto_probe_requested() -> bool:
+	if OS.get_environment("SPS_UI_PROBE") == "1":
+		return true
+	return OS.get_cmdline_user_args().has(AUTO_PROBE_FLAG)
+
+
+# 插桩：加载素材 + 切分（列表/注册表有真实数据）→ 遍历主视图+侧栏全部 Control，
+# 记录位置信息 + 主题影响数据，写 JSON 后退出。SPS_UI_PROBE=1 或 --sps-ui-probe。
+func _auto_probe() -> void:
+	print("[sps-ui] === ui probe ===")
+	# headless 默认窗口极小（64x64）→ 手动撑大，否则布局全塌（位置数据失真）
+	get_window().size = Vector2i(1280, 800)
+	_controller.load_image(DEFAULT_SHEET)
+	_side._on_split()
+	for _i: int in 8:   # 等布局稳定（列表/缩略图/样式生效）
+		await get_tree().process_frame
+	var report: Dictionary = UiProbeScript.write_report(self, PROBE_OUT)
+	print("[sps-ui] probe done: controls=", report.get("count", 0),
+			" out=", PROBE_OUT)
+	get_tree().quit(0)
+
+
 func _selftest() -> void:
 	var rects: Array = _controller.splitter.split(Image.load_from_file(DEFAULT_SHEET),
 			{"mode": "auto", "min_width": 2, "min_height": 2})
@@ -74,6 +101,10 @@ func _auto_test() -> void:
 
 	# 加载 → 切分（自动分析）→ 画布更新
 	_check(_controller.load_image(DEFAULT_SHEET), "auto test: load image")
+	var expect_dir: String = "res://out_sprites/ui/" \
+			+ _controller.data.sheet_uid.trim_prefix("uid://")
+	_check(_controller.data.out_dir == expect_dir,
+			"auto test: default out_dir has uid subdir")
 	_side._on_split()
 	_check(not _controller.rects.is_empty(), "auto test: split produced rects")
 	_check(canvas.get("_rects").size() == _controller.rects.size(),
@@ -172,14 +203,23 @@ func _auto_test() -> void:
 			"auto test: save success state shown")
 	_check(FileAccess.file_exists(_controller.data_path),
 			"auto test: data saved to tres")
+	_check(_controller.data.source_texture != null,
+			"auto test: data saved with source_texture (registry thumbnail source)")
 	# 项目注册表（SpriteSplitterRegistry 自动注册 + UI 竖排列表）
 	_check(_controller.registry != null, "auto test: registry initialized")
 	_check(_controller.registry.has_entry(_controller.data_path),
 			"auto test: saved data auto-registered")
 	var reg_vbox: VBoxContainer = _main.get_node(
 			"MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox/RegListArea/RegScroll/RegVBoxList")
-	_check(reg_vbox.get_child_count() == _controller.registry.entries.size(),
-			"auto test: registry list shows all entries")
+	_check(reg_vbox.get_child_count() == _controller.registry.entries.size() * 2,
+			"auto test: registry list shows all entries + separators")
+	# 条目间分隔线：可复用 reg_sep.tscn（HSeparator，separator 主题项是 StyleBoxLine）
+	var first_sep: Control = reg_vbox.get_child(1)
+	_check(first_sep is HSeparator, "auto test: registry separator is HSeparator")
+	var sep_sb: StyleBox = (first_sep as HSeparator).get_theme_stylebox("separator")
+	_check(sep_sb is StyleBoxLine
+			and (sep_sb as StyleBoxLine).color.is_equal_approx(Color(0.18538326, 0.18538326, 0.18538326, 1)),
+			"auto test: registry separator stylebox color from tscn")
 	# 首项竖排：缩略图 + 标题/uid/修改时间（reg_item 场景，顶级 PanelContainer）
 	var first_item: Control = reg_vbox.get_child(0)
 	var thumb_rect: TextureRect = first_item.get_thumb()
@@ -188,14 +228,31 @@ func _auto_test() -> void:
 	var reg_labels: Array[String] = []
 	for l: Label in first_item.get_labels():
 		reg_labels.append(l.text)
-	_check(reg_labels.size() == 3 and reg_labels[0] == "测试项目",
+	_check(reg_labels.size() == 4 and reg_labels[0] == "测试项目",
 			"auto test: registry item shows title")
 	_check(reg_labels[1] != "", "auto test: registry item shows uid")
 	_check(reg_labels[2].contains("修改于"), "auto test: registry item shows modified time")
+	_check(reg_labels[3].begins_with("res://"),
+			"auto test: registry item shows source path")
+	# 打开图片后：按源图片 uid 自动同步注册表选中项（无需点击）
+	_check(String(_main.get("_active_reg_path")) == _controller.data_path,
+			"auto test: registry selection follows image uid (no click)")
+	_check(first_item.selected, "auto test: registry item pre-selected by uid")
 	_main._on_reg_item_clicked(_controller.data_path)
 	_check(_controller.data != null and not _controller.data.project_name.is_empty(),
 			"auto test: registry click loads config")
+	_check(_controller.data.source_texture != null,
+			"auto test: source_texture kept after registry click (apply_data sync)")
 	_check(first_item.selected, "auto test: active registry item selected")
+	# 选中样式回归：active 高亮 SEL_BG；取消后恢复 tscn 透明面板（set_selected 曾误删 tscn override）
+	var sb_sel: StyleBox = first_item.get_theme_stylebox("panel")
+	_check((sb_sel as StyleBoxFlat).bg_color.is_equal_approx(Color(0.152, 0.152, 0.181, 1.0)),
+			"auto test: selected item highlighted with SEL_BG")
+	first_item.call("set_selected", false)
+	var sb_unsel: StyleBox = first_item.get_theme_stylebox("panel")
+	_check((sb_unsel as StyleBoxFlat).bg_color.a == 0.0,
+			"auto test: unselected item back to transparent panel (tscn override kept)")
+	first_item.call("set_selected", true)
 	# 注册表切换：脏数据 → 询问保存；保存并切换 / 取消保持
 	_controller.mark_dirty()
 	_main._on_reg_item_clicked(_controller.data_path)
@@ -219,6 +276,8 @@ func _auto_test() -> void:
 	_main._on_data_selected(_controller.data_path)
 	_check(_controller.data != null and _controller.data.project_name == "测试项目",
 			"auto test: apply data config from dialog")
+	_check(String(_main.get("_active_reg_path")) == _controller.data_path,
+			"auto test: registry selection follows applied config path")
 	_check(split_list.item_count == _controller.rects.size(),
 			"auto test: split list refreshed after apply data")
 	# 内置文件系统拖放（FileSystem dock → 预览区画布，带确认弹窗）
@@ -302,7 +361,40 @@ func _auto_test() -> void:
 			"auto test: apply data switches image")
 	_check(_controller.rects.is_empty(),
 			"auto test: mismatched sprites cleared")
+	# 源文件更名模拟：配置里 source_image 失效 → 按 sheet_uid 反查 uid 缓存恢复加载并修复路径
+	var cfg3: SpriteSplitterData = _controller.data.duplicate()
+	cfg3.source_image = "res://sprites/renamed_not_exist.png"   # 旧路径已失效
+	_controller.apply_data(cfg3, "res://sps_data/_test_cfg3.tres")
+	_check(_controller.image_name == "sheet.png",
+			"auto test: apply data resolves source via uid after rename")
+	_check(cfg3.source_image == "res://sprites/sheet.png",
+			"auto test: stale source_image repaired to current path")
+	_check(_controller.load_image_by_uid(_controller.data.sheet_uid),
+			"auto test: load image by uid resolves path")
+	_check(_controller.image_name == "sheet.png",
+			"auto test: load by uid loaded sheet")
+	_check(not _controller.load_image_by_uid("uid://nonexistent000"),
+			"auto test: load by invalid uid fails safely")
+	# 重导入信号修复：注册表条目 source_image 失效 → _repair 用 uid 反查修复并持久化
+	var stale: SpriteSplitterData = _controller.data.duplicate()
+	stale.source_image = "res://sprites/renamed_not_exist.png"
+	var stale_path: String = "res://sps_data_test/_stale_repair.tres"
+	ResourceSaver.save(stale, stale_path)
+	_controller.registry.register(stale_path)
+	_controller._repair_stale_registry_paths()
+	var stale2: Variant = load(stale_path)
+	_check(stale2 is SpriteSplitterData
+			and stale2.source_image == "res://sprites/sheet.png",
+			"auto test: reimport repair fixes stale source_image (persisted)")
 	_check(_controller.load_image(DEFAULT_SHEET), "auto test: restore sheet")
+	# 去背景 → 写透明 PNG + 更新源（运行模式：路径更新，uid/纹理留待编辑器导入）
+	await _controller.remove_background(12)
+	_check(FileAccess.file_exists("res://out_sprites/sheet_transparent.png"),
+			"auto test: bg remove writes transparent png")
+	_check(_controller.data.source_image == "res://out_sprites/sheet_transparent.png",
+			"auto test: bg remove updates source_image")
+	_check(_controller.image_res_path == "res://out_sprites/sheet_transparent.png",
+			"auto test: bg remove updates image_res_path")
 
 	print("[sps-ui] === auto test done (fail=%s) ===" % _fail)
 	get_tree().quit(1 if _fail else 0)

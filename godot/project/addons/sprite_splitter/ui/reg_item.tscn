@@ -3,62 +3,85 @@
 [ext_resource type="Script" uid="uid://dixvd1ixskq88" path="res://addons/sprite_splitter/ui/reg_item.gd" id="1_reg"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+content_margin_left = 16.0
+content_margin_top = 6.0
+content_margin_right = 16.0
+content_margin_bottom = 6.0
 bg_color = Color(0, 0, 0, 0)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
-content_margin_left = 16.0
-content_margin_top = 6.0
-content_margin_right = 16.0
-content_margin_bottom = 6.0
 
-[node name="RegItem" type="PanelContainer"]
-layout_mode = 2
+[sub_resource type="FontVariation" id="FontVariation_vb1vg"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_vb1vg"]
+line_spacing = -2.0
+font = SubResource("FontVariation_vb1vg")
+font_color = Color(0.6521796, 0.65217966, 0.6521794, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_fbh10"]
+line_spacing = 0.0
+font_color = Color(0.31246608, 0.31246608, 0.31246608, 1)
+
+[node name="RegItem" type="PanelContainer" unique_id=1554995766]
+offset_right = 310.0
+offset_bottom = 108.0
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
 script = ExtResource("1_reg")
 
-[node name="Row" type="HBoxContainer" parent="."]
+[node name="Row" type="HBoxContainer" parent="." unique_id=1986282925]
 custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="Thumb" type="TextureRect" parent="Row"]
+[node name="Thumb" type="TextureRect" parent="Row" unique_id=107017264]
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
 stretch_mode = 5
 
-[node name="Col" type="VBoxContainer" parent="Row"]
+[node name="Col" type="VBoxContainer" parent="Row" unique_id=721388949]
+custom_minimum_size = Vector2(180, 96)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 mouse_filter = 2
-theme_override_constants/separation = 3
-alignment = 1
 
-[node name="TitleLabel" type="Label" parent="Row/Col"]
+[node name="HBoxContainer" type="HBoxContainer" parent="Row/Col" unique_id=1585141924]
+custom_minimum_size = Vector2(300, 36)
 layout_mode = 2
-theme_override_font_sizes/font_size = 15
+
+[node name="TitleLabel" type="Label" parent="Row/Col/HBoxContainer" unique_id=412901528]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
 text = "title"
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="UidLabel" type="Label" parent="Row/Col"]
+[node name="UidLabel" type="Label" parent="Row/Col/HBoxContainer" unique_id=1995276142]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.62, 0.62, 0.68, 1)
+theme_override_font_sizes/font_size = 14
 text = "uid:123123"
+label_settings = SubResource("LabelSettings_vb1vg")
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="TimeLabel" type="Label" parent="Row/Col"]
+[node name="TimeLabel" type="Label" parent="Row/Col" unique_id=1250446140]
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.62, 0.62, 0.68, 1)
+theme_override_font_sizes/font_size = 14
 text = "time"
+label_settings = SubResource("LabelSettings_fbh10")
 clip_text = true
 text_overrun_behavior = 3
+
+[node name="PathLabel" type="Label" parent="Row/Col" unique_id=1615921176]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18896914, 0.18896914, 0.18896914, 1)
+theme_override_font_sizes/font_size = 16

@@ -11,6 +11,7 @@ var _controller: SpsController = null
 var _side: Control = null   # 侧栏引用（editor_plugin 注入，切换前保存用当前参数）
 const REG_THUMB_SIZE: int = 48   # 注册表缩略图边长（等比 contain 居中）
 const REG_ITEM_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/reg_item.tscn")
+const REG_SEP_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/reg_sep.tscn")
 # 文件对话框：编辑器模式 EditorFileDialog / 运行模式 FileDialog → Variant
 var _dialog: Variant = null
 var _data_dialog: Variant = null
@@ -48,6 +49,7 @@ func set_controller(c: SpsController) -> void:
 	_controller = c
 	if _controller == null:
 		return
+	_controller.connect_fs_signals()   # 编辑器模式：源文件重命名/重导入 → 修复注册表失效路径
 	_controller.image_loaded.connect(_on_image_loaded)
 	_controller.rects_changed.connect(_on_rects_changed)
 	_canvas.selection_drawn.connect(_on_canvas_selection_drawn)
@@ -55,6 +57,7 @@ func set_controller(c: SpsController) -> void:
 	_canvas.view_changed.connect(_on_canvas_view_changed)
 	_canvas.drop_requested.connect(_on_canvas_drop_requested)
 	_controller.registry_updated.connect(_on_registry_updated)
+	_controller.data_path_changed.connect(_on_data_path_changed)
 	_on_registry_updated()   # 初始填充注册表列表
 
 
@@ -228,6 +231,8 @@ func _on_registry_updated() -> void:
 		c.queue_free()
 	for path: String in _controller.registry.entries:
 		_reg_vbox.add_child(_make_reg_item(path))
+		var sep: HSeparator = REG_SEP_SCENE.instantiate()
+		_reg_vbox.add_child(sep)
 	var empty: bool = _controller.registry.entries.is_empty()
 	_reg_empty.visible = empty
 	_reg_scroll.visible = not empty
@@ -243,17 +248,19 @@ func _make_reg_item(path: String) -> Control:
 	var uid_text: String = ""
 	var time_text: String = ""
 	var tex: Texture2D = null
+	var path_text:String = ""
 	if ResourceLoader.exists(path):
 		var d: Variant = load(path)
 		if d is SpriteSplitterData:
 			if not String(d.project_name).is_empty():
 				title = d.project_name
 			uid_text = String(d.sheet_uid) if not String(d.sheet_uid).is_empty() else "外部素材"
+			path_text = String(d.source_image) if not String(d.source_image).is_empty() else "-"
 			var t: String = _format_time(int(d.modified_at))
 			if not t.is_empty():
 				time_text = "修改于 " + t
 			tex = _registry_thumbnail(d)
-	item.call("setup", path, title, uid_text, time_text, tex)
+	item.call("setup", path, title, uid_text, time_text,path_text, tex)
 	item.call("set_selected", path == _active_reg_path)
 	return item
 
@@ -271,6 +278,13 @@ func _on_reg_item_clicked(path: String) -> void:
 		_controller.load_registry_entry(path)
 
 
+# 打开图片/配置后：按当前项目数据路径同步注册表选中项（无关联数据则取消选中）
+func _on_data_path_changed(path: String) -> void:
+	if path != _active_reg_path:
+		_active_reg_path = path
+		_refresh_reg_selection()
+
+
 # 刷新注册表条目选中态（互斥：仅 active 项高亮）
 func _refresh_reg_selection() -> void:
 	for c: Node in _reg_vbox.get_children():
@@ -278,18 +292,20 @@ func _refresh_reg_selection() -> void:
 			c.call("set_selected", String(c.get("path")) == _active_reg_path)
 
 
-# 项目缩略图：source_image 即资源地址——项目内直接 load 原文件引用（导入纹理+缓存），
-# 项目外才 Image.load_from_file；等比 contain 居中到 REG_THUMB_SIZE 透明画布
+# 项目缩略图：优先用 data.source_texture（已保存的源纹理引用，注册表直接显示）；
+# 旧数据/外部素材 source_texture 为 null 时回退从 source_image 路径加载。
+# 等比 contain 居中到 REG_THUMB_SIZE 透明画布
 func _registry_thumbnail(data: SpriteSplitterData) -> Texture2D:
-	if data == null or data.source_image.is_empty():
+	if data == null:
 		return null
-	var tex: Texture2D = null
-	if data.source_image.begins_with("res://") and ResourceLoader.exists(data.source_image):
-		tex = load(data.source_image)   # 原文件引用（已导入纹理）
-	else:
-		var img0: Image = Image.load_from_file(data.source_image)
-		if img0 != null:
-			tex = ImageTexture.create_from_image(img0)
+	var tex: Texture2D = data.source_texture
+	if tex == null and not data.source_image.is_empty():
+		if data.source_image.begins_with("res://") and ResourceLoader.exists(data.source_image):
+			tex = load(data.source_image)   # 原文件引用（已导入纹理）
+		else:
+			var img0: Image = Image.load_from_file(data.source_image)
+			if img0 != null:
+				tex = ImageTexture.create_from_image(img0)
 	if tex == null:
 		return null
 	var img: Image = tex.get_image()

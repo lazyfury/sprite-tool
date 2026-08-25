@@ -1,9 +1,0 @@
-[gd_resource type="Resource" script_class="SpriteSplitterData" format=3 uid="uid://dro8f5klidxd2"]
-
-[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_splitter/ui/sps_data.gd" id="1_h65ci"]
-
-[resource]
-script = ExtResource("1_h65ci")
-sheet_uid = "uid://bco6uc60471nl"
-source_image = "res://sprites/sheet.png"
-project_name = "sheet"

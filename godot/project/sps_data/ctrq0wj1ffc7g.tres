@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SpriteSplitterData" format=3 uid="uid://cdgupnddf7b6s"]
+
+[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_splitter/ui/sps_data.gd" id="1_ep02x"]
+[ext_resource type="Texture2D" uid="uid://ctrq0wj1ffc7g" path="res://out_sprites/7cb601ae37131cc934041a377595e0b8_transparent.png" id="2_0pvnk"]
+
+[resource]
+script = ExtResource("1_ep02x")
+sheet_uid = "uid://ctrq0wj1ffc7g"
+source_image = "res://out_sprites/7cb601ae37131cc934041a377595e0b8_transparent.png"
+source_texture = ExtResource("2_0pvnk")
+project_name = "7cb601ae37131cc934041a377595e0b8"
+min_width = 64
+min_height = 41
+out_dir = "res://out_sprites/ui/b3q5icutiac3s"
+modified_at = 1787647493

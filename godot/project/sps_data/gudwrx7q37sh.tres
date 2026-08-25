@@ -1,10 +1,16 @@
 [gd_resource type="Resource" script_class="SpriteSplitterData" format=3 uid="uid://cyms05xnse6fm"]
 
 [ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_splitter/ui/sps_data.gd" id="1_vj21l"]
+[ext_resource type="Texture2D" uid="uid://gudwrx7q37sh" path="res://sprites/hello.png" id="2_u6fls"]
 
 [resource]
 script = ExtResource("1_vj21l")
 sheet_uid = "uid://gudwrx7q37sh"
-source_image = "res://sprites/313b7493-30f7-433c-8578-15167424e1a1.png"
-project_name = "313b7493-30f7-433c-8578-15167424e1a1"
-modified_at = 1787625021
+source_image = "res://sprites/hello.png"
+source_texture = ExtResource("2_u6fls")
+project_name = "test1"
+min_width = 37
+min_height = 25
+out_dir = "res://out_sprites/ui/gudwrx7q37sh"
+sprites = Array[Rect2i]([Rect2i(1100, 28, 95, 119), Rect2i(813, 31, 97, 115), Rect2i(487, 32, 119, 109), Rect2i(973, 36, 75, 114), Rect2i(42, 39, 94, 102), Rect2i(330, 42, 130, 97), Rect2i(633, 43, 129, 99), Rect2i(182, 45, 114, 96), Rect2i(193, 169, 80, 105), Rect2i(44, 170, 82, 107), Rect2i(340, 170, 79, 108), Rect2i(488, 170, 81, 107), Rect2i(763, 175, 149, 103), Rect2i(941, 178, 118, 100), Rect2i(635, 181, 87, 95), Rect2i(1085, 187, 122, 89), Rect2i(933, 300, 110, 105), Rect2i(785, 304, 110, 99), Rect2i(1078, 304, 116, 100), Rect2i(478, 305, 105, 97), Rect2i(31, 310, 106, 94), Rect2i(179, 312, 113, 90), Rect2i(628, 312, 102, 91), Rect2i(320, 313, 122, 89), Rect2i(1077, 424, 106, 116), Rect2i(926, 426, 121, 113), Rect2i(319, 428, 114, 110), Rect2i(172, 430, 106, 107), Rect2i(471, 430, 112, 108), Rect2i(624, 430, 112, 107), Rect2i(30, 432, 103, 107), Rect2i(776, 443, 110, 94), Rect2i(312, 555, 114, 108), Rect2i(626, 556, 107, 110), Rect2i(934, 556, 106, 111), Rect2i(167, 557, 107, 108), Rect2i(769, 560, 118, 107), Rect2i(1083, 560, 102, 108), Rect2i(31, 561, 95, 103), Rect2i(466, 563, 112, 101), Rect2i(621, 681, 99, 111), Rect2i(1078, 681, 107, 114), Rect2i(167, 683, 94, 108), Rect2i(927, 683, 100, 112), Rect2i(771, 684, 107, 108), Rect2i(307, 685, 108, 107), Rect2i(25, 686, 97, 107), Rect2i(458, 691, 117, 97), Rect2i(762, 804, 122, 100), Rect2i(165, 805, 112, 95), Rect2i(30, 806, 96, 93), Rect2i(311, 806, 116, 94), Rect2i(457, 806, 114, 97), Rect2i(609, 807, 117, 98), Rect2i(1071, 807, 118, 95), Rect2i(919, 809, 117, 93), Rect2i(35, 914, 82, 81), Rect2i(608, 914, 105, 87), Rect2i(761, 914, 109, 86), Rect2i(919, 914, 104, 85), Rect2i(1063, 914, 125, 90), Rect2i(176, 918, 79, 76), Rect2i(320, 918, 81, 76), Rect2i(466, 918, 82, 77), Rect2i(902, 1015, 106, 101), Rect2i(603, 1016, 98, 97), Rect2i(450, 1017, 100, 96), Rect2i(1065, 1017, 108, 101), Rect2i(28, 1018, 97, 95), Rect2i(748, 1018, 109, 97), Rect2i(312, 1019, 95, 94), Rect2i(168, 1020, 96, 94), Rect2i(614, 1130, 75, 105), Rect2i(908, 1133, 108, 102), Rect2i(1071, 1133, 103, 102), Rect2i(461, 1134, 92, 98), Rect2i(757, 1134, 97, 100), Rect2i(166, 1138, 114, 96), Rect2i(312, 1142, 114, 88), Rect2i(25, 1143, 106, 85)])
+modified_at = 1787632981

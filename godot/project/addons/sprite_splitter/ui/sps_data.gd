@@ -11,6 +11,7 @@ extends Resource
 
 @export var sheet_uid: String = ""          # 关联素材 uid（uid://...，外部素材为空）
 @export var source_image: String = ""       # 素材 res:// 路径
+@export var source_texture: Texture2D = null   # 源素材纹理引用（项目内 res:// 素材可序列化；外部素材/内存图为 null，缩略图走路径回退）
 @export var project_name: String = ""       # 项目名称（默认=素材名，可编辑）
 @export var mode: String = "auto"
 @export var min_width: int = 2
