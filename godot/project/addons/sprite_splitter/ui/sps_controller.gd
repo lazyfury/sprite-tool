@@ -132,6 +132,7 @@ func remove_registry_entry(path: String) -> void:
 	if ResourceLoader.exists(path) or FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)   # 同时删除 .tres 文件
 	_scan_registry()   # 自动扫描：清理失效条目 + 持久化 + 刷新列表
+	_refresh_filesystem()   # 通知编辑器文件系统重扫（资产库移除已删 .tres / .uid 缓存）
 	status_changed.emit("已删除项目配置: " + path, false)
 
 
