@@ -31,6 +31,15 @@ var _reg_menu_path: String = ""
 # 注册表项删除：确认弹窗 + 待删除路径（右键菜单 → 删除）
 var _delete_dialog: ConfirmationDialog = null
 var _pending_delete_path: String = ""
+# 切片列表右键菜单（重命名/锁定/导出忽略）与重命名弹窗
+const SPRITE_MENU_RENAME: int = 0
+const SPRITE_MENU_LOCK: int = 1
+const SPRITE_MENU_IGNORE: int = 2
+var _sprite_menu: PopupMenu = null
+var _sprite_menu_index: int = -1
+var _rename_dialog: AcceptDialog = null
+var _rename_edit: LineEdit = null
+var _rename_index: int = -1
 var _active_reg_path: String = ""                 # 当前选中/加载的项目路径（手动维护选中态）
 
 @onready var _header: PanelContainer = get_node("MainVBox/Header")
@@ -62,6 +71,7 @@ func set_controller(c: SpsController) -> void:
 	_controller.connect_fs_signals()   # 编辑器模式：源文件重命名/重导入 → 修复注册表失效路径
 	_controller.image_loaded.connect(_on_image_loaded)
 	_controller.rects_changed.connect(_on_rects_changed)
+	_controller.sprites_changed.connect(_on_sprites_changed)
 	_controller.auto_diag_changed.connect(_on_auto_diag_changed)
 	_canvas.selection_drawn.connect(_on_canvas_selection_drawn)
 	_canvas.selection_changed.connect(_on_canvas_selection_changed)
@@ -84,12 +94,14 @@ func get_canvas_view() -> Control:
 func _ready() -> void:
 	_setup_tool_buttons()
 	_setup_reg_menu()
+	_setup_sprite_menu()
 	_apply_theme()
 	if Engine.is_editor_hint():
 		EditorInterface.get_base_control().theme_changed.connect(_apply_theme)
 	_file_button.pressed.connect(_on_file_button)
 	_data_btn.pressed.connect(_on_open_data)
 	_close_btn.pressed.connect(_on_close_image)
+	_split_list.item_clicked.connect(_on_split_list_clicked)
 
 
 # 注册表项右键上下文菜单（文件系统风格）：打开配置 / 复制路径 / 在文件管理器中显示 / 删除
@@ -102,6 +114,77 @@ func _setup_reg_menu() -> void:
 	_reg_menu.add_item("删除…", REG_MENU_DELETE)
 	_reg_menu.id_pressed.connect(_on_reg_menu_id_pressed)
 	add_child(_reg_menu)
+
+
+# 切片列表右键菜单（复杂结构操作）：重命名 / 锁定解锁 / 导出忽略包含
+func _setup_sprite_menu() -> void:
+	_sprite_menu = PopupMenu.new()
+	_sprite_menu.add_item("重命名…", SPRITE_MENU_RENAME)
+	_sprite_menu.add_item("🔒 锁定", SPRITE_MENU_LOCK)
+	_sprite_menu.add_item("🙈 导出忽略", SPRITE_MENU_IGNORE)
+	_sprite_menu.id_pressed.connect(_on_sprite_menu_id_pressed)
+	add_child(_sprite_menu)
+
+
+# 列表项点击（item_clicked：左键选中 / 右键菜单）
+func _on_split_list_clicked(index: int, at_position: Vector2, mouse_button_index: int) -> void:
+	if mouse_button_index == MOUSE_BUTTON_RIGHT:
+		_on_split_list_rmb(index, at_position)
+
+
+# 列表项右键 → 弹出切片菜单（锁定/忽略文本随当前状态切换）
+func _on_split_list_rmb(index: int, at_position: Vector2) -> void:
+	if _controller == null or index < 0 or index >= _controller.sprites.size():
+		return
+	_sprite_menu_index = index
+	var s: Dictionary = _controller.sprites[index]
+	_sprite_menu.set_item_text(SPRITE_MENU_LOCK,
+			"🔓 解锁" if bool(s.get("locked", false)) else "🔒 锁定")
+	_sprite_menu.set_item_text(SPRITE_MENU_IGNORE,
+			"👁 导出包含" if bool(s.get("ignored", false)) else "🙈 导出忽略")
+	_sprite_menu.popup(Rect2i(Vector2i(at_position), Vector2i.ZERO))
+
+
+func _on_sprite_menu_id_pressed(id: int) -> void:
+	if _controller == null or _sprite_menu_index < 0 \
+			or _sprite_menu_index >= _controller.sprites.size():
+		return
+	var idx: int = _sprite_menu_index
+	var s: Dictionary = _controller.sprites[idx]
+	match id:
+		SPRITE_MENU_RENAME:
+			_open_rename_dialog(idx)
+		SPRITE_MENU_LOCK:
+			_controller.set_sprite_locked(idx, not bool(s.get("locked", false)))
+		SPRITE_MENU_IGNORE:
+			_controller.set_sprite_ignored(idx, not bool(s.get("ignored", false)))
+
+
+# 重命名弹窗：AcceptDialog + LineEdit
+func _open_rename_dialog(index: int) -> void:
+	_rename_index = index
+	if _rename_dialog == null:
+		_rename_dialog = AcceptDialog.new()
+		_rename_dialog.title = "重命名切片"
+		_rename_dialog.ok_button_text = "确定"
+		var box: VBoxContainer = VBoxContainer.new()
+		_rename_edit = LineEdit.new()
+		_rename_edit.placeholder_text = "切片名称"
+		box.add_child(_rename_edit)
+		_rename_dialog.add_child(box)
+		_rename_dialog.register_text_enter(_rename_edit)
+		_rename_dialog.confirmed.connect(_on_rename_confirmed)
+		add_child(_rename_dialog)
+	if index >= 0 and index < _controller.sprites.size():
+		_rename_edit.text = String(_controller.sprites[index].get("name", ""))
+	_rename_edit.select_all()
+	_rename_dialog.popup_centered()
+	_rename_edit.grab_focus()
+
+
+func _on_rename_confirmed() -> void:
+	if _controller != null and _rename_index >= 0:
+		_controller.rename_sprite(_rename_index, _rename_edit.text.strip_edges())
 
 
 # ---------- Header（打开素材 + 图片地址，主题化） ----------
@@ -511,16 +594,32 @@ func _on_fit() -> void:
 
 func _on_rects_changed(rects: Array[Rect2i]) -> void:
 	_canvas.set_rects(rects)
-	# 切分数据列表（右侧卡片）：切分/导入 meta 后刷新每个精灵区域
+
+
+# 复杂切片结构 → 右侧列表（名称 + emoji 状态 + xywh）
+func _on_sprites_changed(sprites_in: Array[Dictionary]) -> void:
 	_split_list.clear()
-	for i: int in rects.size():
-		var r: Rect2i = rects[i]
-		_split_list.add_item("#%d  (%d,%d) %dx%d" % [i + 1, r.position.x,
-				r.position.y, r.size.x, r.size.y])
+	for i: int in sprites_in.size():
+		_split_list.add_item(_sprite_label(sprites_in[i], i))
 	# 空状态：无区域时显示「暂无数据」
-	var empty: bool = rects.is_empty()
+	var empty: bool = sprites_in.is_empty()
 	_split_empty.visible = empty
 	_split_list.visible = not empty
+
+
+# 列表项文本：{🔒锁定}{🙈忽略}#N 名称  (x,y) w×h
+func _sprite_label(s: Dictionary, index: int) -> String:
+	var mark: String = ""
+	if bool(s.get("locked", false)):
+		mark += "🔒 "
+	if bool(s.get("ignored", false)):
+		mark += "🙈 "
+	var name: String = String(s.get("name", ""))
+	if name.is_empty():
+		name = "#%d" % (index + 1)
+	return "%s#%d %s  (%d,%d) %dx%d" % [mark, index + 1, name,
+			int(s.get("x", 0)), int(s.get("y", 0)),
+			int(s.get("width", 0)), int(s.get("height", 0))]
 
 
 # Auto 诊断 → 画布灰色网格布局 overlay（调试 Auto 决策：cell 线 + 红框 = 实际 sprite）

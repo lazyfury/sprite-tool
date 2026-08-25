@@ -120,9 +120,9 @@ func _auto_test() -> void:
 	_check(_main.get("_split_card") != null, "auto test: split card panel themed")
 	_check(split_list.item_count == _controller.rects.size(),
 			"auto test: split list shows all rects")
-	# 新 auto 决策：COMPONENTS_IN_GRID → 首个 rect 是组件 bbox (4,4,8,8)，不是 16x16 cell
-	_check(split_list.get_item_text(0).begins_with("#1  (4,4)"),
-			"auto test: split list first entry format (bbox 4,4)")
+	# 新复杂结构列表格式：#N 名称  (x,y) w×h（首项 bbox 4,4,8,8）
+	_check(split_list.get_item_text(0).begins_with("#1 精灵 1  (4,4)"),
+			"auto test: split list first entry format (name+bbox)")
 	_check(not split_empty.visible, "auto test: empty hint hidden when rects exist")
 
 	# 导出三模式
@@ -312,6 +312,51 @@ func _auto_test() -> void:
 			"auto test: delete removes tres file")
 	_check(not _controller.registry.entries.has(del_path),
 			"auto test: delete removes registry entry")
+
+	# 复杂切片结构：uid/name/locked/ignored + 编辑方法
+	var sp0: Dictionary = _controller.sprites[0]
+	_check(sp0.get("uid", "") == "sprite_1" and String(sp0.get("name", "")).begins_with("精灵"),
+			"auto test: sprite complex structure (uid/name)")
+	_check(not bool(sp0.get("locked", true)) and not bool(sp0.get("ignored", true)),
+			"auto test: sprite defaults unlocked/unignored")
+	# 重命名
+	_controller.rename_sprite(0, "主角")
+	_check(String(_controller.sprites[0].get("name", "")) == "主角",
+			"auto test: rename sprite")
+	# 锁定 → 编辑被拒绝
+	_controller.set_sprite_locked(0, true)
+	var locked_before: Rect2i = _controller.rects[0]
+	_controller.update_sprite_geometry(0, Rect2i(100, 100, 8, 8))
+	_check(_controller.rects[0] == locked_before,
+			"auto test: locked sprite rejects edit")
+	_controller.set_sprite_locked(0, false)
+	_controller.update_sprite_geometry(0, Rect2i(100, 100, 8, 8))
+	_check(_controller.rects[0] == Rect2i(100, 100, 8, 8),
+			"auto test: unlocked sprite accepts edit")
+	_controller.update_sprite_geometry(0, Rect2i(4, 4, 8, 8))   # 还原
+	# 导出忽略：get_export_rects 过滤
+	_controller.set_sprite_ignored(0, true)
+	_check(_controller.get_export_rects().size() == _controller.sprites.size() - 1,
+			"auto test: export ignores sprite")
+	_controller.set_sprite_ignored(0, false)
+	# 画布编辑链路：geometry_committed → controller 数据更新
+	var rc0: Rect2i = _controller.rects[0]
+	canvas.geometry_committed.emit(0, Rect2i(rc0.position + Vector2i(3, 0), rc0.size))
+	await get_tree().process_frame
+	_check(_controller.rects[0] == Rect2i(rc0.position + Vector2i(3, 0), rc0.size),
+			"auto test: canvas edit commits to controller")
+	_controller.update_sprite_geometry(0, rc0)   # 还原
+	# 列表 emoji 状态显示
+	_controller.set_sprite_locked(0, true)
+	_controller.set_sprite_ignored(1, true)
+	await get_tree().process_frame
+	_check(split_list.get_item_text(0).begins_with("🔒"),
+			"auto test: list shows lock emoji")
+	_check(split_list.get_item_text(1).begins_with("🙈"),
+			"auto test: list shows ignore emoji")
+	_controller.set_sprite_locked(0, false)
+	_controller.set_sprite_ignored(1, false)
+	await get_tree().process_frame
 	# 内置文件系统拖放（FileSystem dock → 预览区画布，带确认弹窗）
 	var drop_img: Dictionary = {"type": "files",
 			"files": PackedStringArray(["res://sprites/sheet.png"])}
