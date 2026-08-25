@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SpriteSplitterData" format=3 uid="uid://bmdf1fqv7bdsg"]
+
+[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_splitter/ui/sps_data.gd" id="1_ynvnh"]
+[ext_resource type="Texture2D" uid="uid://ysngjknbfk4q" path="res://out_sprites/ChatGPT Image 2026年8月25日 21_52_07_transparent.png" id="2_tbhea"]
+
+[resource]
+script = ExtResource("1_ynvnh")
+sheet_uid = "uid://ysngjknbfk4q"
+source_image = "res://out_sprites/ChatGPT Image 2026年8月25日 21_52_07_transparent.png"
+source_texture = ExtResource("2_tbhea")
+project_name = "ChatGPT Image 2026年8月25日 21_52_07"
+use_bg_color = true
+bg_color = Color(0.9607843, 0.23137255, 0.10980392, 1)
+out_dir = "res://out_sprites/ui/big0u7cwrpbl"
+modified_at = 1787666015

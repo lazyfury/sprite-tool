@@ -1,0 +1,727 @@
+[gd_resource type="Resource" script_class="SpriteSplitterData" format=3 uid="uid://b1q0o4yb6482s"]
+
+[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_splitter/ui/sps_data.gd" id="1_svv1c"]
+[ext_resource type="Texture2D" uid="uid://5sg83q0j6kcj" path="res://sprites/ChatGPT Image 2026年8月25日 21_47_15.png" id="2_yfyqc"]
+
+[resource]
+script = ExtResource("1_svv1c")
+sheet_uid = "uid://5sg83q0j6kcj"
+source_image = "res://sprites/ChatGPT Image 2026年8月25日 21_47_15.png"
+source_texture = ExtResource("2_yfyqc")
+project_name = "ChatGPT Image 2026年8月25日 21_47_15"
+min_width = 30
+min_height = 64
+alpha_threshold = 5
+out_dir = "res://out_sprites/ui/5sg83q0j6kcj"
+sprites = Array[Dictionary]([{
+"height": 132,
+"ignored": false,
+"locked": false,
+"name": "精灵 1",
+"selected": false,
+"uid": "sprite_1",
+"width": 90,
+"x": 529,
+"y": 0
+}, {
+"height": 131,
+"ignored": false,
+"locked": false,
+"name": "精灵 2",
+"selected": false,
+"uid": "sprite_2",
+"width": 105,
+"x": 1019,
+"y": 0
+}, {
+"height": 122,
+"ignored": false,
+"locked": false,
+"name": "精灵 3",
+"selected": false,
+"uid": "sprite_3",
+"width": 103,
+"x": 680,
+"y": 7
+}, {
+"height": 122,
+"ignored": false,
+"locked": false,
+"name": "精灵 4",
+"selected": false,
+"uid": "sprite_4",
+"width": 109,
+"x": 51,
+"y": 11
+}, {
+"height": 122,
+"ignored": false,
+"locked": false,
+"name": "精灵 5",
+"selected": false,
+"uid": "sprite_5",
+"width": 122,
+"x": 1167,
+"y": 11
+}, {
+"height": 111,
+"ignored": false,
+"locked": false,
+"name": "精灵 6",
+"selected": false,
+"uid": "sprite_6",
+"width": 112,
+"x": 192,
+"y": 15
+}, {
+"height": 105,
+"ignored": false,
+"locked": false,
+"name": "精灵 7",
+"selected": false,
+"uid": "sprite_7",
+"width": 129,
+"x": 348,
+"y": 19
+}, {
+"height": 103,
+"ignored": false,
+"locked": false,
+"name": "精灵 8",
+"selected": false,
+"uid": "sprite_8",
+"width": 150,
+"x": 833,
+"y": 23
+}, {
+"height": 119,
+"ignored": false,
+"locked": false,
+"name": "精灵 9",
+"selected": false,
+"uid": "sprite_9",
+"width": 98,
+"x": 49,
+"y": 139
+}, {
+"height": 116,
+"ignored": false,
+"locked": false,
+"name": "精灵 10",
+"selected": false,
+"uid": "sprite_10",
+"width": 86,
+"x": 366,
+"y": 142
+}, {
+"height": 116,
+"ignored": false,
+"locked": false,
+"name": "精灵 11",
+"selected": false,
+"uid": "sprite_11",
+"width": 87,
+"x": 530,
+"y": 142
+}, {
+"height": 116,
+"ignored": false,
+"locked": false,
+"name": "精灵 12",
+"selected": false,
+"uid": "sprite_12",
+"width": 86,
+"x": 686,
+"y": 142
+}, {
+"height": 115,
+"ignored": false,
+"locked": false,
+"name": "精灵 13",
+"selected": false,
+"uid": "sprite_13",
+"width": 85,
+"x": 206,
+"y": 143
+}, {
+"height": 109,
+"ignored": false,
+"locked": false,
+"name": "精灵 14",
+"selected": false,
+"uid": "sprite_14",
+"width": 117,
+"x": 1174,
+"y": 149
+}, {
+"height": 108,
+"ignored": false,
+"locked": false,
+"name": "精灵 15",
+"selected": false,
+"uid": "sprite_15",
+"width": 141,
+"x": 991,
+"y": 150
+}, {
+"height": 88,
+"ignored": false,
+"locked": false,
+"name": "精灵 16",
+"selected": false,
+"uid": "sprite_16",
+"width": 119,
+"x": 835,
+"y": 168
+}, {
+"height": 120,
+"ignored": false,
+"locked": false,
+"name": "精灵 17",
+"selected": false,
+"uid": "sprite_17",
+"width": 114,
+"x": 38,
+"y": 269
+}, {
+"height": 116,
+"ignored": false,
+"locked": false,
+"name": "精灵 18",
+"selected": false,
+"uid": "sprite_18",
+"width": 127,
+"x": 669,
+"y": 273
+}, {
+"height": 114,
+"ignored": false,
+"locked": false,
+"name": "精灵 19",
+"selected": false,
+"uid": "sprite_19",
+"width": 123,
+"x": 1166,
+"y": 273
+}, {
+"height": 105,
+"ignored": false,
+"locked": false,
+"name": "精灵 20",
+"selected": false,
+"uid": "sprite_20",
+"width": 135,
+"x": 341,
+"y": 275
+}, {
+"height": 112,
+"ignored": false,
+"locked": false,
+"name": "精灵 21",
+"selected": false,
+"uid": "sprite_21",
+"width": 112,
+"x": 841,
+"y": 275
+}, {
+"height": 108,
+"ignored": false,
+"locked": false,
+"name": "精灵 22",
+"selected": false,
+"uid": "sprite_22",
+"width": 132,
+"x": 508,
+"y": 276
+}, {
+"height": 105,
+"ignored": false,
+"locked": false,
+"name": "精灵 23",
+"selected": false,
+"uid": "sprite_23",
+"width": 108,
+"x": 1008,
+"y": 276
+}, {
+"height": 100,
+"ignored": false,
+"locked": false,
+"name": "精灵 24",
+"selected": false,
+"uid": "sprite_24",
+"width": 134,
+"x": 180,
+"y": 280
+}, {
+"height": 132,
+"ignored": false,
+"locked": false,
+"name": "精灵 25",
+"selected": false,
+"uid": "sprite_25",
+"width": 106,
+"x": 33,
+"y": 389
+}, {
+"height": 125,
+"ignored": false,
+"locked": false,
+"name": "精灵 26",
+"selected": false,
+"uid": "sprite_26",
+"width": 104,
+"x": 844,
+"y": 391
+}, {
+"height": 115,
+"ignored": false,
+"locked": false,
+"name": "精灵 27",
+"selected": false,
+"uid": "sprite_27",
+"width": 133,
+"x": 333,
+"y": 397
+}, {
+"height": 119,
+"ignored": false,
+"locked": false,
+"name": "精灵 28",
+"selected": false,
+"uid": "sprite_28",
+"width": 116,
+"x": 986,
+"y": 398
+}, {
+"height": 113,
+"ignored": false,
+"locked": false,
+"name": "精灵 29",
+"selected": false,
+"uid": "sprite_29",
+"width": 89,
+"x": 530,
+"y": 399
+}, {
+"height": 104,
+"ignored": false,
+"locked": false,
+"name": "精灵 30",
+"selected": false,
+"uid": "sprite_30",
+"width": 108,
+"x": 188,
+"y": 406
+}, {
+"height": 98,
+"ignored": false,
+"locked": false,
+"name": "精灵 31",
+"selected": false,
+"uid": "sprite_31",
+"width": 133,
+"x": 664,
+"y": 407
+}, {
+"height": 100,
+"ignored": false,
+"locked": false,
+"name": "精灵 32",
+"selected": false,
+"uid": "sprite_32",
+"width": 133,
+"x": 1156,
+"y": 407
+}, {
+"height": 112,
+"ignored": false,
+"locked": false,
+"name": "精灵 33",
+"selected": false,
+"uid": "sprite_33",
+"width": 103,
+"x": 40,
+"y": 514
+}, {
+"height": 107,
+"ignored": false,
+"locked": false,
+"name": "精灵 34",
+"selected": false,
+"uid": "sprite_34",
+"width": 101,
+"x": 683,
+"y": 517
+}, {
+"height": 109,
+"ignored": false,
+"locked": false,
+"name": "精灵 35",
+"selected": false,
+"uid": "sprite_35",
+"width": 114,
+"x": 1169,
+"y": 518
+}, {
+"height": 111,
+"ignored": false,
+"locked": false,
+"name": "精灵 36",
+"selected": false,
+"uid": "sprite_36",
+"width": 119,
+"x": 511,
+"y": 520
+}, {
+"height": 109,
+"ignored": false,
+"locked": false,
+"name": "精灵 37",
+"selected": false,
+"uid": "sprite_37",
+"width": 110,
+"x": 1007,
+"y": 522
+}, {
+"height": 101,
+"ignored": false,
+"locked": false,
+"name": "精灵 38",
+"selected": false,
+"uid": "sprite_38",
+"width": 123,
+"x": 185,
+"y": 523
+}, {
+"height": 102,
+"ignored": false,
+"locked": false,
+"name": "精灵 39",
+"selected": false,
+"uid": "sprite_39",
+"width": 114,
+"x": 844,
+"y": 523
+}, {
+"height": 97,
+"ignored": false,
+"locked": false,
+"name": "精灵 40",
+"selected": false,
+"uid": "sprite_40",
+"width": 97,
+"x": 362,
+"y": 526
+}, {
+"height": 112,
+"ignored": false,
+"locked": false,
+"name": "精灵 41",
+"selected": false,
+"uid": "sprite_41",
+"width": 127,
+"x": 661,
+"y": 632
+}, {
+"height": 229,
+"ignored": false,
+"locked": false,
+"name": "精灵 42",
+"selected": false,
+"uid": "sprite_42",
+"width": 132,
+"x": 1157,
+"y": 634
+}, {
+"height": 109,
+"ignored": false,
+"locked": false,
+"name": "精灵 43",
+"selected": false,
+"uid": "sprite_43",
+"width": 93,
+"x": 34,
+"y": 635
+}, {
+"height": 108,
+"ignored": false,
+"locked": false,
+"name": "精灵 44",
+"selected": false,
+"uid": "sprite_44",
+"width": 127,
+"x": 172,
+"y": 635
+}, {
+"height": 106,
+"ignored": false,
+"locked": false,
+"name": "精灵 45",
+"selected": false,
+"uid": "sprite_45",
+"width": 113,
+"x": 509,
+"y": 639
+}, {
+"height": 101,
+"ignored": false,
+"locked": false,
+"name": "精灵 46",
+"selected": false,
+"uid": "sprite_46",
+"width": 130,
+"x": 994,
+"y": 642
+}, {
+"height": 97,
+"ignored": false,
+"locked": false,
+"name": "精灵 47",
+"selected": false,
+"uid": "sprite_47",
+"width": 103,
+"x": 351,
+"y": 645
+}, {
+"height": 94,
+"ignored": false,
+"locked": false,
+"name": "精灵 48",
+"selected": false,
+"uid": "sprite_48",
+"width": 93,
+"x": 842,
+"y": 646
+}, {
+"height": 123,
+"ignored": false,
+"locked": false,
+"name": "精灵 49",
+"selected": false,
+"uid": "sprite_49",
+"width": 131,
+"x": 176,
+"y": 743
+}, {
+"height": 122,
+"ignored": false,
+"locked": false,
+"name": "精灵 50",
+"selected": false,
+"uid": "sprite_50",
+"width": 137,
+"x": 23,
+"y": 744
+}, {
+"height": 119,
+"ignored": false,
+"locked": false,
+"name": "精灵 51",
+"selected": false,
+"uid": "sprite_51",
+"width": 114,
+"x": 346,
+"y": 747
+}, {
+"height": 107,
+"ignored": false,
+"locked": false,
+"name": "精灵 52",
+"selected": false,
+"uid": "sprite_52",
+"width": 134,
+"x": 503,
+"y": 753
+}, {
+"height": 113,
+"ignored": false,
+"locked": false,
+"name": "精灵 53",
+"selected": false,
+"uid": "sprite_53",
+"width": 107,
+"x": 841,
+"y": 753
+}, {
+"height": 104,
+"ignored": false,
+"locked": false,
+"name": "精灵 54",
+"selected": false,
+"uid": "sprite_54",
+"width": 120,
+"x": 1001,
+"y": 755
+}, {
+"height": 111,
+"ignored": false,
+"locked": false,
+"name": "精灵 55",
+"selected": false,
+"uid": "sprite_55",
+"width": 86,
+"x": 688,
+"y": 756
+}, {
+"height": 125,
+"ignored": false,
+"locked": false,
+"name": "精灵 56",
+"selected": false,
+"uid": "sprite_56",
+"width": 89,
+"x": 356,
+"y": 862
+}, {
+"height": 116,
+"ignored": false,
+"locked": false,
+"name": "精灵 57",
+"selected": false,
+"uid": "sprite_57",
+"width": 137,
+"x": 667,
+"y": 867
+}, {
+"height": 114,
+"ignored": false,
+"locked": false,
+"name": "精灵 58",
+"selected": false,
+"uid": "sprite_58",
+"width": 121,
+"x": 23,
+"y": 870
+}, {
+"height": 114,
+"ignored": false,
+"locked": false,
+"name": "精灵 59",
+"selected": false,
+"uid": "sprite_59",
+"width": 106,
+"x": 1010,
+"y": 870
+}, {
+"height": 124,
+"ignored": false,
+"locked": false,
+"name": "精灵 60",
+"selected": false,
+"uid": "sprite_60",
+"width": 121,
+"x": 1159,
+"y": 870
+}, {
+"height": 119,
+"ignored": false,
+"locked": false,
+"name": "精灵 61",
+"selected": false,
+"uid": "sprite_61",
+"width": 124,
+"x": 834,
+"y": 873
+}, {
+"height": 112,
+"ignored": false,
+"locked": false,
+"name": "精灵 62",
+"selected": false,
+"uid": "sprite_62",
+"width": 140,
+"x": 170,
+"y": 874
+}, {
+"height": 103,
+"ignored": false,
+"locked": false,
+"name": "精灵 63",
+"selected": false,
+"uid": "sprite_63",
+"width": 132,
+"x": 499,
+"y": 878
+}, {
+"height": 141,
+"ignored": false,
+"locked": false,
+"name": "精灵 64",
+"selected": false,
+"uid": "sprite_64",
+"width": 107,
+"x": 355,
+"y": 999
+}, {
+"height": 144,
+"ignored": false,
+"locked": false,
+"name": "精灵 65",
+"selected": false,
+"uid": "sprite_65",
+"width": 130,
+"x": 820,
+"y": 1000
+}, {
+"height": 140,
+"ignored": false,
+"locked": false,
+"name": "精灵 66",
+"selected": false,
+"uid": "sprite_66",
+"width": 111,
+"x": 504,
+"y": 1001
+}, {
+"height": 134,
+"ignored": false,
+"locked": false,
+"name": "精灵 67",
+"selected": false,
+"uid": "sprite_67",
+"width": 136,
+"x": 22,
+"y": 1006
+}, {
+"height": 135,
+"ignored": false,
+"locked": false,
+"name": "精灵 68",
+"selected": false,
+"uid": "sprite_68",
+"width": 128,
+"x": 658,
+"y": 1007
+}, {
+"height": 139,
+"ignored": false,
+"locked": false,
+"name": "精灵 69",
+"selected": false,
+"uid": "sprite_69",
+"width": 129,
+"x": 1163,
+"y": 1008
+}, {
+"height": 125,
+"ignored": false,
+"locked": false,
+"name": "精灵 70",
+"selected": false,
+"uid": "sprite_70",
+"width": 138,
+"x": 176,
+"y": 1018
+}, {
+"height": 120,
+"ignored": false,
+"locked": false,
+"name": "精灵 71",
+"selected": false,
+"uid": "sprite_71",
+"width": 129,
+"x": 998,
+"y": 1020
+}])
+modified_at = 1787665830

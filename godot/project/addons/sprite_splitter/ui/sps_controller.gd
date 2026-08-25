@@ -517,6 +517,8 @@ func save_project(project_name: String, options: Dictionary, out_dir: String,
 	data.padding = int(options.get("padding", data.padding))
 	data.background_threshold = int(options.get("background_threshold",
 			data.background_threshold))
+	data.background_shrink = int(options.get("shrink", data.background_shrink))
+	data.background_feather = int(options.get("feather", data.background_feather))
 	data.background_backend = String(options.get("background_backend", data.background_backend))
 	data.use_bg_color = bool(options.get("use_bg_color", data.use_bg_color))
 	data.bg_color = options.get("bg_color", data.bg_color)
@@ -615,14 +617,19 @@ func _auto_mode_name(mode: int) -> String:
 # 编辑器模式：触发扫描导入 → 等新 PNG 的 uid 生成 → 更新 uid/纹理 + 迁移 data_path；
 # 运行模式（无导入流程）：仅更新路径，uid/纹理留待编辑器扫描后生效。
 func remove_background(threshold: int, backend: String, use_bg_color: bool,
-		bg_color: Color, bg_url: String) -> void:
+		bg_color: Color, bg_url: String, shrink: int = 0, feather: int = 0) -> void:
 	if image == null:
 		status_changed.emit("先打开素材表", true)
 		return
 	var remote_hint: String = "（remote AI 推理可能较慢）" if backend == "remote" else ""
 	status_changed.emit("去背景中（%s）%s..." % [backend, remote_hint], false)
 	await _wait_frame()
-	var opts: Dictionary = {"background_threshold": threshold, "backend": backend}
+	var opts: Dictionary = {
+		"background_threshold": threshold,
+		"backend": backend,
+		"shrink": shrink,
+		"feather": feather,
+	}
 	if backend == "color":
 		if use_bg_color:
 			opts["use_bg_color"] = true

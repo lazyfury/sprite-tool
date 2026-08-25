@@ -22,6 +22,8 @@ extends Resource
 @export var slice_policy: String = "auto"   # auto 模式切割策略：auto | components | grid
 @export var padding: int = 0                # auto 模式 rect 外扩
 @export var background_threshold: int = 12
+@export var background_shrink: int = 1    # 收缩 px（背景掩码腐蚀，防白边）
+@export var background_feather: int = 1   # 羽化 px（边缘软边 alpha）
 @export var background_backend: String = "color"   # 去背景后端：color | remote
 @export var use_bg_color: bool = false             # 手动吸色开关（color 后端）
 @export var bg_color: Color = Color(1, 1, 1, 1)    # 手动背景色

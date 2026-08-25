@@ -556,13 +556,34 @@ func _auto_test() -> void:
 			"auto test: reimport repair fixes stale source_image (persisted)")
 	_check(_controller.load_image(DEFAULT_SHEET), "auto test: restore sheet")
 	# 去背景 → 写透明 PNG + 更新源（运行模式：路径更新，uid/纹理留待编辑器导入）
-	await _controller.remove_background(12, "color", false, Color.WHITE, "http://127.0.0.1:8000")
+	await _controller.remove_background(12, "color", false, Color.WHITE, "http://127.0.0.1:8000", 1, 1)
 	_check(FileAccess.file_exists("res://out_sprites/sheet_transparent.png"),
 			"auto test: bg remove writes transparent png")
 	_check(_controller.data.source_image == "res://out_sprites/sheet_transparent.png",
 			"auto test: bg remove updates source_image")
 	_check(_controller.image_res_path == "res://out_sprites/sheet_transparent.png",
 			"auto test: bg remove updates image_res_path")
+	# 魔棒参数透传（GDExtension）：shrink/feather 生效
+	_controller.load_image(DEFAULT_SHEET)
+	_side._on_split()
+	await get_tree().process_frame
+	var f_img: Image = _controller.splitter.remove_background(_controller.image,
+			{"background_threshold": 12, "shrink": 2, "feather": 3})
+	_check(f_img != null and f_img.get_pixel(0, 0).a < 0.1,
+			"auto test: bg remove supports shrink/feather")
+	# 软边需要不透明背景图（sheet.png 本身透明黑，feather 无可见变化）
+	var tmp_img: Image = Image.create_empty(40, 40, false, Image.FORMAT_RGBA8)
+	tmp_img.fill(Color.WHITE)
+	for y: int in range(10, 18):
+		for x: int in range(10, 18):
+			tmp_img.set_pixel(x, y, Color.BLACK)
+	var s_img2: Image = _controller.splitter.remove_background(tmp_img,
+			{"background_threshold": 12, "feather": 3})
+	_check(s_img2 != null and s_img2.get_pixel(0, 0).a < 0.1,
+			"auto test: feather keeps deep bg transparent")
+	var edge_a4: float = s_img2.get_pixel(9, 10).a   # 白背景紧贴黑块边界（背景侧）
+	_check(edge_a4 > 0.05 and edge_a4 < 0.95,
+			"auto test: feather softens edge alpha")
 
 	# 编辑安全区：点击编辑对象外扩区域保持选择，远离则清空（zoom 固定 1 保证 grow 确定）
 	_controller.load_image(DEFAULT_SHEET)   # bg remove 已清空切片，重新加载并切分

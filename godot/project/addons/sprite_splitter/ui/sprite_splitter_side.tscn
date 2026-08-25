@@ -278,6 +278,34 @@ min_value = 0.0
 max_value = 64.0
 value = 12.0
 
+[node name="BgShrinkRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BgShrinkLabel" type="Label" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgShrinkRow"]
+layout_mode = 2
+text = "收缩 px"
+
+[node name="BgShrink" type="SpinBox" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgShrinkRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 16.0
+value = 1.0
+
+[node name="BgFeatherRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BgFeatherLabel" type="Label" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgFeatherRow"]
+layout_mode = 2
+text = "羽化 px"
+
+[node name="BgFeather" type="SpinBox" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgFeatherRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 16.0
+value = 1.0
+
 [node name="BgUrlRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8

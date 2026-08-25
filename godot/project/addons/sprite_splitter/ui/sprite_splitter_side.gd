@@ -46,6 +46,8 @@ var _meta_dialog: Variant = null
 @onready var _import_meta_btn: Button = get_node("VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox/ImportMetaBtn")
 @onready var _count_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody/CountLabel")
 @onready var _bg_thr: SpinBox = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgThrRow/BgThr")
+@onready var _bg_shrink: SpinBox = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgShrinkRow/BgShrink")
+@onready var _bg_feather: SpinBox = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgFeatherRow/BgFeather")
 @onready var _bg_backend_option: OptionButton = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BackendRow/BackendOption")
 @onready var _bg_color_enable: CheckButton = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow/BgColorEnable")
 @onready var _bg_color_picker: ColorPickerButton = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow/BgColorPicker")
@@ -162,6 +164,8 @@ func _connect_signals() -> void:
 	_slice_policy.item_selected.connect(_on_dirty_signal)
 	_padding.value_changed.connect(_on_dirty_signal)
 	_bg_thr.value_changed.connect(_on_dirty_signal)
+	_bg_shrink.value_changed.connect(_on_dirty_signal)
+	_bg_feather.value_changed.connect(_on_dirty_signal)
 	_bg_backend_option.item_selected.connect(_on_bg_backend_changed)
 	_bg_color_enable.toggled.connect(_on_bg_color_enable_toggled)
 	_bg_color_picker.color_changed.connect(_on_dirty_signal)
@@ -240,7 +244,8 @@ func _on_bg_remove() -> void:
 	_bg_remove_btn.disabled = true   # loading：防重复点击（remote 调用为同步阻塞）
 	await _controller.remove_background(int(_bg_thr.value),
 			_current_bg_backend(), _bg_color_enable.button_pressed,
-			_bg_color_picker.color, _bg_url.text)
+			_bg_color_picker.color, _bg_url.text,
+			int(_bg_shrink.value), int(_bg_feather.value))
 	_bg_remove_btn.disabled = false
 
 
@@ -248,11 +253,13 @@ func _current_bg_backend() -> String:
 	return BG_BACKEND_KEYS[_bg_backend_option.selected]
 
 
-# 后端切换：remote 显示 URL、禁用 color 参数（阈值/吸色）；color 反之
+# 后端切换：remote 显示 URL、禁用 color 参数（阈值/吸色/收缩/羽化）；color 反之
 func _on_bg_backend_changed(_index: int) -> void:
 	var is_remote: bool = _current_bg_backend() == "remote"
 	_bg_url.editable = is_remote
 	_bg_thr.editable = not is_remote
+	_bg_shrink.editable = not is_remote
+	_bg_feather.editable = not is_remote
 	_bg_color_enable.disabled = is_remote
 	_bg_color_picker.disabled = is_remote or not _bg_color_enable.button_pressed
 	if _controller != null:
@@ -311,6 +318,8 @@ func _build_options() -> Dictionary:
 	opts["use_bg_color"] = _bg_color_enable.button_pressed
 	opts["bg_color"] = _bg_color_picker.color
 	opts["bg_url"] = _bg_url.text
+	opts["shrink"] = int(_bg_shrink.value)
+	opts["feather"] = int(_bg_feather.value)
 	return opts
 
 
@@ -365,6 +374,8 @@ func _on_data_loaded(data: SpriteSplitterData) -> void:
 		_slice_policy.select(sp_idx)
 	_padding.set_value_no_signal(float(data.padding))
 	_bg_thr.set_value_no_signal(float(data.background_threshold))
+	_bg_shrink.set_value_no_signal(float(data.background_shrink))
+	_bg_feather.set_value_no_signal(float(data.background_feather))
 	var bg_idx: int = BG_BACKEND_KEYS.find(data.background_backend)
 	if bg_idx < 0:
 		bg_idx = 0

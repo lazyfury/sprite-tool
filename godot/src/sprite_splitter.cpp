@@ -190,6 +190,21 @@ Ref<Image> SpriteSplitter::remove_background(const Ref<Image> &p_image,
         if (p_options.has("background_threshold")) {
             opts.color.threshold = static_cast<int>(p_options["background_threshold"]);
         }
+        // 魔棒：种子点播种（点击背景取色 + 单点 flood fill）
+        if (p_options.has("seed_x")) {
+            opts.color.seed_x = static_cast<int>(p_options["seed_x"]);
+        }
+        if (p_options.has("seed_y")) {
+            opts.color.seed_y = static_cast<int>(p_options["seed_y"]);
+        }
+        // 收缩：背景掩码腐蚀（防白边）
+        if (p_options.has("shrink")) {
+            opts.color.shrink = static_cast<int>(p_options["shrink"]);
+        }
+        // 羽化：边缘模糊（软边 alpha）
+        if (p_options.has("feather")) {
+            opts.color.feather = static_cast<int>(p_options["feather"]);
+        }
         // 吸色：手动指定背景色（Color 0-1 → sps Pixel 0-255）
         if (p_options.has("use_bg_color") && p_options["use_bg_color"] &&
             p_options.has("bg_color")) {
