@@ -618,6 +618,16 @@ func _auto_test() -> void:
 	_controller.set_sprite_locked(2, false)
 	await get_tree().process_frame
 	canvas._on_click_select(Vector2(6, 6))
+	# 切片列表选中 → 画布联动选中对应切片
+	# （模拟用户点击：ItemList.select() 编程调用在 headless 不发 item_selected）
+	canvas.set_tool(canvas.Tool.SELECT)
+	split_list.emit_signal("item_selected", 2)
+	await get_tree().process_frame
+	_check(canvas.get("_selected").size() == 1
+			and canvas.get("_selected")[0] == canvas.get("_rects")[2],
+			"auto test: list selection syncs canvas")
+	split_list.emit_signal("item_selected", 0)
+	await get_tree().process_frame
 
 	print("[sps-ui] === auto test done (fail=%s) ===" % _fail)
 	get_tree().quit(1 if _fail else 0)

@@ -40,6 +40,7 @@ const HANDLE_STROKE: Color = Color(0.25, 0.25, 0.28, 1.0)
 const HANDLE_LOCKED: Color = Color(0.6, 0.6, 0.62, 0.5)   # 锁定项手柄（灰）
 const BG_COLOR: Color = Color(0.097, 0.104, 0.1, 1.0)
 const RECT_COLOR: Color = Color(1.0, 0.25, 0.25, 0.95)          # 切分红框
+const LOCKED_RECT_COLOR: Color = Color(0.55, 0.55, 0.58, 0.6)    # 锁定切片灰框
 const GRID_COLOR: Color = Color(0.75, 0.75, 0.78, 0.35)         # Auto 网格布局线（灰，调试决策用）
 const SEL_HL_FILL: Color = Color(1.0, 0.85, 0.2, 0.28)          # SELECT 选中填充（黄）
 const SEL_HL_STROKE: Color = Color(1.0, 0.85, 0.2, 0.95)        # SELECT 选中描边
@@ -518,6 +519,16 @@ func _on_click_select(world_p: Vector2) -> void:
 	_click_select(world_p)
 
 
+# 按索引选中（切片列表点击联动）：锁定项忽略；EDIT 工具进编辑态
+func select_index(index: int) -> void:
+	if index < 0 or index >= _rects.size() or _is_locked(index):
+		return
+	_selected = [_rects[index]]
+	_edit_index = index if _tool == Tool.EDIT else -1
+	selection_changed.emit(_selected)
+	queue_redraw()
+
+
 func _finish_crop() -> void:
 	var w: Rect2 = _drag_world_rect()
 	if w.size.x < 3.0 / _zoom or w.size.y < 3.0 / _zoom:
@@ -566,9 +577,11 @@ func _draw() -> void:
 	# Auto 网格布局 overlay（灰色 cell 线，先于红框绘制）
 	if not _grid.is_empty():
 		_draw_grid_overlay()
-	# 切分红框
-	for r: Rect2i in _rects:
-		draw_rect(Rect2(Vector2(r.position), Vector2(r.size)), RECT_COLOR, false, lw)
+	# 切分红框（锁定切片灰色，提示不可选择/编辑）
+	for i: int in _rects.size():
+		var r: Rect2i = _rects[i]
+		var frame: Color = LOCKED_RECT_COLOR if _is_locked(i) else RECT_COLOR
+		draw_rect(Rect2(Vector2(r.position), Vector2(r.size)), frame, false, lw)
 	# SELECT/EDIT：选中方块高亮（黄）
 	if _tool == Tool.SELECT or _tool == Tool.EDIT:
 		for r: Rect2i in _selected:

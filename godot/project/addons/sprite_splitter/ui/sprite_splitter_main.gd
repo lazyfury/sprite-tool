@@ -103,6 +103,7 @@ func _ready() -> void:
 	_data_btn.pressed.connect(_on_open_data)
 	_close_btn.pressed.connect(_on_close_image)
 	_split_list.item_clicked.connect(_on_split_list_clicked)
+	_split_list.item_selected.connect(_on_split_list_selected)
 
 
 # 注册表项右键上下文菜单（文件系统风格）：打开配置 / 复制路径 / 在文件管理器中显示 / 删除
@@ -130,11 +131,17 @@ func _setup_sprite_menu() -> void:
 # 列表项点击（item_clicked：左键选中 / 右键菜单）
 func _on_split_list_clicked(index: int, at_position: Vector2, mouse_button_index: int) -> void:
 	if mouse_button_index == MOUSE_BUTTON_RIGHT:
-		_on_split_list_rmb(index, at_position)
+		_on_split_list_rmb(index)
+
+
+# 列表项选中（item_selected）→ 画布联动选中对应切片
+func _on_split_list_selected(index: int) -> void:
+	if _canvas != null:
+		_canvas.select_index(index)
 
 
 # 列表项右键 → 弹出切片菜单（锁定/忽略文本随当前状态切换）
-func _on_split_list_rmb(index: int, at_position: Vector2) -> void:
+func _on_split_list_rmb(index: int) -> void:
 	if _controller == null or index < 0 or index >= _controller.sprites.size():
 		return
 	_sprite_menu_index = index
@@ -143,7 +150,8 @@ func _on_split_list_rmb(index: int, at_position: Vector2) -> void:
 			"🔓 解锁" if bool(s.get("locked", false)) else "🔒 锁定")
 	_sprite_menu.set_item_text(SPRITE_MENU_IGNORE,
 			"👁 导出包含" if bool(s.get("ignored", false)) else "🙈 导出忽略")
-	_sprite_menu.popup(Rect2i(Vector2i(at_position), Vector2i.ZERO))
+	# 菜单位置用全局鼠标坐标（ItemList 的 at_position 是局部坐标，会错位）
+	_sprite_menu.popup(Rect2i(Vector2i(get_global_mouse_position()), Vector2i.ZERO))
 
 
 func _on_sprite_menu_id_pressed(id: int) -> void:
