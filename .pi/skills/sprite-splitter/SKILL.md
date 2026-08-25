@@ -93,9 +93,9 @@ build/sprite-split remove-background photo.png --bg-backend remote --format json
 | `--output DIR` | `./out/sprites` | 输出目录（自动创建） |
 | `--alpha-threshold N` | `1` | alpha > N 视为前景 |
 | `--min-width/--min-height N` | `1` | 过滤小于该尺寸的分量（滤噪点） |
-| `--mode MODE` | components | `components`（连通分量）/ `grid`（网格）/ `auto` |
-| `--cell-size N` | `16` | grid/auto 的格子尺寸 |
-| `--merge-distance N` | `0` | 膨胀合并间距（components 模式） |
+| `--mode MODE` | components | `components`（连通分量）/ `grid`（网格）/ `auto`（决策管线：自动选 COMPONENTS / COMPONENTS_IN_GRID / GRID） |
+| `--cell-size N` | `16` | grid 模式的格子尺寸（auto 忽略，自动检测） |
+| `--merge-distance N` | `0` | 膨胀合并间距（components 与 auto 模式） |
 | `--json` | 关 | 写 meta.json（含每张 sprite 的 rect） |
 | `--json-only` | 关 | **只导出 meta.json 不切 PNG**；无 `--output` 时 JSON 直出 stdout（纯净，供 UI 捕获） |
 | `--gen-masks` | 关 | 为每个 sprite 生成全白 mask PNG（`masks/`）+ meta.json 写 `mask` 字段（UI 橡皮擦起点） |
@@ -147,8 +147,12 @@ build/sprite-split remove-background photo.png --bg-backend remote --format json
 - **精灵边缘有杂边**（清理背景后的白边/色边 halo）：提高 `--edge-clean` 圈数优先（零开销）；`--contract` 已删除（解耦时移除）
 - **半透明软边**：`remove-background` remote 路径保留 AI 软边 alpha（`process_transparent`）；透明图进 `split` 后按 `--alpha-threshold` 切分，软边像素 alpha > 阈值即保留——**解耦后不再有二值 mask 桥接的语义差异**
 - **噪点多**：`info` 看 component_count 与中位数面积；大量小分量 → 用 `--min-width/--min-height` 过滤（推荐值为最大精灵的 1/4）
-- **`--mode auto`**：假设→打分→验证→回退。行列投影 + Pearson 自相关找候选周期 → offset 搜索对齐组件中心 → 多维评分（周期/对齐/边界/尺寸/占用）→ 谐波抑制；置信度 <0.65 或周期性 <0.25 或组件 <4 时自动**回退 components**
-- **`--merge-distance` 仅 components 模式有效**，与 grid/auto 混用会报错
+- **`--mode auto`（v0.10 起为决策管线）**：`组件（过滤/合并）→ Grid 检测 → Component→Cell 映射 → 决策`。三种最终策略：
+  - `COMPONENTS`：无网格 / 网格不可信 / cell 内多组件 → 物体 BBox
+  - `COMPONENTS_IN_GRID`（默认命中）：网格可信且每 cell 恰好 1 个组件 → 输出组件 BBox（如 4×7 / 176×176 布局的 28 个 120×105 精灵，而非 176×176 cell）
+  - `GRID`：网格强（score≥0.8）且组件 bbox ≈ cell（≥85%）→ 输出 cell
+  诊断见 stdout/stderr 的 `AUTO ANALYSIS` 块或 `--format json` 的 `auto` 字段（mode/confidence/layout/occupied_cells）。
+- **`--merge-distance` 支持 components 与 auto 模式**（grid 模式仍报错）；auto 中合并发生在网格检测前，接触/近邻组件合成一个整体
 - **手动框越界**：`manual` 会提示跳过；`from-json` 会自动 clamp 到图像范围
 - **flag 校验**：命令专属 flag 用错命令会报 "not expected"；类型/范围校验（如 `--cell-size 0`、`--mode bogus`）在 parse 阶段拦截，退出码 1
 - **`--stdout` 与 `--format json` 互斥**：`--stdout` 时 stdout 是 PNG 二进制，结果摘要走 stderr

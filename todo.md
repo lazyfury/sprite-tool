@@ -130,6 +130,26 @@
 旧工作流（split --remove-background）语义等价拆解为两命令（同一算法路径，grid8 均 5 组件）。
 设计文档：`docs/refactoring-guide.md`。
 
+## Auto 重构（2026-08-25，决策管线 v0.10）
+
+> 动机：旧 Auto =「检测到网格就按 cell 切」（`auto_detect_grid_size` 返回 max(period) → `grid_detect` 出 176×176 cell），鱼图 28 个 120×105 精灵被切成 28 个满格。重构为「组件 + Grid 检测 + 决策」，与 TexturePacker/Unity Automatic 对齐。
+
+- [x] `detect_components()` 独立（CCL → min_width/min_height/min_pixels 过滤；`ComponentSprite` 含 cx/cy/cell_x/cell_y）
+- [x] Grid 评分修复：occupancy「接近 0.5 最高分」方向反（全占满完美网格得 0 分）→ 几何占用率 × cell 前景占比；`max(px,py)` 压方形（评分+切割两处）；offset 一致性（评分用 offset、切割不用 → 统一应用）
+- [x] `best_offset` 模等价歧义修复：4 组件 16px 网格上 offset 滑到 13 使组件全挤进同一 cell → 平移使第一 cell 中心对齐最小组件中心
+- [x] `GridCandidate` 扩展：columns/rows/occupied_cells/component_coverage/cell_occupancy/component_cell_indices + Component→Cell mapping（floor_div + clamp）
+- [x] `auto_detect()` 决策管线（`core/segmentation/auto_detector`）：无网格/不匹配 → COMPONENTS；每 cell 恰 1 组件 → COMPONENTS_IN_GRID（主组件 BBox）；score≥0.8 且 bbox≥85% cell → GRID
+- [x] splitter Auto 分支接入 auto_detect；删除 `auto_detect_grid_size` 与旧 `cell → grid_detect` 调用链
+- [x] `SplitResult` 增加 auto 诊断字段（mode/confidence/components/grid layout/occupied cells）
+- [x] CLI：`AUTO ANALYSIS` 文本日志 + `--format json` 的 `auto` 字段；`--merge-distance` 放开到 auto 模式
+- [x] merge_distance 合并（膨胀 bbox 相交 union）+ padding clamp 到 cell 边界（主组件概念）
+- [x] 回归测试 `tests/test_auto.cpp`：6 类场景（uniform grid→GRID / irregular→COMPONENTS / 鱼图 4×7→COMPONENTS_IN_GRID 28 bbox / touching / noise / empty cells）+ merge + padding
+- [x] SKILL.md 同步（auto 决策管线 + merge 适用范围）
+
+**Auto 重构验收（已达成）**：100 用例 / 2667 断言全绿；鱼图 4×7 / 176×176 布局 → 28 个 120×105 组件 BBox（非 176×176 cell）；grid8 素材 auto 仍 5 sprites 零回归；CLI `--format json` 输出 `auto` 诊断。
+
+**待办（可选）**：Godot UI 显示检测结果（方案 §22-23：切割策略/置信度/Padding 控件 + 预览灰色 grid overlay）；6 类回归素材固化为 fixtures PNG（方案 §25）。
+
 ## 进行中
 
-（当前：M1–M4b 全部完成；M5 全部完成（核心链路 + addons 布局 + 独立场景 UI + 编辑器 dock/框选/导入 meta）；M5.3 sheet 打包导出（需 GDExtension 补 sheet API）可选；M4 ONNX 内嵌搁置）
+（当前：M1–M4b 全部完成；M5 全部完成（核心链路 + addons 布局 + 独立场景 UI + 编辑器 dock/框选/导入 meta）；M5.3 sheet 打包导出（需 GDExtension 补 sheet API）可选；M4 ONNX 内嵌搁置；Auto 重构核心已完成，UI 透传待做）
