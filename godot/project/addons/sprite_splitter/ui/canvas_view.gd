@@ -157,8 +157,23 @@ func set_tool(tool: int) -> void:
 	_dragging = false
 	_panning = false
 	_drag_mode = DragMode.NONE
-	_edit_index = -1   # 切工具清编辑态
+	if tool == Tool.EDIT:
+		# 切到编辑模式：已有单选 → 保留为编辑对象（显示手柄）；
+		# 多选/无选 → 无编辑对象（编辑模式仍可单击选择）
+		_edit_index = _single_selected_index()
+	else:
+		_edit_index = -1
 	queue_redraw()
+
+
+# 选中恰好 1 个时返回其索引（编辑对象）；多选/无选返回 -1
+func _single_selected_index() -> int:
+	if _selected.size() != 1:
+		return -1
+	for i: int in _rects.size():
+		if _rects[i] == _selected[0]:
+			return i
+	return -1
 
 
 func get_tool() -> int:

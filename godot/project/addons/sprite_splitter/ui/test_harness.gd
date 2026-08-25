@@ -180,6 +180,24 @@ func _auto_test() -> void:
 	_check(canvas.get("_edit_index") == 0,
 			"auto test: EDIT click enters edit mode")
 	canvas.set_tool(canvas.Tool.SELECT)
+	# 单选切 EDIT 保留编辑对象；多选切 EDIT 清空编辑对象
+	canvas._on_click_select(Vector2(6, 6))
+	_check(canvas.get("_selected").size() == 1,
+			"auto test: single selected in SELECT")
+	canvas.set_tool(canvas.Tool.EDIT)
+	_check(canvas.get("_edit_index") == 0,
+			"auto test: single select keeps edit on switch")
+	canvas.set_tool(canvas.Tool.SELECT)
+	canvas.set("_drag_start", canvas.world_to_screen(Vector2(0, 0)))
+	canvas.set("_drag_cur", canvas.world_to_screen(Vector2(64, 64)))
+	canvas._on_drag_select()
+	_check(canvas.get("_selected").size() >= 4,
+			"auto test: drag select multiple")
+	canvas.set_tool(canvas.Tool.EDIT)
+	_check(canvas.get("_edit_index") == -1,
+			"auto test: multi select clears edit on switch")
+	canvas.set_tool(canvas.Tool.SELECT)
+	canvas._on_click_select(Vector2(6, 6))   # 还原单选
 	var hit: Rect2i = canvas.pick_rect_at(Vector2(8, 8))
 	_check(hit == Rect2i(4, 4, 8, 8), "auto test: pick (8,8) -> first bbox")
 	canvas.set("_drag_start", canvas.world_to_screen(Vector2(0, 0)))
