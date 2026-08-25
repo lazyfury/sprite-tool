@@ -141,7 +141,7 @@ func _auto_test() -> void:
 	# 导入 meta.json → 画布更新
 	_controller.import_meta(out_dir + "/meta.json")
 	_check(_controller.rects.size() == 64, "auto test: import meta rects == 64")
-	_check(_controller.rects[0] == Rect2i(0, 0, 16, 16), "auto test: first rect matches")
+	_check(_controller.rects[0] == Rect2i(4, 4, 8, 8), "auto test: first rect matches (bbox 4,4,8,8)")
 
 	# 画布相机式变换
 	_check(canvas.has_image(), "auto test: canvas has image")
@@ -170,7 +170,7 @@ func _auto_test() -> void:
 	_check(canvas.get_tool() == canvas.Tool.MOVE, "auto test: tool switch MOVE")
 	canvas.set_tool(canvas.Tool.SELECT)
 	var hit: Rect2i = canvas.pick_rect_at(Vector2(8, 8))
-	_check(hit == Rect2i(0, 0, 16, 16), "auto test: pick (8,8) -> first cell")
+	_check(hit == Rect2i(4, 4, 8, 8), "auto test: pick (8,8) -> first bbox")
 	canvas.set("_drag_start", canvas.world_to_screen(Vector2(0, 0)))
 	canvas.set("_drag_cur", canvas.world_to_screen(Vector2(32, 32)))
 	canvas._on_drag_select()

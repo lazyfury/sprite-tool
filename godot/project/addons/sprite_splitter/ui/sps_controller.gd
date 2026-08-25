@@ -11,6 +11,7 @@ extends RefCounted
 signal status_changed(text: String, is_error: bool)
 signal image_loaded(texture: Texture2D)
 signal rects_changed(rects: Array[Rect2i])
+signal sprites_changed(sprites: Array[Dictionary])   # 复杂切片结构（name/uid/xywh/locked/ignored）
 signal count_changed(text: String)
 signal analyze_done(stats: Dictionary)
 signal auto_diag_changed(diag: Dictionary)   # 最近一次 Auto 切分的诊断（mode/confidence/layout/offset；非 auto 为空 {}）
@@ -31,7 +32,8 @@ var splitter: SpriteSplitter = null
 var image: Image = null
 var image_name: String = ""
 var image_res_path: String = ""   # 素材在项目内时转 res://（AtlasTexture 用）
-var rects: Array[Rect2i] = []
+var sprites: Array[Dictionary] = []   # 主数据：复杂切片结构 {uid,name,x,y,width,height,locked,ignored}
+var rects: Array[Rect2i] = []         # 兼容视图：由 sprites 派生（_sync_rects 维护），画布/旧调用用
 var selection: Rect2i = Rect2i(-1, -1, 0, 0)   # CROP 裁切框（世界坐标）
 var exporting: bool = false
 var data: SpriteSplitterData = null   # 关联的项目数据（uid 关联）
@@ -141,6 +143,110 @@ func _wait_frame() -> void:
 		await _tree.process_frame
 
 
+# ---------- 切片复杂结构（SpriteItem = Dictionary） ----------
+# 每项：{uid, name, x, y, width, height, locked, ignored}
+# 兼容：data.sprites 旧格式为 Array[Rect2i]，读取时统一转复杂结构。
+
+func _make_sprite(rect: Rect2i, index: int) -> Dictionary:
+	return {
+		"uid": "sprite_%d" % (index + 1),
+		"name": "精灵 %d" % (index + 1),
+		"x": rect.position.x,
+		"y": rect.position.y,
+		"width": rect.size.x,
+		"height": rect.size.y,
+		"locked": false,
+		"ignored": false,
+	}
+
+
+func _rect_of(s: Dictionary) -> Rect2i:
+	return Rect2i(int(s.get("x", 0)), int(s.get("y", 0)),
+			int(s.get("width", 0)), int(s.get("height", 0)))
+
+
+# 任意来源（Array[Rect2i] 或 Array[Dictionary]）→ 复杂结构数组
+func _sprites_from_any(src: Array) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var index: int = 0
+	for item: Variant in src:
+		if item is Rect2i:
+			out.append(_make_sprite(item, index))
+		elif item is Dictionary:
+			var s: Dictionary = item.duplicate()
+			if not s.has("uid"):
+				s["uid"] = "sprite_%d" % (index + 1)
+			if not s.has("name"):
+				s["name"] = "精灵 %d" % (index + 1)
+			if not s.has("locked"):
+				s["locked"] = false
+			if not s.has("ignored"):
+				s["ignored"] = false
+			out.append(s)
+		index += 1
+	return out
+
+
+# 数据变更统一出口：sprites → rects 兼容视图 + 双信号
+func _sync_rects() -> void:
+	rects = []
+	for s: Dictionary in sprites:
+		rects.append(_rect_of(s))
+	rects_changed.emit(rects)
+	sprites_changed.emit(sprites)
+
+
+# 导出用 rects：忽略 ignored 项
+func get_export_rects() -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	for s: Dictionary in sprites:
+		if bool(s.get("ignored", false)):
+			continue
+		out.append(_rect_of(s))
+	return out
+
+
+# 画布编辑提交：拖拽移动 / 四角缩放（锁定项拒绝）
+func update_sprite_geometry(index: int, rect: Rect2i) -> void:
+	if index < 0 or index >= sprites.size():
+		return
+	var s: Dictionary = sprites[index]
+	if bool(s.get("locked", false)):
+		return
+	if rect.size.x < 1 or rect.size.y < 1:
+		return
+	s["x"] = rect.position.x
+	s["y"] = rect.position.y
+	s["width"] = rect.size.x
+	s["height"] = rect.size.y
+	_sync_rects()
+	mark_dirty()
+
+
+func rename_sprite(index: int, name: String) -> void:
+	if index < 0 or index >= sprites.size():
+		return
+	sprites[index]["name"] = name
+	sprites_changed.emit(sprites)   # 仅列表刷新（几何不变）
+	mark_dirty()
+
+
+func set_sprite_locked(index: int, locked: bool) -> void:
+	if index < 0 or index >= sprites.size():
+		return
+	sprites[index]["locked"] = locked
+	sprites_changed.emit(sprites)
+	mark_dirty()
+
+
+func set_sprite_ignored(index: int, ignored: bool) -> void:
+	if index < 0 or index >= sprites.size():
+		return
+	sprites[index]["ignored"] = ignored
+	sprites_changed.emit(sprites)
+	mark_dirty()
+
+
 # ---------- 加载 / 分析 / 切分 ----------
 
 # 绑定编辑器文件系统信号：源文件重命名/移动会触发重导入流程（resources_reimported /
@@ -214,7 +320,8 @@ func load_image(path: String) -> bool:
 	auto_diag = {}
 	auto_diag_changed.emit({})
 	image_loaded.emit(ImageTexture.create_from_image(img))
-	rects_changed.emit([] as Array[Rect2i])   # 新图：清空画布红框与切片列表
+	sprites = []
+	_sync_rects()   # rects 由 sprites 派生 + 双信号：清空画布红框与切片列表
 	count_changed.emit("")
 	_load_or_create_data()
 	status_changed.emit("已加载 " + image_name, false)
@@ -333,12 +440,12 @@ func apply_data(d: SpriteSplitterData, path: String) -> void:
 	data_path_changed.emit(path)   # 打开配置 → 注册表选中项同步到该路径
 	# 3) 区域：配置 sprites 与当前图配套（全部落在图像范围内）才加载，否则清空并提示
 	if image != null and _sprites_fit_image(d.sprites):
-		rects = d.sprites.duplicate()
-		rects_changed.emit(rects)
-		count_changed.emit("导入 %d 个区域（配置）" % rects.size())
+		sprites = _sprites_from_any(d.sprites)
+		_sync_rects()
+		count_changed.emit("导入 %d 个区域（配置）" % sprites.size())
 	else:
-		rects = []
-		rects_changed.emit([] as Array[Rect2i])
+		sprites = []
+		_sync_rects()
 		count_changed.emit("")
 		if d.sprites.is_empty():
 			status_changed.emit("配置无切分区域（保存时未切分）: " + path, false)
@@ -352,12 +459,21 @@ func apply_data(d: SpriteSplitterData, path: String) -> void:
 
 
 # 配置区域是否全部落在当前图像范围内（配套校验，防旧素材区域画到新图上）
-func _sprites_fit_image(sprites: Array[Rect2i]) -> bool:
-	if image == null or sprites.is_empty():
+# 兼容 Array[Rect2i]（旧数据）与 Array[Dictionary]（复杂结构）
+func _sprites_fit_image(src: Array) -> bool:
+	if image == null or src.is_empty():
 		return false
 	var img_w: int = image.get_width()
 	var img_h: int = image.get_height()
-	for r: Rect2i in sprites:
+	for item: Variant in src:
+		var r: Rect2i
+		if item is Rect2i:
+			r = item
+		elif item is Dictionary:
+			r = Rect2i(int(item.get("x", 0)), int(item.get("y", 0)),
+					int(item.get("width", 0)), int(item.get("height", 0)))
+		else:
+			continue
 		if r.position.x < 0 or r.position.y < 0 or r.end.x > img_w or r.end.y > img_h:
 			return false
 	return true
@@ -386,7 +502,7 @@ func save_project(project_name: String, options: Dictionary, out_dir: String,
 	data.bg_url = String(options.get("bg_url", data.bg_url))
 	data.out_dir = out_dir
 	data.export_mode = export_mode
-	data.sprites = rects.duplicate()   # 始终同步当前区域（含空）→ 配置与当前状态一致
+	data.sprites = sprites.duplicate()   # 复杂结构（旧 Array[Rect2i] 数据读取时自动转换）→ 配置与当前状态一致
 	data.modified_at = int(Time.get_unix_time_from_system())   # 最后修改时间
 	_sync_source_texture()   # 保存前同步源纹理（配置来源/内存图场景兜底）
 	var err: Error = ResourceSaver.save(data, data_path)
@@ -407,13 +523,14 @@ func close_image() -> void:
 	image_res_path = ""
 	rects = []
 	selection = Rect2i(-1, -1, 0, 0)
+	sprites = []
+	_sync_rects()   # rects 重建（空）+ 双信号
 	data = null
 	data_path = ""
 	is_dirty = false
 	auto_diag = {}
 	auto_diag_changed.emit({})
 	image_loaded.emit(null)   # 画布清空（tex=null）
-	rects_changed.emit([] as Array[Rect2i])
 	count_changed.emit("")
 	data_dirty_changed.emit(false)
 	status_changed.emit("已关闭素材", false)
@@ -434,10 +551,11 @@ func split(options: Dictionary) -> void:
 		return
 	var diag: Dictionary = splitter.split_detailed(image, options)
 	var arr: Variant = diag.get("rects", [])
-	rects = []
+	var collected: Array[Rect2i] = []
 	for r: Variant in arr:
 		if r is Rect2i:
-			rects.append(r)
+			collected.append(r)
+	sprites = _sprites_from_any(collected)   # 复杂结构（uid/name 自动生成）
 	auto_diag = {}
 	for key: String in ["auto_mode", "auto_confidence", "auto_raw_components",
 			"auto_filtered_components", "auto_merged_components", "auto_grid_columns",
@@ -448,16 +566,16 @@ func split(options: Dictionary) -> void:
 			auto_diag[key] = diag[key]
 	auto_diag_changed.emit(auto_diag)
 	if data != null:
-		data.sprites = rects.duplicate()   # 内存同步（meta.json 兼容），保存时落盘
+		data.sprites = sprites.duplicate()   # 内存同步（复杂结构），保存时落盘
 		mark_dirty()
-	rects_changed.emit(rects)
+	_sync_rects()
 	# 状态文案：auto 模式带决策策略，其余保持原样
 	var suffix: String = ""
 	if int(auto_diag.get("auto_mode", -1)) >= 0:
 		var mode_name: String = _auto_mode_name(int(auto_diag.get("auto_mode", 0)))
 		suffix = "（%s）" % mode_name
-	count_changed.emit("切分结果: %d 个精灵%s" % [rects.size(), suffix])
-	status_changed.emit("切分完成: %d 个精灵%s" % [rects.size(), suffix], rects.is_empty())
+	count_changed.emit("切分结果: %d 个精灵%s" % [sprites.size(), suffix])
+	status_changed.emit("切分完成: %d 个精灵%s" % [sprites.size(), suffix], sprites.is_empty())
 
 
 func _auto_mode_name(mode: int) -> String:
@@ -499,15 +617,16 @@ func remove_background(threshold: int, backend: String, use_bg_color: bool,
 	image_res_path = new_path   # 新 PNG 成为当前素材（可 uid 关联、AtlasTexture 可用；写盘失败为 "" 回退内存图）
 	rects = []
 	selection = Rect2i(-1, -1, 0, 0)
+	sprites = []
 	if data != null:
-		data.sprites = []   # 图已变，旧 rects 失效
+		data.sprites = []   # 图已变，旧切片失效
 		mark_dirty()
 	if not new_path.is_empty():
 		await _commit_bg_source(new_path)
 	auto_diag = {}
 	auto_diag_changed.emit({})
 	image_loaded.emit(ImageTexture.create_from_image(out))
-	rects_changed.emit([] as Array[Rect2i])   # 图已变：清空画布红框与切片列表
+	_sync_rects()   # 图已变：清空画布红框与切片列表
 	count_changed.emit("")
 	status_changed.emit("已去背景（%s，背景透明）" % backend, false)
 
@@ -658,7 +777,7 @@ func _export_png(out_dir: String, options: Dictionary) -> void:
 
 func _export_meta(out_dir: String) -> void:
 	var meta_path: String = out_dir + "/meta.json"
-	var err: Error = splitter.export_metadata(image, rects, image_name, meta_path)
+	var err: Error = splitter.export_metadata(image, get_export_rects(), image_name, meta_path)
 	await _wait_frame()
 	status_changed.emit("meta.json → %s (err=%d)" % [meta_path, int(err)], err != OK)
 	if err == OK:
@@ -673,7 +792,7 @@ func _export_tres(out_dir: String) -> void:
 	if atlas == null:
 		status_changed.emit("无法加载导入纹理: " + image_res_path, true)
 		return
-	var rs: Array[Rect2i] = rects.duplicate()   # 复制：循环内 await 让出帧，rects 可能被切分/导入清空
+	var rs: Array[Rect2i] = get_export_rects()   # 复制：循环内 await 让出帧，数据可能被切分/导入清空；忽略 ignored 项
 	var saved: int = 0
 	for i: int in rs.size():
 		var at: AtlasTexture = AtlasTexture.new()
@@ -729,10 +848,10 @@ func import_meta(path: String) -> void:
 	if imported.is_empty():
 		status_changed.emit("meta.json 中没有有效区域", true)
 		return
-	rects = imported
+	sprites = _sprites_from_any(imported)
 	if data != null:
-		data.sprites = rects.duplicate()   # 导入 meta.json → 同步项目数据
+		data.sprites = sprites.duplicate()   # 导入 meta.json → 同步项目数据（复杂结构）
 		mark_dirty()
-	rects_changed.emit(rects)
-	count_changed.emit("导入 %d 个区域（meta.json）" % rects.size())
+	_sync_rects()
+	count_changed.emit("导入 %d 个区域（meta.json）" % sprites.size())
 	status_changed.emit("已导入区域: " + path, false)

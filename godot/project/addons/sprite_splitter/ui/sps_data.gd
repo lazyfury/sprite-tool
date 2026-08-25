@@ -28,5 +28,5 @@ extends Resource
 @export var bg_url: String = "http://127.0.0.1:8000"  # remote 后端 base URL
 @export var out_dir: String = "res://out_sprites/ui"
 @export var export_mode: int = 0
-@export var sprites: Array[Rect2i] = []     # 切分结果（meta.json sprites 兼容）
+@export var sprites: Array = []   # 切分结果（复杂结构 Array[Dictionary]；兼容旧 Array[Rect2i]，读取时转换）
 @export var modified_at: int = 0            # 最后修改时间（Unix 秒，保存时更新）
