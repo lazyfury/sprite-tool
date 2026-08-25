@@ -147,10 +147,9 @@
 - [x] SKILL.md 同步（auto 决策管线 + merge 适用范围）
 - [x] **Godot UI 透传（✅）**：`SpriteSplitter.split_detailed()` 返回 rects + auto 诊断（mode/confidence/layout/cell/offset）；侧栏新增「切割策略（自动/物体边界/网格单元 → core `SlicePolicy` 强制覆盖）+ Padding」控件（仅 auto 模式可编辑，`sps_data` 持久化）；切分后 InfoLabel 显示「检测到 N 组件 | 布局 | Cell | 策略 | 置信度」；画布灰色 grid overlay（cell 线 + 红框 = 实际 sprite，调试 Auto 决策）
 - [x] 恢复默认参数自动 min-size 推导（最大组件 1/4，clamp 2..64）：重构时误删导致 big 素材 auto 148 碎片 → 恢复后 80（与旧 golden 一致；用户显式传参时尊重用户）
+- [x] **6 类回归素材固化为 fixtures PNG（✅）**：`tools/gen_auto_fixtures.cpp` 生成 `tests/fixtures/auto/01..06_*.png`（透明底，可复现）+ `test_auto_fixtures.cpp` 端到端断言（PNG 加载 → split_image → 决策/数量/布局/rect 尺寸）；修复 grid rows/columns 用组件覆盖范围而非几何覆盖（鱼图布局 4×8 → 4×7）
 
-**Auto 重构验收（已达成）**：100 用例 / 2667 断言全绿；鱼图 4×7 / 176×176 布局 → 28 个 120×105 组件 BBox（非 176×176 cell）；grid8 素材 auto 仍 5 sprites 零回归；CLI `--format json` 输出 `auto` 诊断；Godot headless 冒烟（main.gd）fail=false（含 split_detailed/slice_policy/padding 新断言）+ UI harness 98 断言全 PASS。
-
-**待办（可选）**：6 类回归素材固化为 fixtures PNG（方案 §25）。
+**Auto 重构验收（已达成）**：106 用例 / 2891 断言全绿；鱼图 4×7 / 176×176 布局 → 28 个 120×105 组件 BBox（非 176×176 cell）；grid8 素材 auto 仍 5 sprites 零回归；CLI `--format json` 输出 `auto` 诊断；Godot headless 冒烟（main.gd）fail=false（含 split_detailed/slice_policy/padding 新断言）+ UI harness 98 断言全 PASS；6 类 fixtures PNG + CLI 端到端验证（01 GRID 64 / 02 COMPONENTS 6 / 03 IN_GRID 28 / 04 COMPONENTS 1 / 05 COMPONENTS 1 / 06 IN_GRID 8）。
 
 ## 进行中
 
