@@ -1,0 +1,247 @@
+[gd_scene format=3 uid="uid://b0spsmain01"]
+
+[ext_resource type="Script" uid="uid://o7mhqbrdrkll" path="res://addons/sprite_splitter/ui/sprite_splitter_main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://bk46nx0u2csgd" path="res://addons/sprite_splitter/ui/canvas_view.gd" id="2_canvas"]
+[ext_resource type="PackedScene" uid="uid://btlqwjnqddink" path="res://addons/sprite_splitter/ui/reg_item.tscn" id="3_lsfdp"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_f75gy"]
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+bg_color = Color(0, 0, 0, 0.3)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6o1d3"]
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+bg_color = Color(0, 0, 0, 0.3)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_q6gvj"]
+
+[node name="SpriteSplitterMain" type="Control" unique_id=914067894]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="MainVBox" type="VBoxContainer" parent="." unique_id=2113973991]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Header" type="PanelContainer" parent="MainVBox" unique_id=714930002]
+layout_mode = 2
+
+[node name="HeaderRow" type="HBoxContainer" parent="MainVBox/Header" unique_id=1577794708]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FileButton" type="Button" parent="MainVBox/Header/HeaderRow" unique_id=156506115]
+layout_mode = 2
+text = "打开素材表..."
+
+[node name="DataBtn" type="Button" parent="MainVBox/Header/HeaderRow" unique_id=419270011]
+layout_mode = 2
+tooltip_text = "打开 SpriteSplitterData 项目配置（Inspector 编辑）"
+text = "打开配置"
+
+[node name="CloseBtn" type="Button" parent="MainVBox/Header/HeaderRow" unique_id=419270012]
+layout_mode = 2
+tooltip_text = "关闭当前图片，回到未加载状态"
+text = "✕ 关闭图片"
+
+[node name="FileLabel" type="Label" parent="MainVBox/Header/HeaderRow" unique_id=1681507023]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "未选择素材"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="HSplitContainer" type="HSplitContainer" parent="MainVBox" unique_id=74163941]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PreviewArea" type="Control" parent="MainVBox/HSplitContainer" unique_id=460558627]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="CanvasView" type="Control" parent="MainVBox/HSplitContainer/PreviewArea" unique_id=416931015]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_canvas")
+
+[node name="Control" type="Control" parent="MainVBox/HSplitContainer" unique_id=1884872153]
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+
+[node name="RightVBox" type="VBoxContainer" parent="MainVBox/HSplitContainer/Control" unique_id=1884872159]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="CardPanel" type="PanelContainer" parent="MainVBox/HSplitContainer/Control/RightVBox" unique_id=1884872154]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_f75gy")
+
+[node name="CardVBox" type="VBoxContainer" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel" unique_id=1884872155]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox" unique_id=1884872156]
+layout_mode = 2
+text = "切片数据"
+
+[node name="ListArea" type="Control" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox" unique_id=1884872157]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SplitList" type="ItemList" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox/ListArea" unique_id=1580810995]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="EmptyLabel" type="Label" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox/ListArea" unique_id=1884872158]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "暂无数据"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RegCardPanel" type="PanelContainer" parent="MainVBox/HSplitContainer/Control/RightVBox" unique_id=1884872160]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_6o1d3")
+
+[node name="RegVBox" type="VBoxContainer" parent="MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel" unique_id=1884872161]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RegTitleLabel" type="Label" parent="MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox" unique_id=1884872162]
+layout_mode = 2
+text = "项目注册表"
+
+[node name="RegListArea" type="Control" parent="MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox" unique_id=1884872163]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RegScroll" type="ScrollContainer" parent="MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox/RegListArea" unique_id=1884872166]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="RegVBoxList" type="VBoxContainer" parent="MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox/RegListArea/RegScroll" unique_id=1884872167]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="RegItem" parent="MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox/RegListArea/RegScroll/RegVBoxList" unique_id=1219703559 instance=ExtResource("3_lsfdp")]
+layout_mode = 2
+
+[node name="RegEmptyLabel" type="Label" parent="MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox/RegListArea" unique_id=1884872165]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "暂无项目数据"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ToolBarMargin" type="MarginContainer" parent="MainVBox" unique_id=1290243735]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="ToolBarRow" type="HBoxContainer" parent="MainVBox/ToolBarMargin" unique_id=1190035913]
+layout_mode = 2
+
+[node name="ToolBar" type="HBoxContainer" parent="MainVBox/ToolBarMargin/ToolBarRow" unique_id=1683875863]
+layout_mode = 2
+alignment = 1
+
+[node name="MoveBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ToolBar" unique_id=1366083483]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_q6gvj")
+text = "移动"
+
+[node name="SelectBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ToolBar" unique_id=959002195]
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+button_group = SubResource("ButtonGroup_q6gvj")
+text = "选择"
+
+[node name="CropBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ToolBar" unique_id=664954117]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_q6gvj")
+text = "裁切"
+
+[node name="VSep" type="VSeparator" parent="MainVBox/ToolBarMargin/ToolBarRow" unique_id=665405334]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ZoomGroup" type="HBoxContainer" parent="MainVBox/ToolBarMargin/ToolBarRow" unique_id=1477598717]
+layout_mode = 2
+
+[node name="ZoomOutBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup" unique_id=1738388156]
+layout_mode = 2
+text = "−"
+
+[node name="ZoomLabel" type="Label" parent="MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup" unique_id=761101883]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "100%"
+horizontal_alignment = 1
+
+[node name="ZoomInBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup" unique_id=1598909319]
+layout_mode = 2
+text = "+"
+
+[node name="FitBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup" unique_id=1568531069]
+layout_mode = 2
+text = "适应"

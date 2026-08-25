@@ -10,9 +10,11 @@
 
 #include "core/analyzer.hpp"
 #include "core/export/json_exporter.hpp"
+#include "core/segmentation/background_remover.hpp"
 #include "core/segmentation/splitter.hpp"
 
 #include <exception>
+#include <memory>
 
 namespace godot {
 
@@ -61,6 +63,8 @@ void SpriteSplitter::_bind_methods() {
     ClassDB::bind_method(D_METHOD("split", "image", "options"), &SpriteSplitter::split);
     ClassDB::bind_method(D_METHOD("analyze", "image", "background_threshold"),
                          &SpriteSplitter::analyze, DEFVAL(12));
+    ClassDB::bind_method(D_METHOD("remove_background", "image", "options"),
+                         &SpriteSplitter::remove_background);
     ClassDB::bind_method(D_METHOD("crop", "image", "rect"), &SpriteSplitter::crop);
     ClassDB::bind_method(D_METHOD("export_sprite", "image", "rect", "path"),
                          &SpriteSplitter::export_sprite);
@@ -124,6 +128,39 @@ Dictionary SpriteSplitter::analyze(const Ref<Image> &p_image, int p_background_t
                 String("SpriteSplitter.analyze: {0}").format(String(e.what())));
     }
     return d;
+}
+
+Ref<Image> SpriteSplitter::remove_background(const Ref<Image> &p_image,
+                                             const Dictionary &p_options) {
+    if (p_image.is_null()) {
+        UtilityFunctions::push_error("SpriteSplitter.remove_background: image is null");
+        return Ref<Image>();
+    }
+    try {
+        const sps::Image img = to_sps_image(p_image);
+        if (img.empty()) {
+            UtilityFunctions::push_error(
+                    "SpriteSplitter.remove_background: unsupported image (empty after conversion)");
+            return Ref<Image>();
+        }
+        sps::BackgroundRemoverOptions opts;
+        if (p_options.has("background_threshold")) {
+            opts.color.threshold = static_cast<int>(p_options["background_threshold"]);
+        }
+        std::unique_ptr<sps::BackgroundRemover> remover =
+                sps::create_background_remover(sps::BackgroundBackend::Color, opts);
+        if (!remover) {
+            UtilityFunctions::push_error(
+                    "SpriteSplitter.remove_background: Color backend not registered");
+            return Ref<Image>();
+        }
+        const sps::Image out = remover->process_transparent(img);
+        return to_godot_image(out);
+    } catch (const std::exception &e) {
+        UtilityFunctions::push_error(
+                String("SpriteSplitter.remove_background: {0}").format(String(e.what())));
+        return Ref<Image>();
+    }
 }
 
 Ref<Image> SpriteSplitter::crop(const Ref<Image> &p_image, const Rect2i &p_rect) {

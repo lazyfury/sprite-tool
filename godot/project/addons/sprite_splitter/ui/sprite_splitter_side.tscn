@@ -1,0 +1,278 @@
+[gd_scene format=3 uid="uid://b0spsside01"]
+
+[ext_resource type="Script" uid="uid://bragmvn8ao8ls" path="res://addons/sprite_splitter/ui/sprite_splitter_side.gd" id="1_side"]
+
+[node name="SpriteSplitterSide" type="PanelContainer" unique_id=1823136213]
+custom_minimum_size = Vector2(280, 0)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_side")
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1087605834]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ProjectRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ProjectNameEdit" type="LineEdit" parent="VBox/ProjectRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "项目名称（默认素材名）"
+
+[node name="SaveBtn" type="Button" parent="VBox/ProjectRow"]
+layout_mode = 2
+tooltip_text = "保存项目（参数/区域/导出位置/项目名）"
+text = "💾"
+
+[node name="SaveStateLabel" type="Label" parent="VBox/ProjectRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TabContainer" type="TabContainer" parent="VBox" unique_id=582615848]
+layout_mode = 2
+size_flags_vertical = 3
+current_tab = 0
+tab_0/title = "切分"
+tab_1/title = "去背景"
+tab_2/title = "导出"
+
+[node name="SplitTab" type="ScrollContainer" parent="VBox/TabContainer" unique_id=723850025]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+metadata/_tab_index = 0
+metadata/_tab_name = "切分"
+
+[node name="VBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="AnalyzeCard" type="PanelContainer" parent="VBox/TabContainer/SplitTab/VBox"]
+layout_mode = 2
+
+[node name="AnalyzeVBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AnalyzeTitle" type="Label" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox"]
+layout_mode = 2
+text = "分析"
+
+[node name="AnalyzeBtn" type="Button" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox"]
+layout_mode = 2
+text = "分析素材"
+
+[node name="InfoLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox"]
+layout_mode = 2
+autowrap_mode = 3
+text = "打开素材后点「分析素材」获取推荐参数"
+
+[node name="ParamCard" type="PanelContainer" parent="VBox/TabContainer/SplitTab/VBox"]
+layout_mode = 2
+
+[node name="ParamVBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/ParamCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ParamTitle" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox"]
+layout_mode = 2
+text = "参数"
+
+[node name="ModeOption" type="OptionButton" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox"]
+layout_mode = 2
+
+[node name="ParamGrid" type="GridContainer" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="MinWLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+text = "最小宽"
+
+[node name="MinW" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+min_value = 1.0
+max_value = 2048.0
+value = 2.0
+
+[node name="MinHLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+text = "最小高"
+
+[node name="MinH" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+min_value = 1.0
+max_value = 2048.0
+value = 2.0
+
+[node name="CellSizeLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+text = "格子尺寸 (grid)"
+
+[node name="CellSize" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+min_value = 1.0
+max_value = 512.0
+value = 16.0
+
+[node name="MergeDistLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+text = "合并距离 (components)"
+
+[node name="MergeDist" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+min_value = 0.0
+max_value = 64.0
+value = 0.0
+
+[node name="AlphaThrLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+text = "alpha 阈值"
+
+[node name="AlphaThr" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+min_value = 0.0
+max_value = 255.0
+value = 1.0
+
+[node name="ActionCard" type="PanelContainer" parent="VBox/TabContainer/SplitTab/VBox"]
+layout_mode = 2
+
+[node name="ActionVBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/ActionCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ActionTitle" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+layout_mode = 2
+text = "操作"
+
+[node name="SplitBtn" type="Button" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+layout_mode = 2
+text = "切分"
+
+[node name="AutoAnalyze" type="CheckButton" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+layout_mode = 2
+button_pressed = true
+text = "切分时自动分析"
+
+[node name="CountLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox"]
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="MetaCard" type="PanelContainer" parent="VBox/TabContainer/SplitTab/VBox"]
+layout_mode = 2
+
+[node name="MetaVBox" type="VBoxContainer" parent="VBox/TabContainer/SplitTab/VBox/MetaCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="MetaTitle" type="Label" parent="VBox/TabContainer/SplitTab/VBox/MetaCard/MetaVBox"]
+layout_mode = 2
+text = "从 meta.json 导入"
+
+[node name="ImportMetaBtn" type="Button" parent="VBox/TabContainer/SplitTab/VBox/MetaCard/MetaVBox"]
+layout_mode = 2
+text = "导入 meta.json（区域）"
+
+[node name="BgTab" type="ScrollContainer" parent="VBox/TabContainer" unique_id=927735104]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+metadata/_tab_index = 1
+metadata/_tab_name = "去背景"
+
+[node name="VBox" type="VBoxContainer" parent="VBox/TabContainer/BgTab"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="BgCard" type="PanelContainer" parent="VBox/TabContainer/BgTab/VBox"]
+layout_mode = 2
+
+[node name="BgVBox" type="VBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BgTitle" type="Label" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
+layout_mode = 2
+text = "背景清理"
+
+[node name="BgThrRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BgThrLabel" type="Label" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgThrRow"]
+layout_mode = 2
+text = "背景阈值"
+
+[node name="BgThr" type="SpinBox" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgThrRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 64.0
+value = 12.0
+
+[node name="BgRemoveBtn" type="Button" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
+layout_mode = 2
+text = "去背景（整图透明）"
+
+[node name="ExportTab" type="ScrollContainer" parent="VBox/TabContainer" unique_id=1489495032]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+metadata/_tab_index = 2
+metadata/_tab_name = "导出"
+
+[node name="VBox" type="VBoxContainer" parent="VBox/TabContainer/ExportTab"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ExportCard" type="PanelContainer" parent="VBox/TabContainer/ExportTab/VBox"]
+layout_mode = 2
+
+[node name="ExportVBox" type="VBoxContainer" parent="VBox/TabContainer/ExportTab/VBox/ExportCard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExportTitle" type="Label" parent="VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox"]
+layout_mode = 2
+text = "导出"
+
+[node name="ExportModeOption" type="OptionButton" parent="VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox"]
+layout_mode = 2
+
+[node name="OutDir" type="LineEdit" parent="VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox"]
+layout_mode = 2
+text = "res://out_sprites/ui"
+
+[node name="ExportRow" type="HBoxContainer" parent="VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ExportBtn" type="Button" parent="VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/ExportRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "导出"
+
+[node name="ExportSelBtn" type="Button" parent="VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/ExportRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "导出选中"
+
+[node name="StatusLabel" type="Label" parent="VBox"]
+layout_mode = 2
+autowrap_mode = 3
+clip_text = true
+text_overrun_behavior = 3
+text = "就绪"

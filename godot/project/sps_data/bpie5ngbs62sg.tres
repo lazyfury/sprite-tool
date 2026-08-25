@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="SpriteSplitterData" format=3 uid="uid://p2ye20xq4a6r"]
+
+[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_splitter/ui/sps_data.gd" id="1_4w7ru"]
+
+[resource]
+script = ExtResource("1_4w7ru")
+sheet_uid = "uid://bpie5ngbs62sg"
+source_image = "res://sprites/test_sheet.png"
+project_name = "test_sheet"
+modified_at = 1787625117

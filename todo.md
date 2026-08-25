@@ -91,7 +91,16 @@
 - [x] Godot 4.6.2 本机加载验证（✅ 完成：无头冒烟 24 断言全 PASS、退出码 0；断言值 = CLI golden；addons 布局下扩展正常加载）
 - [x] AtlasTexture 测试（✅ 完成：main.gd 第 10/11 步——读 `sprites/meta.json`（80 区域，复制自 out_sprites/big/meta.json）在大图上直接建 80 个 AtlasTexture，**不切图**、零文件输出；校验 region/越界/重叠 + `get_image()` 与切图产物 sprite_01.png 像素级一致；前 3 个挂 Sprite2D 演示；第 11 步 ResourceSaver 落盘 3 个 `.tres`（atlas 用 load() 导入纹理引用）重载校验一致；无头冒烟全 PASS）
 - [x] 插件 UI 独立场景（M5.1，✅ 完成：`addons/sprite_splitter/ui/sprite_splitter_ui.tscn` + `.gd` + `overlay.gd`，**不挂载编辑器**；选图/分析（自动填建议参数）/切分/预览叠加描边/导出三模式（切 PNG｜仅 meta.json｜AtlasTexture .tres）；`SPS_UI_TEST=1` headless 自动回归全 PASS（64 精灵：64 PNG + 64 tres + meta.json）；编码约定：节点路径 `/` 层级 + var 显式类型不用 `:=`；规划见 `docs/plugin-ui-plan.md`）
-- [ ] M5.2 挂载编辑器（EditorPlugin dock/bottom panel 复用 UI 场景 + 手动框选 crop/export_sprite + 从已有 meta.json 导入 rects + sheet 打包导出需 GDExtension 补 API）
+- [x] **M5.2 挂载编辑器（✅ 完成 4/4，M5.3 前奏）**：
+  - [x] EditorPlugin 挂载（`editor_plugin.gd`：**主屏幕插件**，参考 limboai `LimboAIEditorPlugin`——`EditorInterface.get_editor_main_screen().add_child(ui)` + `_has_main_screen`/`_get_plugin_name`/`_get_plugin_icon`/`_make_visible`；顶部标签栏 **2D｜3D｜Sprite Splitter**，点标签进入全屏切分界面；`icon.svg` 已入库；保留 Tools 菜单快捷入口；GUI 编辑器实测：插件激活 `C++ core loaded: true`、退出无错误）**踩坑记录**：① 漏 `_has_main_screen() -> true` 标签不出现；② 主屏幕标签只在启动时注册，改代码必须完全重启编辑器；③ **UI 脚本缺 `@tool` → 编辑器里按钮静默失效**（`_ready` 不跑、信号不连、无任何报错；headless 运行模式正常）——已补 @tool 并用 GUI 编辑器验证 selftest 执行
+  - [x] 手动框选（Overlay `_gui_input` 拖拽 + 青色高亮/右键清除 + `_view_to_image` 逆映射 + 「导出选中」按钮走 `export_sprite`；headless 断言导出选中像素与切分产物 `sprite_01.png` 逐像素一致）
+  - [x] **画布式预览重构（M5.3 前奏，✅）**：`ui/canvas_view.gd` 替代 TextureRect+Overlay——@tool 自绘画布，图片/红框/框选全世界坐标（像素）同一变换绘制（`draw_set_transform` + `_zoom/_center` 相机式 view）；滚轮以鼠标为锚缩放/中键平移/左键框选/右键清除/双击 fit；ZoomBar（−/%/+ 适应）；**修复红框错位**（旧方案手动 scale/offset 与 KEEP_ASPECT_CENTERED 不一致）与**大图超出窗口**（加载自动 fit）；headless 断言：world↔screen 往返、zoom 后世界坐标不变、fit zoom 匹配视口
+  - [x] **主屏幕+侧栏双挂载重构（M5.3，✅）**：单场景拆分——`ui/sps_controller.gd`（RefCounted 业务控制器 + 信号桥接）+ `ui/sprite_splitter_main.tscn`（主屏幕全屏画布 + 工具条 移动/选择/裁切 + 缩放）+ `ui/sprite_splitter_side.tscn`（dock DOCK_SLOT_RIGHT_BL 操作面板：打开/参数/去背景/分析/切分/导入/导出/状态）；editor_plugin 双挂载（main_screen + dock），**跨区域交互经 controller 信号桥接**（dock 按钮→画布响应）；测试入口 `ui/test_harness.tscn`（主+侧同屏 22 断言全 PASS）；旧 sprite_splitter_ui.tscn/.gd 删除；坑：自定义方法勿命名 `get_canvas()`（Control 已有，返回 RID）
+  - [x] 从已有 meta.json 导入 rects（「导入 meta.json（区域）」按钮解析 CLI 同源格式 `sprites[{x,y,width,height}]` → 填充 rects + 描边；headless 断言 64 区域 + 首 rect == (0,0,16,16)）
+  - [x] **去背景独立按钮（✅）**：GDExtension 补 `SpriteSplitter.remove_background(image, opts) -> Image`（core BackgroundRemover::process_transparent 整图透明）；UI 去背景从切分开关改为独立操作（BgRemoveBtn + 背景阈值 SpinBox），点击替换预览图后切分/导出基于透明图
+  - [x] **项目数据 Resource（✅）**：`ui/sps_data.gd`（SpriteSplitterData extends Resource）——@export 常用参数/导出位置/项目名/sprites（**兼容 meta.json rects**）；uid 关联（`res://sps_data/<uid>.tres`，`ResourceLoader.get_resource_uid` int → `ResourceUID.id_to_text`）；加载素材自动匹配/初始化（项目名默认素材名）+ 恢复参数；侧栏 ProjectRow（项目名编辑 + 保存按钮）；`save_project` 落盘 + 资产库刷新；切分/导入 meta/去背景同步 sprites
+  - [x] **项目注册表（✅）**：`ui/sps_registry.gd`（SpriteSplitterRegistry extends Resource，**@tool**）——`entries: Array[String]` 登记所有 SpriteSplitterData 路径；默认注册表 `res://sps_data/registry.tres`（不存在自动创建 + 扫描 sps_data/*.tres 补登记）；新建/保存 data 时 `_register_data` 自动注册；主视图右侧下半卡片「项目注册表」（ItemList：项目名+文件名，item 存路径 metadata，点击 → `load_registry_entry` → apply_data 统一入口）；坑：Resource 脚本无 @tool 时 load 得 placeholder，调方法报 `placeholder instance`
+  - [ ] sheet 打包导出（M5.3，需 GDExtension 补 sheet API → 对齐 CLI `sheet`）
 
 **M5 调研结论（2026-08-25，已入 SKILL.md §2.5/§7/§8）**：
 - **GDExtension 加载机制**：运行时只读 `res://.godot/extension_list.cfg`（每行一个 .gdextension 路径，由编辑器全项目扫描生成，含 addons/）；不扫描 res://。删 .godot 后直接运行扩展不加载 → 必须先编辑器导入或手动写列表
@@ -102,6 +111,9 @@
 - godot-cpp `GODOTCPP_DISABLE_EXCEPTIONS` 默认 ON 且以 `PUBLIC` 传播 `-fno-exceptions` → 消费 core（用异常）必须配置 `-DGODOTCPP_DISABLE_EXCEPTIONS=OFF`
 - macOS 产物名带架构：`libxxx.macos.template_debug.arm64.dylib`，`.gdextension` 路径须含 `.arm64`
 - 4.6.2 编辑器模式崩溃（EditorHelp 扩展文档生成 bug）→ 两步法导入规避（见上）
+- **EditorPlugin 方法名是 `remove_control_from_docks`（复数 s）**（headless classdb 实测 + 文档确认；`remove_control_from_dock` 不存在，check-only 报 Parse Error）
+- **RefCounted 禁止手动 free()**：editor_plugin.gd 里 `SpriteSplitter.new()` 是 RefCounted，`_exit_tree` 曾写 `_splitter.free()` → 编辑器退出报 `Can't free a RefCounted object`；改置 `null` 由引用计数释放（该 bug 藏在既有代码里，GUI 实测才暴露）
+- `EditorFileDialog` 继承 `FileDialog`，`access`/`file_mode`/`filters`/`file_selected` 均继承可用；dock 内选图对话框按 `Engine.is_editor_hint()` 分支创建 EditorFileDialog/FileDialog（类型标注 Variant）
 
 ---
 
@@ -120,4 +132,4 @@
 
 ## 进行中
 
-（当前：M1–M4b 全部完成；M5 核心链路 + addons 规范布局完成，EditorPlugin 骨架待 GUI 验证；M4 ONNX 内嵌搁置）
+（当前：M1–M4b 全部完成；M5 全部完成（核心链路 + addons 布局 + 独立场景 UI + 编辑器 dock/框选/导入 meta）；M5.3 sheet 打包导出（需 GDExtension 补 sheet API）可选；M4 ONNX 内嵌搁置）

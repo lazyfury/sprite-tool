@@ -39,6 +39,11 @@ public:
     // 分析：返回 Dictionary 统计（alpha 分布 / 分量数 / 推荐 min 尺寸），供 UI 参数推荐。
     Dictionary analyze(const Ref<Image> &p_image, int p_background_threshold = 12);
 
+    // 整图去背景：Color 后端（四角采样 + flood fill），背景像素 alpha 置 0。
+    // 返回透明 Image（同尺寸）；失败（null 图 / 不支持格式）返回 null。
+    // options: background_threshold int（RGB 曼哈顿距离阈值，默认 12）
+    Ref<Image> remove_background(const Ref<Image> &p_image, const Dictionary &p_options);
+
     // 裁剪：返回子图（godot::Image），rect 越界自动 clamp。image 为 null 返回 null。
     Ref<Image> crop(const Ref<Image> &p_image, const Rect2i &p_rect);
 

@@ -232,7 +232,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
 | `sprite-plugin-ui` | 插件 UI 开发（布局/交互/独立场景测试/编码约定） | 开发 `godot/project/addons/sprite_splitter/ui/` 时读取 |
 
 **Godot/GDScript 编码约定（强制）**：
-- 节点路径一律用 `/` 表示子层级（`get_node("Main/Content/SidePanel/Side/SplitBtn")`），不链式 get_node、不用 `%` 唯一名
+- 节点路径一律用 `/` 表示子层级（`get_node("Main/Content/SidePanel/Side/SplitBtn")`），不链式 get_node；**例外：易随结构变动失效的关键节点（如主视图 CanvasView）用唯一名 `%` 访问**（`get_node("%CanvasView")`，2026-08-25 用户指定）
 - GDScript 变量一律显式类型标注（`var x: Type = ...`），**不用 `:=`**（`const` 语言限制除外）；函数参数/返回值标注类型
 
 - **源位置**：`.pi/skills/<name>/SKILL.md`（唯一权威副本，直接编辑这里）

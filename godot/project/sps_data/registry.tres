@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="SpriteSplitterRegistry" format=3 uid="uid://bejbvwq5gxtky"]
+
+[ext_resource type="Script" uid="uid://dvhsk37wnagrf" path="res://addons/sprite_splitter/ui/sps_registry.gd" id="1_d7ep4"]
+
+[resource]
+script = ExtResource("1_d7ep4")
+entries = Array[String](["res://sps_data/l5umiu1dfvw8.tres", "res://sps_data/b3q5icutiac3s.tres", "res://sps_data/bco6uc60471nl.tres", "res://sps_data/gudwrx7q37sh.tres", "res://sps_data/bpie5ngbs62sg.tres"])
+updated_at = 1787625117

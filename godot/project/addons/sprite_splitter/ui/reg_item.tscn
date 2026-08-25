@@ -1,0 +1,64 @@
+[gd_scene format=3 uid="uid://btlqwjnqddink"]
+
+[ext_resource type="Script" uid="uid://dixvd1ixskq88" path="res://addons/sprite_splitter/ui/reg_item.gd" id="1_reg"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
+bg_color = Color(0, 0, 0, 0)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 16.0
+content_margin_top = 6.0
+content_margin_right = 16.0
+content_margin_bottom = 6.0
+
+[node name="RegItem" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+script = ExtResource("1_reg")
+
+[node name="Row" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Thumb" type="TextureRect" parent="Row"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+stretch_mode = 5
+
+[node name="Col" type="VBoxContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_constants/separation = 3
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="Row/Col"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "title"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="UidLabel" type="Label" parent="Row/Col"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.62, 0.62, 0.68, 1)
+text = "uid:123123"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="TimeLabel" type="Label" parent="Row/Col"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.62, 0.62, 0.68, 1)
+text = "time"
+clip_text = true
+text_overrun_behavior = 3
