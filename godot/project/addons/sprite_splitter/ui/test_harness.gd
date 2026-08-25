@@ -375,6 +375,20 @@ func _auto_test() -> void:
 	_check(_controller.rects[0] == Rect2i(rc0.position + Vector2i(3, 0), rc0.size),
 			"auto test: canvas edit commits to controller")
 	_controller.update_sprite_geometry(0, rc0)   # 还原
+	# 编辑提交后选择保留（uid 追踪：编辑对象不丢，可连续操作）
+	canvas.set_tool(canvas.Tool.EDIT)
+	canvas._on_click_select(Vector2(6, 6))
+	_check(canvas.get("_edit_index") == 0,
+			"auto test: edit select before commit")
+	var rc1: Rect2i = _controller.rects[0]
+	canvas.geometry_committed.emit(0, Rect2i(rc1.position + Vector2i(3, 0), rc1.size))
+	await get_tree().process_frame
+	_check(canvas.get("_edit_index") == 0,
+			"auto test: edit keeps selection after commit")
+	_check(canvas.get("_selected").size() == 1,
+			"auto test: selection kept after commit")
+	_controller.update_sprite_geometry(0, rc1)   # 还原
+	canvas.set_tool(canvas.Tool.SELECT)
 	# 列表 emoji 状态显示
 	_controller.set_sprite_locked(0, true)
 	_controller.set_sprite_ignored(1, true)

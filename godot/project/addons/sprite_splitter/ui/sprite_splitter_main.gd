@@ -600,12 +600,14 @@ func _on_fit() -> void:
 
 # ---------- controller 信号 → 画布 ----------
 
+# 画布数据统一由 sprites_changed 注入（uid 追踪保留编辑态）；此信号仅供兼容/旧调用
 func _on_rects_changed(rects: Array[Rect2i]) -> void:
-	_canvas.set_rects(rects)
+	pass
 
 
-# 复杂切片结构 → 右侧列表（名称 + emoji 状态 + xywh）
+# 复杂切片结构 → 画布 + 右侧列表（名称 + emoji 状态 + xywh）
 func _on_sprites_changed(sprites_in: Array[Dictionary]) -> void:
+	_canvas.set_sprites(sprites_in)
 	_split_list.clear()
 	for i: int in sprites_in.size():
 		_split_list.add_item(_sprite_label(sprites_in[i], i))

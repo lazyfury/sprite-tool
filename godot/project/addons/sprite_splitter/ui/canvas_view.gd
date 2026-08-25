@@ -97,15 +97,28 @@ func set_rects(rects_in: Array[Rect2i]) -> void:
 	set_sprites(sp)
 
 
-# 复杂切片结构注入（controller sprites_changed → main 转发）
+# 复杂切片结构注入（controller sprites_changed → main 转发）。
+# 编辑对象保留：按 uid 追踪——几何编辑提交（uid 不变）后选择不丢；
+# 切分/导入/换图（uid 全变）自然清空编辑态与选中。
 func set_sprites(sprites_in: Array[Dictionary]) -> void:
+	var keep_edit: int = -1
+	if _edit_index >= 0 and _edit_index < _sprites.size():
+		var old_uid: String = String(_sprites[_edit_index].get("uid", ""))
+		if not old_uid.is_empty():
+			for i: int in sprites_in.size():
+				if String(sprites_in[i].get("uid", "")) == old_uid:
+					keep_edit = i
+					break
 	_sprites = sprites_in
 	_rects = []
 	for s: Dictionary in _sprites:
 		_rects.append(Rect2i(int(s.get("x", 0)), int(s.get("y", 0)),
 				int(s.get("width", 0)), int(s.get("height", 0))))
-	_edit_index = -1
-	_selected = []
+	_edit_index = keep_edit
+	if keep_edit >= 0:
+		_selected = [_rects[keep_edit]]   # 保留单选（编辑对象）
+	else:
+		_selected = []
 	_drag_mode = DragMode.NONE
 	queue_redraw()
 
@@ -515,8 +528,8 @@ func _draw() -> void:
 	# 切分红框
 	for r: Rect2i in _rects:
 		draw_rect(Rect2(Vector2(r.position), Vector2(r.size)), RECT_COLOR, false, lw)
-	# SELECT：选中方块高亮（黄）
-	if _tool == Tool.SELECT:
+	# SELECT/EDIT：选中方块高亮（黄）
+	if _tool == Tool.SELECT or _tool == Tool.EDIT:
 		for r: Rect2i in _selected:
 			var rr: Rect2 = Rect2(Vector2(r.position), Vector2(r.size))
 			draw_rect(rr, SEL_HL_FILL, true)
