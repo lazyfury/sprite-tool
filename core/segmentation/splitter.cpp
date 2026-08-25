@@ -2,6 +2,7 @@
 
 #include "mask/mask.hpp"
 #include "mask/morphology.hpp"
+#include "segmentation/auto_detector.hpp"
 #include "segmentation/background.hpp"
 #include "segmentation/connected_components.hpp"
 #include "segmentation/grid_detector.hpp"
@@ -97,36 +98,44 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
     }
     if (!mask.any_foreground()) return result;
 
-    // ---- Grid / Auto 模式：直接按网格出 rects ----
-    bool auto_fallback = false;  // auto 未检测到网格 → 回退 components
-    if (options.mode == DetectionMode::Grid ||
-        options.mode == DetectionMode::Auto) {
-        int cell = options.grid_cell_size;
-        if (options.mode == DetectionMode::Auto) {
-            cell = auto_detect_grid_size(mask);
-            if (cell > 0) {
-                // 检测到稳定网格 → 按网格切
-                auto rects = grid_detect(mask, cell);
-                for (const auto& r : rects) {
-                    SpriteRect p;
-                    if (finalize_rect(r, options, image.width(), image.height(), p)) {
-                        result.sprites.push_back(p);
-                    }
-                }
-                return result;
+    // ---- Grid 模式：直接按网格出 rects（显式 cell_size，原点 0）----
+    if (options.mode == DetectionMode::Grid) {
+        auto rects = grid_detect(mask, options.grid_cell_size);
+        for (const auto& r : rects) {
+            SpriteRect p;
+            if (finalize_rect(r, options, image.width(), image.height(), p)) {
+                result.sprites.push_back(p);
             }
-            // 未检测到网格 → 回退到 connected components（fallthrough）
-            auto_fallback = true;
-        } else {
-            auto rects = grid_detect(mask, cell);
-            for (const auto& r : rects) {
-                SpriteRect p;
-                if (finalize_rect(r, options, image.width(), image.height(), p)) {
-                    result.sprites.push_back(p);
-                }
-            }
-            return result;
         }
+        return result;
+    }
+
+    // ---- Auto 模式：组件 + Grid 检测 + 决策（COMPONENTS / GRID / COMPONENTS_IN_GRID）----
+    if (options.mode == DetectionMode::Auto) {
+        AutoOptions ao;
+        ao.min_width = options.min_width;
+        ao.min_height = options.min_height;
+        ao.merge_distance = options.merge_distance;
+        const AutoDetection det = auto_detect(mask, ao);
+        // 诊断信息透出（CLI --format json / UI 展示用）
+        result.auto_mode = static_cast<int>(det.mode);
+        result.auto_confidence = det.confidence;
+        result.auto_raw_components = det.raw_component_count;
+        result.auto_filtered_components = det.filtered_component_count;
+        result.auto_merged_components = det.merged_component_count;
+        result.auto_grid_columns = det.grid_columns;
+        result.auto_grid_rows = det.grid_rows;
+        result.auto_grid_cell_w = det.grid.best.period_x;
+        result.auto_grid_cell_h = det.grid.best.period_y;
+        result.auto_occupied_cells = det.occupied_cells;
+        result.auto_cells_with_multi = det.cells_with_multi;
+        for (const auto& r : det.rects) {
+            SpriteRect p;
+            if (finalize_rect(r, options, image.width(), image.height(), p)) {
+                result.sprites.push_back(p);
+            }
+        }
+        return result;
     }
 
     // ---- Merge 模式：膨胀 mask → CCL → 用原 mask 重算精确 bbox（腐蚀回原边界） ----
@@ -166,25 +175,9 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
     // ---- 普通 CCL ----
     auto comps = connected_components(mask);
 
-    // auto 回退 components 且用户未显式指定 min-size（两者均为默认 1）时，
-    // 自动推导噪声过滤阈值：最大分量边长的 1/4（clamp 2..64），
-    // 与 analyzer 的 suggested_min_* 同一启发式。典型场景：白底素材表
-    // 去背景后抗锯齿边缘产生大量 1~2px 碎片（数千个）。
-    // 用户显式传了任一 min-size 时不干预，尊重用户选择。
-    SplitOptions eff = options;
-    if (auto_fallback && options.min_width <= 1 && options.min_height <= 1 &&
-        comps.size() >= 20) {
-        const Component* largest = &comps[0];
-        for (const auto& c : comps) {
-            if (c.area > largest->area) largest = &c;
-        }
-        eff.min_width = std::clamp(largest->bounds.width / 4, 2, 64);
-        eff.min_height = std::clamp(largest->bounds.height / 4, 2, 64);
-    }
-
     for (const Component& c : comps) {
         SpriteRect p;
-        if (finalize_rect(c.bounds, eff, image.width(), image.height(), p)) {
+        if (finalize_rect(c.bounds, options, image.width(), image.height(), p)) {
             result.sprites.push_back(p);
         }
     }

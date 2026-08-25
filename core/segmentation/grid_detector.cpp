@@ -76,15 +76,6 @@ GridStats grid_stats(const Mask& mask, int pw, int ph, int ox, int oy, int min_o
     return st;
 }
 
-// 组件中心 → cell 索引（floor 语义 + clamp 到 [0, size)）
-int component_cell_index(int center, int offset, int period, int size) {
-    if (period <= 0) return -1;
-    const int idx = floor_div(center - offset, period);
-    if (idx < 0) return 0;
-    if (idx >= size) return size - 1;
-    return idx;
-}
-
 // 计算一行投影（水平方向时按列统计，否则按行），返回投影数组
 std::vector<double> make_projection(const Mask& mask, bool horizontal) {
     const int w = mask.width();
@@ -227,7 +218,16 @@ AlignmentResult best_offset(const std::vector<int>& centers, int period) {
             best = {off, score};
         }
     }
-    // 边界检查：offset 可能导致 cell 越界，但 grid_detect 会 clamp，不影响评分
+    // 修正：模周期对齐存在多个等价解（组件中心 c 与 c+period 对齐得分相同）。
+    // 平移整数个周期，使第一个 cell 中心对齐最小组件中心——几何合理，
+    // 避免稀疏组件（如 4 个 10x10 块在 16px 网格上）被映射进错误的 cell 实例
+    // （全部挤进同一个 cell，导致 Component→Cell mapping 失效）。
+    int min_c = centers.front();
+    for (int c : centers) min_c = std::min(min_c, c);
+    const double first_center = best.offset + period / 2.0;
+    const int shift = static_cast<int>(std::round((min_c - first_center) / period));
+    best.offset += shift * period;
+    // 负偏移产生的图外 cell 由 grid_detect/mapping 的 floor_div + clamp 处理
     return best;
 }
 
@@ -274,6 +274,17 @@ double size_consistency(const std::vector<Comp>& comps, int cell_w, int cell_h) 
 }
 
 }  // namespace
+
+// 组件中心 → cell 索引（floor 语义 + clamp 到 [0, size)）。
+// 与 detect_grid 内部 mapping 共用同一语义（floor_div），供 Auto 管线生成
+// ComponentsInGrid rect / 排序时复现组件到 cell 的归属。
+int component_cell_index(int center, int offset, int period, int size) {
+    if (period <= 0) return -1;
+    const int idx = floor_div(center - offset, period);
+    if (idx < 0) return 0;
+    if (idx >= size) return size - 1;
+    return idx;
+}
 
 std::vector<SpriteRect> grid_detect(const Mask& mask, int cell_width, int cell_height,
                                     int offset_x, int offset_y, int min_opaque) {
@@ -468,13 +479,6 @@ GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell,
     result.is_grid = result.confidence >= 0.65 && result.best.periodicity >= 0.25 &&
                      n_comps >= 4;
     return result;
-}
-
-int auto_detect_grid_size(const Mask& mask) {
-    const GridDetection det = detect_grid(mask);
-    if (!det.is_grid) return 0;
-    // 返回 cell 尺寸：取两方向周期较大值（保守，避免切碎）
-    return std::max(det.best.period_x, det.best.period_y);
 }
 
 }  // namespace sps

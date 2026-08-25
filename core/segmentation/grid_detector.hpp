@@ -59,15 +59,15 @@ inline std::vector<SpriteRect> grid_detect(const Mask& mask, int cell_size) {
     return grid_detect(mask, cell_size, cell_size, 0, 0, 1);
 }
 
+// 组件中心 → cell 索引（floor 语义 + clamp 到 [0, size)）；period<=0 返回 -1。
+// Auto 管线与 ComponentsInGrid rect 生成共用，保证映射语义一致。
+int component_cell_index(int center, int offset, int period, int size);
+
 // 完整检测流程：投影+自相关 → 候选周期 → offset 搜索 → 多维评分 → 选优
 // min_cell/max_cell 限定周期搜索范围（默认 4 ~ min(W,H)/2）。
 // components：可选外部精灵级组件（Auto 管线传入 detect_components 结果，避免重复 CCL）；
 // 为空时内部对 mask 重新 CCL 并做大组件过滤（仅评分用）。
 GridDetection detect_grid(const Mask& mask, int min_cell = 4, int max_cell = 0,
                           const std::vector<ComponentSprite>* components = nullptr);
-
-// 兼容接口：返回最佳 cell 尺寸（非网格时 0）。仅遗留 splitter 旧 Auto 路径使用，
-// 重构完成后删除（见 auto_detector）。
-int auto_detect_grid_size(const Mask& mask);
 
 }  // namespace sps

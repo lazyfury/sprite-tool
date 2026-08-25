@@ -1,4 +1,5 @@
 #include "mask/mask.hpp"
+#include "segmentation/auto_detector.hpp"
 #include "segmentation/grid_detector.hpp"
 #include "segmentation/splitter.hpp"
 
@@ -61,34 +62,54 @@ TEST_CASE("Grid: invalid cell size returns empty", "[grid]") {
     CHECK(grid_detect(Mask(), 16).empty());
 }
 
-TEST_CASE("Auto: detects 16 as best grid size for 16px grid", "[grid]") {
+TEST_CASE("Auto: 16px grid with in-cell sprites -> COMPONENTS_IN_GRID", "[grid]") {
     // 64x64，精灵 10x10 对齐 16px 网格原点，2x2 网格（4 个分量，两方向间距均 16）
+    // 组件 bbox(10x10) < cell(16x16) 且每 cell 恰 1 组件 → COMPONENTS_IN_GRID（bbox 切割）
     Mask m = mask_with_blocks({{0, 0, 10, 10}, {16, 0, 10, 10}, {0, 16, 10, 10},
                                {16, 16, 10, 10}},
                               64, 64);
-    int size = auto_detect_grid_size(m);
-    CHECK(size == 16);
+    AutoOptions opts;
+    AutoDetection det = auto_detect(m, opts);
+    REQUIRE(det.mode == AutoSliceMode::ComponentsInGrid);
+    REQUIRE(det.rects.size() == 4);
+    CHECK(det.grid.best.period_x == 16);
+    CHECK(det.grid.best.period_y == 16);
+    // 每 cell 一个组件 → 输出组件 bbox（10x10），不是 16x16 cell
+    for (const auto& r : det.rects) {
+        CHECK(r.width == 10);
+        CHECK(r.height == 10);
+    }
 }
 
-TEST_CASE("Auto: fully opaque mask is not a grid (falls back to components)", "[grid]") {
-    // 全前景 = 1 个连通分量 → 无法判定网格 → 返回 0，由 splitter 回退 components
+TEST_CASE("Auto: fully opaque mask falls back to components", "[grid]") {
+    // 全前景 = 1 个连通分量 → 无网格 → COMPONENTS，1 个整图 sprite
     Mask m(64, 64, true);
-    int size = auto_detect_grid_size(m);
-    CHECK(size == 0);
+    AutoOptions opts;
+    AutoDetection det = auto_detect(m, opts);
+    CHECK(det.mode == AutoSliceMode::Components);
+    CHECK(det.rects.size() == 1);
+    CHECK(det.rects[0].width == 64);
+    CHECK(det.rects[0].height == 64);
 }
 
 TEST_CASE("Auto: irregular layout is not a grid", "[grid]") {
-    // 5 个块，间距不一（无稳定网格）→ 返回 0
+    // 5 个块，间距不一（无稳定网格）→ COMPONENTS
     Mask m = mask_with_blocks({{2, 2, 8, 8}, {40, 5, 8, 8}, {10, 40, 8, 8},
                                {50, 45, 8, 8}, {25, 20, 8, 8}},
                               64, 64);
-    CHECK(auto_detect_grid_size(m) == 0);
+    AutoOptions opts;
+    AutoDetection det = auto_detect(m, opts);
+    CHECK(det.mode == AutoSliceMode::Components);
+    REQUIRE(det.rects.size() == 5);
 }
 
 TEST_CASE("Auto: too few components is not a grid", "[grid]") {
-    // 3 个块 < 4 → 无法判断
+    // 3 个块 < 4 → 无法判断 → COMPONENTS
     Mask m = mask_with_blocks({{0, 0, 8, 8}, {16, 0, 8, 8}, {0, 16, 8, 8}}, 64, 64);
-    CHECK(auto_detect_grid_size(m) == 0);
+    AutoOptions opts;
+    AutoDetection det = auto_detect(m, opts);
+    CHECK(det.mode == AutoSliceMode::Components);
+    REQUIRE(det.rects.size() == 3);
 }
 
 TEST_CASE("Detect grid: 3x3 grid at 16px detects 16x16", "[grid]") {
@@ -135,7 +156,8 @@ TEST_CASE("Splitter: grid mode returns grid rects", "[grid]") {
     CHECK(result.sprites[1].x == 32);
 }
 
-TEST_CASE("Splitter: auto mode picks grid", "[grid]") {
+TEST_CASE("Splitter: auto mode picks components in grid", "[grid]") {
+    // 10x10 精灵在 16px 网格上：AUTO → COMPONENTS_IN_GRID，4 个组件 bbox（10x10）
     Image img = image_with_blocks({{0, 0, 10, 10}, {16, 0, 10, 10}, {0, 16, 10, 10},
                                    {16, 16, 10, 10}},
                                   64, 64);
@@ -143,6 +165,12 @@ TEST_CASE("Splitter: auto mode picks grid", "[grid]") {
     opts.mode = DetectionMode::Auto;
     auto result = split_image(img, opts);
     REQUIRE(result.sprites.size() == 4);
+    // 不是 16x16 cell，而是 10x10 组件 bbox
+    CHECK(result.auto_mode == static_cast<int>(AutoSliceMode::ComponentsInGrid));
+    for (const auto& r : result.sprites) {
+        CHECK(r.width == 10);
+        CHECK(r.height == 10);
+    }
 }
 
 TEST_CASE("Splitter: auto falls back to components for irregular layout", "[grid]") {

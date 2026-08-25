@@ -141,8 +141,8 @@ void validate_split_opts(const CliOpts& o) {
     if (o.opts.min_height < 1) throw ArgError{"--min-height must be >= 1"};
     if (o.opts.mode == sps::DetectionMode::Grid && o.opts.grid_cell_size < 1)
         throw ArgError{"--cell-size must be >= 1 in grid mode"};
-    if (o.opts.merge_nearby && o.opts.mode != sps::DetectionMode::ConnectedComponents)
-        throw ArgError{"--merge-distance only applies to components mode"};
+    if (o.opts.merge_nearby && o.opts.mode == sps::DetectionMode::Grid)
+        throw ArgError{"--merge-distance only applies to components/auto mode"};
     if (o.opts.alpha_threshold < 0) throw ArgError{"--alpha-threshold must be >= 0"};
 }
 
@@ -218,6 +218,58 @@ void print_runtime_error(const Out& out, const std::exception& e) {
     } else {
         std::cerr << "error: " << e.what() << "\n";
     }
+}
+
+// Auto 模式诊断输出（方案 §24）：文本 → note；json → 嵌入 out.res["auto"]。
+// 仅 mode=Auto 时填充（auto_mode >= 0）。
+void emit_auto_analysis(const sps::SplitResult& result, Out& out) {
+    if (result.auto_mode < 0) return;
+    const char* mode_name = result.auto_mode == 0
+                                ? "COMPONENTS"
+                                : (result.auto_mode == 1 ? "GRID" : "COMPONENTS_IN_GRID");
+    if (out.json) {
+        out.res["auto"] = {
+            {"mode", mode_name},
+            {"confidence", std::round(result.auto_confidence * 100.0) / 100.0},
+            {"raw_components", result.auto_raw_components},
+            {"filtered_components", result.auto_filtered_components},
+            {"merged_components", result.auto_merged_components},
+            {"grid_columns", result.auto_grid_columns},
+            {"grid_rows", result.auto_grid_rows},
+            {"cell_width", result.auto_grid_cell_w},
+            {"cell_height", result.auto_grid_cell_h},
+            {"occupied_cells", result.auto_occupied_cells},
+            {"cells_with_multi", result.auto_cells_with_multi},
+        };
+        return;
+    }
+    const bool detected = result.auto_grid_columns > 0;
+    std::ostringstream ss;
+    ss << "AUTO ANALYSIS\n"
+       << "  components:\n"
+       << "    raw: " << result.auto_raw_components << "\n"
+       << "    filtered: " << result.auto_filtered_components << "\n"
+       << "    merged: " << result.auto_merged_components << "\n"
+       << "  grid:\n"
+       << "    detected: " << (detected ? "true" : "false") << "\n";
+    if (detected) {
+        ss << "    cell: " << result.auto_grid_cell_w << "x" << result.auto_grid_cell_h
+           << "\n"
+           << "    layout: " << result.auto_grid_columns << "x" << result.auto_grid_rows
+           << "\n"
+           << "    confidence: " << std::fixed << std::setprecision(2)
+           << result.auto_confidence << "\n"
+           << "  mapping:\n"
+           << "    occupied cells: " << result.auto_occupied_cells << "\n"
+           << "    cells with 1 component: "
+           << (result.auto_occupied_cells - result.auto_cells_with_multi) << "\n"
+           << "    cells with >1 component: " << result.auto_cells_with_multi << "\n";
+    }
+    ss << "  decision:\n"
+       << "    " << mode_name << "\n"
+       << "  result:\n"
+       << "    sprites: " << result.sprites.size();
+    out.note(ss.str());
 }
 
 // remove-background 背景清理（整图透明导出专用）：
@@ -466,6 +518,7 @@ int run_split(const CmdArgs& args, const CliOpts& o, Out& out) {
         sps::Image image = load_input(args.input, out);
         // 输入恒为透明图（背景移除由 remove-background 命令完成）→ 纯 alpha 切分
         sps::SplitResult result = sps::split_image(image, o.opts);
+        emit_auto_analysis(result, out);
 
         if (result.sprites.empty()) {
             std::string w =

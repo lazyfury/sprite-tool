@@ -20,6 +20,7 @@ add_library(sps_core STATIC
   core/mask/morphology.cpp
   core/segmentation/background.cpp
   core/segmentation/background_remover.cpp
+  core/segmentation/auto_detector.cpp
   core/segmentation/connected_components.cpp
   core/segmentation/grid_detector.cpp
   core/segmentation/splitter.cpp
