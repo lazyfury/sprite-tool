@@ -40,6 +40,12 @@ struct SplitOptions {
 
     // Grid 模式下的格子尺寸（M2）
     int grid_cell_size = 16;
+
+    // ---- Auto 模式（决策管线）扩展参数 ----
+    // 最终 rect 外扩像素（ComponentsInGrid 时 clamp 到 cell，防止吃到邻居）
+    int padding = 0;
+    // 强制切割策略覆盖：0=自动决策（默认） 1=强制物体边界 2=强制网格单元
+    int slice_policy = 0;
 };
 
 }  // namespace sps

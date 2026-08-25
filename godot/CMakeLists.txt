@@ -39,6 +39,7 @@ set(SPS_CORE_SRC
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/mask/morphology.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/segmentation/background.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/segmentation/background_remover.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../core/segmentation/auto_detector.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/segmentation/connected_components.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/segmentation/grid_detector.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/segmentation/splitter.cpp

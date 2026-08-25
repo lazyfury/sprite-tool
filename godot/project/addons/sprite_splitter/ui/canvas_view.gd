@@ -32,6 +32,7 @@ const ZOOM_STEP: float = 1.2
 const CLICK_THRESHOLD: float = 5.0     # 按下-松开位移小于此值视为点击（屏幕 px）
 const BG_COLOR: Color = Color(0.097, 0.104, 0.1, 1.0)
 const RECT_COLOR: Color = Color(1.0, 0.25, 0.25, 0.95)          # 切分红框
+const GRID_COLOR: Color = Color(0.75, 0.75, 0.78, 0.35)         # Auto 网格布局线（灰，调试决策用）
 const SEL_HL_FILL: Color = Color(1.0, 0.85, 0.2, 0.28)          # SELECT 选中填充（黄）
 const SEL_HL_STROKE: Color = Color(1.0, 0.85, 0.2, 0.95)        # SELECT 选中描边
 const CROP_FILL: Color = Color(0.3, 0.9, 1.0, 0.18)             # CROP 裁切框填充（青）
@@ -39,6 +40,7 @@ const CROP_STROKE: Color = Color(0.3, 0.9, 1.0, 0.95)           # CROP 裁切框
 
 var _texture: Texture2D = null
 var _rects: Array[Rect2i] = []
+var _grid: Dictionary = {}   # Auto 网格布局 overlay（auto_diag：cell_w/h、columns/rows、offset_x/y；空 = 不画）
 var _zoom: float = 1.0
 var _center: Vector2 = Vector2.ZERO      # 视口中心对应的世界坐标（图片像素）
 var _selection: Rect2i = Rect2i(-1, -1, 0, 0)   # CROP 裁切框（世界坐标）；size<=0 无
@@ -58,6 +60,7 @@ var _pending_fit: bool = false           # 布局未完成时标记，RESIZED �
 func set_texture(tex: Texture2D) -> void:
 	_texture = tex
 	_rects = []
+	_grid = {}
 	_selection = Rect2i(-1, -1, 0, 0)
 	_selected = []
 	_pending_fit = true   # 等布局完成（RESIZED）后适应窗口
@@ -66,6 +69,12 @@ func set_texture(tex: Texture2D) -> void:
 
 func set_rects(rects: Array[Rect2i]) -> void:
 	_rects = rects
+	queue_redraw()
+
+
+# Auto 网格布局 overlay（controller auto_diag_changed → 主视图转发）。空字典清除。
+func set_grid_overlay(diag: Dictionary) -> void:
+	_grid = diag
 	queue_redraw()
 
 
@@ -335,6 +344,9 @@ func _draw() -> void:
 	draw_texture(_texture, Vector2.ZERO)
 	# 线宽除以 zoom 保持恒定屏幕像素
 	var lw: float = 2.0 / _zoom
+	# Auto 网格布局 overlay（灰色 cell 线，先于红框绘制）
+	if not _grid.is_empty():
+		_draw_grid_overlay()
 	# 切分红框
 	for r: Rect2i in _rects:
 		draw_rect(Rect2(Vector2(r.position), Vector2(r.size)), RECT_COLOR, false, lw)
@@ -358,6 +370,31 @@ func _draw() -> void:
 		elif _tool == Tool.CROP:
 			draw_rect(dr, CROP_FILL, true)
 			draw_rect(dr, CROP_STROKE, false, lw)
+
+
+# Auto 网格布局 overlay：从 offset 起每 cell 尺寸画一条线（columns+1 竖、rows+1 横），
+# 超出图像范围的线跳过。线宽 1 屏幕像素。
+func _draw_grid_overlay() -> void:
+	var cw: int = int(_grid.get("auto_grid_cell_w", 0))
+	var ch: int = int(_grid.get("auto_grid_cell_h", 0))
+	var cols: int = int(_grid.get("auto_grid_columns", 0))
+	var rows: int = int(_grid.get("auto_grid_rows", 0))
+	var ox: int = int(_grid.get("auto_grid_offset_x", 0))
+	var oy: int = int(_grid.get("auto_grid_offset_y", 0))
+	if cw <= 0 or ch <= 0 or cols <= 0 or rows <= 0:
+		return
+	var img_size: Vector2 = get_image_size()
+	var line_w: float = 1.0 / _zoom
+	for c: int in cols + 1:
+		var x: float = ox + c * cw
+		if x < 0.0 or x > img_size.x:
+			continue
+		draw_line(Vector2(x, 0), Vector2(x, img_size.y), GRID_COLOR, line_w)
+	for r: int in rows + 1:
+		var y: float = oy + r * ch
+		if y < 0.0 or y > img_size.y:
+			continue
+		draw_line(Vector2(0, y), Vector2(img_size.x, y), GRID_COLOR, line_w)
 
 
 # 无图时：画布居中显示拖放提示（引导从 FileSystem dock 拖入素材/配置）

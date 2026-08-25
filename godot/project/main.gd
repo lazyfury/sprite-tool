@@ -34,17 +34,53 @@ func _ready() -> void:
 func _run_tests() -> void:
 	var ss := SpriteSplitter.new()
 
-	# --- 1) sheet.png auto（golden: 64 个 16x16）---
+	# --- 1) sheet.png auto（golden: 64 个 8x8 bbox——COMPONENTS_IN_GRID，精灵 8x8 在 16px cell 内）---
 	var sheet := _load_img("res://sprites/sheet.png")
 	_check(sheet != null, "load sprites/sheet.png")
 	var rects: Array = ss.split(sheet, {"mode": "auto", "min_width": 2, "min_height": 2})
 	print("[sps] sheet.png auto -> ", rects.size(), " rects")
 	_check(rects.size() == 64, "sheet auto: 64 rects (got %d)" % rects.size())
-	var all16 := true
+	var all8 := true
 	for r in rects:
+		if not (r is Rect2i and r.size == Vector2i(8, 8)):
+			all8 = false
+	_check(all8, "sheet auto: all rects are 8x8 bbox (COMPONENTS_IN_GRID, not 16x16 cell)")
+
+	# --- 1b) split_detailed：Auto 诊断 + slice_policy/padding（UI 透传）---
+	var diag: Dictionary = ss.split_detailed(sheet,
+			{"mode": "auto", "min_width": 2, "min_height": 2})
+	_check(int(diag.get("auto_mode", -1)) == 2,
+			"sheet auto_mode=COMPONENTS_IN_GRID (got %d)" % int(diag.get("auto_mode", -1)))
+	_check(diag.get("rects", []).size() == 64, "split_detailed rects 64")
+	_check(int(diag.get("auto_grid_columns", 0)) == 8 and int(diag.get("auto_grid_rows", 0)) == 8,
+			"sheet layout 8x8 (got %dx%d)" % [int(diag.get("auto_grid_columns", 0)),
+					int(diag.get("auto_grid_rows", 0))])
+	_check(int(diag.get("auto_grid_cell_w", 0)) == 16, "sheet cell 16 (got %d)"
+			% int(diag.get("auto_grid_cell_w", 0)))
+	_check(float(diag.get("auto_confidence", 0.0)) > 0.5, "sheet confidence > 0.5")
+	# 强制物体边界（slice_policy=components）：全部组件 bbox（64 个 8x8）
+	var forced: Array = ss.split(sheet,
+			{"mode": "auto", "slice_policy": "components", "min_width": 2, "min_height": 2})
+	_check(forced.size() == 64, "slice_policy components -> 64 (got %d)" % forced.size())
+	# 强制网格单元（slice_policy=grid）：64 个 16x16 cell
+	var fgd: Dictionary = ss.split_detailed(sheet,
+			{"mode": "auto", "slice_policy": "grid", "min_width": 2, "min_height": 2})
+	var fg_rects: Array = fgd.get("rects", [])
+	_check(fg_rects.size() == 64, "slice_policy grid -> 64 (got %d)" % fg_rects.size())
+	var all16 := true
+	for r in fg_rects:
 		if not (r is Rect2i and r.size == Vector2i(16, 16)):
 			all16 = false
-	_check(all16, "sheet auto: all rects are 16x16")
+	_check(all16, "slice_policy grid: all 16x16 cells")
+	# padding（COMPONENTS_IN_GRID）：8x8 bbox + padding 2 → 12x12（clamp 到 16 cell 无影响）
+	var pad_rects: Array = ss.split(sheet,
+			{"mode": "auto", "padding": 2, "min_width": 2, "min_height": 2})
+	var all12 := true
+	for r in pad_rects:
+		if not (r is Rect2i and r.size == Vector2i(12, 12)):
+			all12 = false
+	_check(all12, "auto padding 2 -> 12x12 (got %s)" %
+			(pad_rects[0] if pad_rects.size() > 0 else "none"))
 
 	# --- 2) test_sheet.png components + min2（golden: 3）---
 	var tsheet := _load_img("res://sprites/test_sheet.png")

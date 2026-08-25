@@ -12,6 +12,10 @@ const MODE_COMPONENTS: String = "components"
 const MODE_GRID: String = "grid"
 const MODE_LABELS: Array[String] = [
 	"auto（自动检测）", "components（连通分量）", "grid（网格）"]
+const SLICE_POLICY_LABELS: Array[String] = [
+	"自动", "物体边界", "网格单元"]
+const SLICE_POLICY_KEYS: Array[String] = [
+	"auto", "components", "grid"]
 const EXPORT_LABELS: Array[String] = [
 	"切 PNG", "仅 meta.json", "AtlasTexture .tres"]
 
@@ -31,6 +35,8 @@ var _meta_dialog: Variant = null
 @onready var _cell_size: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/CellSize")
 @onready var _merge_dist: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/MergeDist")
 @onready var _alpha_thr: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/AlphaThr")
+@onready var _slice_policy: OptionButton = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/SlicePolicy")
+@onready var _padding: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid/Padding")
 @onready var _split_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/SplitBtn")
 @onready var _auto_analyze: CheckButton = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/AutoAnalyze")
 @onready var _import_meta_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/MetaCard/MetaVBox/ImportMetaBtn")
@@ -60,6 +66,7 @@ func set_controller(c: SpsController) -> void:
 	_controller.status_changed.connect(_on_status)
 	_controller.count_changed.connect(_on_count)
 	_controller.analyze_done.connect(_on_analyze_done)
+	_controller.auto_diag_changed.connect(_on_auto_diag)
 	_controller.exporting_changed.connect(_on_exporting_changed)
 	_controller.data_loaded.connect(_on_data_loaded)
 	_controller.data_dirty_changed.connect(_on_data_dirty)
@@ -88,6 +95,10 @@ func _rebuild_options() -> void:
 	for label: String in MODE_LABELS:
 		_mode_option.add_item(label)
 	_mode_option.select(0)
+	_slice_policy.clear()
+	for label: String in SLICE_POLICY_LABELS:
+		_slice_policy.add_item(label)
+	_slice_policy.select(0)
 	_export_mode_option.clear()
 	for label: String in EXPORT_LABELS:
 		_export_mode_option.add_item(label)
@@ -112,6 +123,8 @@ func _connect_signals() -> void:
 	_cell_size.value_changed.connect(_on_dirty_signal)
 	_merge_dist.value_changed.connect(_on_dirty_signal)
 	_alpha_thr.value_changed.connect(_on_dirty_signal)
+	_slice_policy.item_selected.connect(_on_dirty_signal)
+	_padding.value_changed.connect(_on_dirty_signal)
 	_bg_thr.value_changed.connect(_on_dirty_signal)
 
 
@@ -194,8 +207,12 @@ func _on_split() -> void:
 
 
 func _on_mode_changed(_index: int) -> void:
-	_cell_size.editable = _current_mode() == MODE_GRID
-	_merge_dist.editable = _current_mode() == MODE_COMPONENTS
+	var mode: String = _current_mode()
+	_cell_size.editable = mode == MODE_GRID
+	_merge_dist.editable = mode == MODE_COMPONENTS
+	# 切割策略 / Padding 仅 auto 模式生效（可编辑）
+	_slice_policy.editable = mode == MODE_AUTO
+	_padding.editable = mode == MODE_AUTO
 	if _controller != null:
 		_controller.mark_dirty()
 
@@ -216,6 +233,13 @@ func _build_options() -> Dictionary:
 		opts["grid_cell_size"] = int(_cell_size.value)
 	if _current_mode() == MODE_COMPONENTS and int(_merge_dist.value) > 0:
 		opts["merge_distance"] = int(_merge_dist.value)
+	if _current_mode() == MODE_AUTO:
+		# 切割策略 / Padding 仅 auto 模式透传
+		opts["slice_policy"] = SLICE_POLICY_KEYS[_slice_policy.selected]
+		if int(_padding.value) > 0:
+			opts["padding"] = int(_padding.value)
+		if int(_merge_dist.value) > 0:
+			opts["merge_distance"] = int(_merge_dist.value)
 	return opts
 
 
@@ -265,6 +289,10 @@ func _on_data_loaded(data: SpriteSplitterData) -> void:
 	_cell_size.set_value_no_signal(float(data.grid_cell_size))
 	_merge_dist.set_value_no_signal(float(data.merge_distance))
 	_alpha_thr.set_value_no_signal(float(data.alpha_threshold))
+	var sp_idx: int = SLICE_POLICY_KEYS.find(data.slice_policy)
+	if sp_idx >= 0:
+		_slice_policy.select(sp_idx)
+	_padding.set_value_no_signal(float(data.padding))
 	_bg_thr.set_value_no_signal(float(data.background_threshold))
 	_out_dir.text = data.out_dir
 	_export_mode_option.select(data.export_mode)
@@ -322,6 +350,35 @@ func _on_analyze_done(stats: Dictionary) -> void:
 	_min_h.set_value_no_signal(float(min_h))
 	if _controller != null:
 		_controller.mark_dirty()   # 推荐参数已填充，视为未保存修改
+
+
+# Auto 切分诊断（controller auto_diag_changed）：InfoLabel 显示检测结果/布局/策略/置信度
+func _on_auto_diag(diag: Dictionary) -> void:
+	if diag.is_empty():
+		return
+	var mode: int = int(diag.get("auto_mode", -1))
+	if mode < 0:
+		return
+	var comps: int = int(diag.get("auto_merged_components", 0))
+	var cols: int = int(diag.get("auto_grid_columns", 0))
+	var rows: int = int(diag.get("auto_grid_rows", 0))
+	var cw: int = int(diag.get("auto_grid_cell_w", 0))
+	var ch: int = int(diag.get("auto_grid_cell_h", 0))
+	var conf: float = float(diag.get("auto_confidence", 0.0))
+	var mode_name: String = _auto_mode_label(mode)
+	if cols > 0 and rows > 0:
+		_info_label.text = "检测到 %d 个组件 | 布局 %d×%d | Cell %d×%d\n策略 %s | 置信度 %.0f%%" % [
+			comps, cols, rows, cw, ch, mode_name, conf * 100.0]
+	else:
+		_info_label.text = "检测到 %d 个组件 | 无网格\n策略 %s" % [comps, mode_name]
+
+
+func _auto_mode_label(mode: int) -> String:
+	if mode == 1:
+		return "网格单元"
+	if mode == 2:
+		return "物体边界（网格内）"
+	return "物体边界"
 
 
 func _on_exporting_changed(exporting: bool) -> void:

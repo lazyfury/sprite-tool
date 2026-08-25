@@ -56,11 +56,26 @@ static sps::SplitOptions parse_options(const Dictionary &p_options) {
     if (p_options.has("grid_cell_size")) {
         opts.grid_cell_size = static_cast<int>(p_options["grid_cell_size"]);
     }
+    if (p_options.has("padding")) {
+        opts.padding = static_cast<int>(p_options["padding"]);
+    }
+    if (p_options.has("slice_policy")) {
+        const String sp = p_options["slice_policy"];
+        if (sp == "components") {
+            opts.slice_policy = 1;
+        } else if (sp == "grid") {
+            opts.slice_policy = 2;
+        } else {
+            opts.slice_policy = 0;  // "auto" / 未知值 → 自动决策
+        }
+    }
     return opts;
 }
 
 void SpriteSplitter::_bind_methods() {
     ClassDB::bind_method(D_METHOD("split", "image", "options"), &SpriteSplitter::split);
+    ClassDB::bind_method(D_METHOD("split_detailed", "image", "options"),
+                         &SpriteSplitter::split_detailed);
     ClassDB::bind_method(D_METHOD("analyze", "image", "background_threshold"),
                          &SpriteSplitter::analyze, DEFVAL(12));
     ClassDB::bind_method(D_METHOD("remove_background", "image", "options"),
@@ -75,26 +90,52 @@ void SpriteSplitter::_bind_methods() {
 }
 
 Array SpriteSplitter::split(const Ref<Image> &p_image, const Dictionary &p_options) {
-    Array result;
+    const Dictionary d = split_detailed(p_image, p_options);
+    const Variant rects = d.get("rects", Array());
+    return rects;
+}
+
+Dictionary SpriteSplitter::split_detailed(const Ref<Image> &p_image,
+                                          const Dictionary &p_options) {
+    Dictionary result;
+    result["rects"] = Array();
+    result["auto_mode"] = -1;
     if (p_image.is_null()) {
-        UtilityFunctions::push_error("SpriteSplitter.split: image is null");
+        UtilityFunctions::push_error("SpriteSplitter.split_detailed: image is null");
         return result;
     }
     try {
         const sps::Image img = to_sps_image(p_image);
         if (img.empty()) {
-            UtilityFunctions::push_error("SpriteSplitter.split: unsupported image (empty after conversion)");
+            UtilityFunctions::push_error(
+                    "SpriteSplitter.split_detailed: unsupported image (empty after conversion)");
             return result;
         }
         const sps::SplitOptions opts = parse_options(p_options);
         const sps::SplitResult sr = sps::split_image(img, opts);
-        result.resize(sr.sprites.size());
+        Array rects;
+        rects.resize(sr.sprites.size());
         for (int i = 0; i < static_cast<int>(sr.sprites.size()); i++) {
-            result[i] = to_rect2i(sr.sprites[static_cast<std::size_t>(i)]);
+            rects[i] = to_rect2i(sr.sprites[static_cast<std::size_t>(i)]);
         }
+        result["rects"] = rects;
+        // Auto 诊断透传（UI 展示 + 画布 grid overlay）
+        result["auto_mode"] = sr.auto_mode;
+        result["auto_confidence"] = static_cast<double>(sr.auto_confidence);
+        result["auto_raw_components"] = sr.auto_raw_components;
+        result["auto_filtered_components"] = sr.auto_filtered_components;
+        result["auto_merged_components"] = sr.auto_merged_components;
+        result["auto_grid_columns"] = sr.auto_grid_columns;
+        result["auto_grid_rows"] = sr.auto_grid_rows;
+        result["auto_grid_cell_w"] = sr.auto_grid_cell_w;
+        result["auto_grid_cell_h"] = sr.auto_grid_cell_h;
+        result["auto_grid_offset_x"] = sr.auto_grid_offset_x;
+        result["auto_grid_offset_y"] = sr.auto_grid_offset_y;
+        result["auto_occupied_cells"] = sr.auto_occupied_cells;
+        result["auto_cells_with_multi"] = sr.auto_cells_with_multi;
     } catch (const std::exception &e) {
         UtilityFunctions::push_error(
-                String("SpriteSplitter.split: {0}").format(String(e.what())));
+                String("SpriteSplitter.split_detailed: {0}").format(String(e.what())));
     }
     return result;
 }

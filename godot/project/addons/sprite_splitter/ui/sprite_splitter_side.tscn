@@ -143,6 +143,22 @@ min_value = 0.0
 max_value = 255.0
 value = 1.0
 
+[node name="SlicePolicyLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+text = "切割策略 (auto)"
+
+[node name="SlicePolicy" type="OptionButton" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+
+[node name="PaddingLabel" type="Label" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+text = "Padding (auto)"
+
+[node name="Padding" type="SpinBox" parent="VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamGrid"]
+layout_mode = 2
+max_value = 64.0
+value = 0.0
+
 [node name="ActionCard" type="PanelContainer" parent="VBox/TabContainer/SplitTab/VBox"]
 layout_mode = 2
 

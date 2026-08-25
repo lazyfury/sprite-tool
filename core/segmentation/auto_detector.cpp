@@ -9,6 +9,26 @@ namespace sps {
 
 namespace {
 
+// 从已算好的 CCL 结果过滤（避免重复 CCL）：min_width/min_height/min_pixels
+std::vector<ComponentSprite> filter_components(const std::vector<Component>& raw,
+                                               int min_width, int min_height,
+                                               int min_pixels) {
+    std::vector<ComponentSprite> out;
+    out.reserve(raw.size());
+    for (const auto& c : raw) {
+        if (c.bounds.width < min_width) continue;
+        if (c.bounds.height < min_height) continue;
+        if (c.area < min_pixels) continue;
+        ComponentSprite s;
+        s.bounds = c.bounds;
+        s.area = c.area;
+        s.cx = c.bounds.x + c.bounds.width / 2;
+        s.cy = c.bounds.y + c.bounds.height / 2;
+        out.push_back(s);
+    }
+    return out;
+}
+
 // bbox 外扩 d px
 SpriteRect expand_rect(const SpriteRect& r, int d) {
     SpriteRect e;
@@ -108,9 +128,23 @@ AutoDetection auto_detect(const Mask& mask, const AutoOptions& options) {
     // ---- 1. 组件：CCL → 过滤 → 合并 ----
     const auto raw = connected_components(mask);
     det.raw_component_count = static_cast<int>(raw.size());
+    // 用户未显式指定 min-size（均默认 1）且组件较多时，自动推导噪声过滤阈值：
+    // 最大组件边长的 1/4（clamp 2..64），与 analyzer 的 suggested_min_* 同一启发式。
+    // 典型场景：白底素材表去背景后产生数千个 1~2px 抗锯齿碎片。
+    // 用户显式传了任一 min-size 时不干预，尊重用户选择。
+    int eff_min_w = options.min_width;
+    int eff_min_h = options.min_height;
+    if (eff_min_w <= 1 && eff_min_h <= 1 && raw.size() >= 20) {
+        const Component* largest = &raw[0];
+        for (const auto& c : raw) {
+            if (c.area > largest->area) largest = &c;
+        }
+        eff_min_w = std::clamp(largest->bounds.width / 4, 2, 64);
+        eff_min_h = std::clamp(largest->bounds.height / 4, 2, 64);
+    }
     // 面积下限：min_width/min_height 的 1% 但至少 16（滤掉抗锯齿碎片/噪点）
-    const int min_pixels = std::max(16, options.min_width * options.min_height / 100);
-    auto comps = detect_components(mask, options.min_width, options.min_height, min_pixels);
+    const int min_pixels = std::max(16, eff_min_w * eff_min_h / 100);
+    auto comps = filter_components(raw, eff_min_w, eff_min_h, min_pixels);
     det.filtered_component_count = static_cast<int>(comps.size());
     if (options.merge_distance > 0) {
         comps = merge_components(std::move(comps), options.merge_distance);
@@ -165,6 +199,18 @@ AutoDetection auto_detect(const Mask& mask, const AutoOptions& options) {
         } else {
             det.mode = AutoSliceMode::Components;
         }
+    }
+
+    // ---- 3.5 用户强制策略覆盖（UI「切割策略」；决策后、生成 rects 前） ----
+    switch (options.slice_policy) {
+        case SlicePolicy::Components:
+            det.mode = AutoSliceMode::Components;
+            break;
+        case SlicePolicy::Grid:
+            det.mode = AutoSliceMode::Grid;
+            break;
+        default:
+            break;  // SlicePolicy::Auto：保持自动决策
     }
 
     // ---- 4. 生成 rects ----

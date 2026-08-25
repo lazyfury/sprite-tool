@@ -26,6 +26,8 @@ struct SplitResult {
     int auto_grid_rows = 0;
     int auto_grid_cell_w = 0;        // 检测到的 cell 尺寸（未检测到网格 = 0）
     int auto_grid_cell_h = 0;
+    int auto_grid_offset_x = 0;      // 网格原点偏移（画布 grid overlay 用）
+    int auto_grid_offset_y = 0;
     int auto_occupied_cells = 0;     // 组件实际占据的 cell 数
     int auto_cells_with_multi = 0;   // 多于 1 个组件的 cell 数
 };

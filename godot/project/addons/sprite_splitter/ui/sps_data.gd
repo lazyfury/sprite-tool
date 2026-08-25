@@ -19,6 +19,8 @@ extends Resource
 @export var grid_cell_size: int = 16
 @export var merge_distance: int = 0
 @export var alpha_threshold: int = 1
+@export var slice_policy: String = "auto"   # auto 模式切割策略：auto | components | grid
+@export var padding: int = 0                # auto 模式 rect 外扩
 @export var background_threshold: int = 12
 @export var out_dir: String = "res://out_sprites/ui"
 @export var export_mode: int = 0

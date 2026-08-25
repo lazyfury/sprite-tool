@@ -116,6 +116,8 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
         ao.min_width = options.min_width;
         ao.min_height = options.min_height;
         ao.merge_distance = options.merge_distance;
+        ao.padding = options.padding;
+        ao.slice_policy = static_cast<SlicePolicy>(options.slice_policy);
         const AutoDetection det = auto_detect(mask, ao);
         // 诊断信息透出（CLI --format json / UI 展示用）
         result.auto_mode = static_cast<int>(det.mode);
@@ -127,6 +129,8 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
         result.auto_grid_rows = det.grid_rows;
         result.auto_grid_cell_w = det.grid.best.period_x;
         result.auto_grid_cell_h = det.grid.best.period_y;
+        result.auto_grid_offset_x = det.grid.best.offset_x;
+        result.auto_grid_offset_y = det.grid.best.offset_y;
         result.auto_occupied_cells = det.occupied_cells;
         result.auto_cells_with_multi = det.cells_with_multi;
         for (const auto& r : det.rects) {

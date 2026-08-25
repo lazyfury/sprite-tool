@@ -13,6 +13,7 @@ signal image_loaded(texture: Texture2D)
 signal rects_changed(rects: Array[Rect2i])
 signal count_changed(text: String)
 signal analyze_done(stats: Dictionary)
+signal auto_diag_changed(diag: Dictionary)   # 最近一次 Auto 切分的诊断（mode/confidence/layout/offset；非 auto 为空 {}）
 signal exporting_changed(exporting: bool)
 signal data_loaded(data: SpriteSplitterData)
 signal data_path_changed(path: String)   # 当前项目数据路径变化（打开图片/配置后，UI 据此同步注册表选中项；外部素材为 ""）
@@ -37,6 +38,7 @@ var data: SpriteSplitterData = null   # 关联的项目数据（uid 关联）
 var is_dirty: bool = false   # 有未保存的修改（参数/区域/项目名/导出位置）
 var data_path: String = ""            # data 落盘路径
 var registry: SpriteSplitterRegistry = null   # 项目注册表（默认 res://sps_data/registry.tres）
+var auto_diag: Dictionary = {}   # 最近一次 Auto 切分的诊断（split_detailed 的 auto_* 字段；非 auto 为空）
 
 var _tree: SceneTree = null
 
@@ -189,6 +191,8 @@ func load_image(path: String) -> bool:
 		image_res_path = ""   # 项目外素材：AtlasTexture .tres 不可用
 	rects = []
 	selection = Rect2i(-1, -1, 0, 0)
+	auto_diag = {}
+	auto_diag_changed.emit({})
 	image_loaded.emit(ImageTexture.create_from_image(img))
 	rects_changed.emit([] as Array[Rect2i])   # 新图：清空画布红框与切片列表
 	count_changed.emit("")
@@ -352,6 +356,8 @@ func save_project(project_name: String, options: Dictionary, out_dir: String,
 	data.grid_cell_size = int(options.get("grid_cell_size", data.grid_cell_size))
 	data.merge_distance = int(options.get("merge_distance", data.merge_distance))
 	data.alpha_threshold = int(options.get("alpha_threshold", data.alpha_threshold))
+	data.slice_policy = String(options.get("slice_policy", data.slice_policy))
+	data.padding = int(options.get("padding", data.padding))
 	data.background_threshold = int(options.get("background_threshold",
 			data.background_threshold))
 	data.out_dir = out_dir
@@ -380,6 +386,8 @@ func close_image() -> void:
 	data = null
 	data_path = ""
 	is_dirty = false
+	auto_diag = {}
+	auto_diag_changed.emit({})
 	image_loaded.emit(null)   # 画布清空（tex=null）
 	rects_changed.emit([] as Array[Rect2i])
 	count_changed.emit("")
@@ -400,17 +408,40 @@ func split(options: Dictionary) -> void:
 	if image == null:
 		status_changed.emit("先打开素材表", true)
 		return
-	var arr: Array = splitter.split(image, options)
+	var diag: Dictionary = splitter.split_detailed(image, options)
+	var arr: Variant = diag.get("rects", [])
 	rects = []
 	for r: Variant in arr:
 		if r is Rect2i:
 			rects.append(r)
+	auto_diag = {}
+	for key: String in ["auto_mode", "auto_confidence", "auto_raw_components",
+			"auto_filtered_components", "auto_merged_components", "auto_grid_columns",
+			"auto_grid_rows", "auto_grid_cell_w", "auto_grid_cell_h",
+			"auto_grid_offset_x", "auto_grid_offset_y", "auto_occupied_cells",
+			"auto_cells_with_multi"]:
+		if diag.has(key):
+			auto_diag[key] = diag[key]
+	auto_diag_changed.emit(auto_diag)
 	if data != null:
 		data.sprites = rects.duplicate()   # 内存同步（meta.json 兼容），保存时落盘
 		mark_dirty()
 	rects_changed.emit(rects)
-	count_changed.emit("切分结果: %d 个精灵" % rects.size())
-	status_changed.emit("切分完成: %d 个精灵" % rects.size(), rects.is_empty())
+	# 状态文案：auto 模式带决策策略，其余保持原样
+	var suffix: String = ""
+	if int(auto_diag.get("auto_mode", -1)) >= 0:
+		var mode_name: String = _auto_mode_name(int(auto_diag.get("auto_mode", 0)))
+		suffix = "（%s）" % mode_name
+	count_changed.emit("切分结果: %d 个精灵%s" % [rects.size(), suffix])
+	status_changed.emit("切分完成: %d 个精灵%s" % [rects.size(), suffix], rects.is_empty())
+
+
+func _auto_mode_name(mode: int) -> String:
+	if mode == 1:
+		return "网格单元"
+	if mode == 2:
+		return "物体边界（网格内）"
+	return "物体边界"
 
 
 # ---------- 去背景（独立操作，替换当前图） ----------
@@ -439,6 +470,8 @@ func remove_background(threshold: int) -> void:
 		mark_dirty()
 	if not new_path.is_empty():
 		await _commit_bg_source(new_path)
+	auto_diag = {}
+	auto_diag_changed.emit({})
 	image_loaded.emit(ImageTexture.create_from_image(out))
 	rects_changed.emit([] as Array[Rect2i])   # 图已变：清空画布红框与切片列表
 	count_changed.emit("")
@@ -606,17 +639,18 @@ func _export_tres(out_dir: String) -> void:
 	if atlas == null:
 		status_changed.emit("无法加载导入纹理: " + image_res_path, true)
 		return
+	var rs: Array[Rect2i] = rects.duplicate()   # 复制：循环内 await 让出帧，rects 可能被切分/导入清空
 	var saved: int = 0
-	for i: int in range(rects.size()):
+	for i: int in rs.size():
 		var at: AtlasTexture = AtlasTexture.new()
 		at.atlas = atlas
-		at.region = rects[i]
+		at.region = rs[i]
 		var p: String = "%s/atlas_%02d.tres" % [out_dir, i + 1]
 		if ResourceSaver.save(at, p) == OK:
 			saved += 1
 		if i % 10 == 9:
 			await _wait_frame()
-	status_changed.emit("AtlasTexture .tres ×%d → %s" % [saved, out_dir], saved != rects.size())
+	status_changed.emit("AtlasTexture .tres ×%d → %s" % [saved, out_dir], saved != rs.size())
 	if saved > 0:
 		_refresh_filesystem()
 

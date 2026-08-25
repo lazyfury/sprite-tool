@@ -52,6 +52,7 @@ func set_controller(c: SpsController) -> void:
 	_controller.connect_fs_signals()   # 编辑器模式：源文件重命名/重导入 → 修复注册表失效路径
 	_controller.image_loaded.connect(_on_image_loaded)
 	_controller.rects_changed.connect(_on_rects_changed)
+	_controller.auto_diag_changed.connect(_on_auto_diag_changed)
 	_canvas.selection_drawn.connect(_on_canvas_selection_drawn)
 	_canvas.selection_changed.connect(_on_canvas_selection_changed)
 	_canvas.view_changed.connect(_on_canvas_view_changed)
@@ -440,6 +441,11 @@ func _on_rects_changed(rects: Array[Rect2i]) -> void:
 	var empty: bool = rects.is_empty()
 	_split_empty.visible = empty
 	_split_list.visible = not empty
+
+
+# Auto 诊断 → 画布灰色网格布局 overlay（调试 Auto 决策：cell 线 + 红框 = 实际 sprite）
+func _on_auto_diag_changed(diag: Dictionary) -> void:
+	_canvas.set_grid_overlay(diag)
 
 
 # ---------- 画布信号 → controller（侧栏状态） ----------

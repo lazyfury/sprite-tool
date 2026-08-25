@@ -16,6 +16,13 @@ enum class AutoSliceMode {
     ComponentsInGrid = 2,  // 网格布局 + 物体边界（每 cell 主组件 BBox）
 };
 
+// 用户强制策略覆盖（UI「切割策略」；默认自动决策）
+enum class SlicePolicy {
+    Auto = 0,        // 自动决策（默认）
+    Components = 1,  // 强制物体边界（BBox，全部组件输出）
+    Grid = 2,        // 强制网格单元（Cell，即使组件不匹配）
+};
+
 // Auto 检测参数
 struct AutoOptions {
     int min_width = 1;          // 组件 bbox 宽下限
@@ -25,6 +32,7 @@ struct AutoOptions {
     int min_grid_size = 4;      // 网格周期搜索下限
     int max_grid_size = 0;      // 网格周期搜索上限（0 = 自动 min(W,H)/2）
     int padding = 0;            // 最终 rect 外扩（ComponentsInGrid 时 clamp 到 cell）
+    SlicePolicy slice_policy = SlicePolicy::Auto;  // 强制策略覆盖
 };
 
 // Auto 检测结果：决策 + 完整中间状态（供 UI/日志展示）

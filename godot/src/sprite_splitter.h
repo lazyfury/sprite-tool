@@ -26,6 +26,9 @@ namespace godot {
 //   merge_distance       int    合并距离（px），默认 0
 //   mode                 String "components" | "grid" | "auto"，默认 "components"
 //   grid_cell_size       int    grid 模式格子尺寸，默认 16
+//   padding              int    auto 模式最终 rect 外扩（ComponentsInGrid 时 clamp 到 cell），默认 0
+//   slice_policy         String auto 模式的强制策略覆盖：
+//                              "auto"（默认，自动决策）| "components"（强制物体边界）| "grid"（强制网格单元）
 class SpriteSplitter : public RefCounted {
     GDCLASS(SpriteSplitter, RefCounted)
 
@@ -35,6 +38,16 @@ protected:
 public:
     // 切分：返回 Array[Rect2i]（按原图坐标）。image 为 null 或解析失败返回空数组。
     Array split(const Ref<Image> &p_image, const Dictionary &p_options);
+
+    // 切分 + Auto 诊断（UI 用）：返回 Dictionary：
+    //   rects                 Array[Rect2i]（同 split）
+    //   auto_mode             int  0=COMPONENTS 1=GRID 2=COMPONENTS_IN_GRID；非 auto 模式 -1
+    //   auto_confidence       float
+    //   auto_raw_components / auto_filtered_components / auto_merged_components  int
+    //   auto_grid_columns / auto_grid_rows / auto_grid_cell_w / auto_grid_cell_h  int
+    //   auto_grid_offset_x / auto_grid_offset_y                                  int（画布 grid overlay）
+    //   auto_occupied_cells / auto_cells_with_multi                              int
+    Dictionary split_detailed(const Ref<Image> &p_image, const Dictionary &p_options);
 
     // 分析：返回 Dictionary 统计（alpha 分布 / 分量数 / 推荐 min 尺寸），供 UI 参数推荐。
     Dictionary analyze(const Ref<Image> &p_image, int p_background_threshold = 12);
