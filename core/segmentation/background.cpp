@@ -1,6 +1,7 @@
 #include "segmentation/background.hpp"
 
 #include "image/pixel.hpp"
+#include "mask/morphology.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -185,23 +186,11 @@ Mask background_mask(const Image& image, const BackgroundOptions& options) {
         for (const auto& [x, y] : to_add) mask.set(x, y, true);
     }
 
-    // ---- 收缩（背景掩码腐蚀 shrink px）----
-    // 4 邻全为背景才保留 → 背景边界向内收缩，防羽化/删除吃到物体边缘。
-    // 图像边界视为「外部背景」：图边像素不腐蚀（背景延伸到图外，不是物体边缘）。
-    for (int pass = 0; pass < options.shrink; ++pass) {
-        Mask eroded(w, h, false);
-        for (int y = 0; y < h; ++y) {
-            for (int x = 0; x < w; ++x) {
-                if (!mask.get(x, y)) continue;
-                const bool all_bg =
-                        (x <= 0 || mask.get(x - 1, y)) &&
-                        (x + 1 >= w || mask.get(x + 1, y)) &&
-                        (y <= 0 || mask.get(x, y - 1)) &&
-                        (y + 1 >= h || mask.get(x, y + 1));
-                if (all_bg) eroded.set(x, y, true);
-            }
-        }
-        mask = eroded;
+    // ---- 收缩（背景膨胀 shrink px：消弱主体边缘）----
+    // 背景向 4 邻菱形膨胀 → 吃掉主体边缘一圈残余（halo/色边/抗锯齿脏边），
+    // 默认算法清不干净时加大 shrink 让边缘更彻底。
+    if (options.shrink > 0) {
+        mask = dilate(mask, options.shrink);
     }
     return mask;
 }
