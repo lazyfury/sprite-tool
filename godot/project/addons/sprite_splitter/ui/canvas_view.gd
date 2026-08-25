@@ -115,6 +115,8 @@ func set_sprites(sprites_in: Array[Dictionary]) -> void:
 	for s: Dictionary in _sprites:
 		_rects.append(Rect2i(int(s.get("x", 0)), int(s.get("y", 0)),
 				int(s.get("width", 0)), int(s.get("height", 0))))
+	if keep_edit >= 0 and _is_locked(keep_edit):
+		keep_edit = -1   # 编辑对象被锁定 → 取消选择
 	_edit_index = keep_edit
 	if keep_edit >= 0:
 		_selected = [_rects[keep_edit]]   # 保留单选（编辑对象）
@@ -203,9 +205,11 @@ func pick_rect_at(world_p: Vector2) -> Rect2i:
 	return hit
 
 
-# 返回命中的 sprite 索引（编辑用）；无命中 -1
+# 返回命中的 sprite 索引（编辑用）；无命中 -1。锁定项不可选择（跳过）。
 func pick_sprite_index_at(world_p: Vector2) -> int:
 	for i: int in range(_rects.size() - 1, -1, -1):
+		if _is_locked(i):
+			continue   # 锁定切片：排除选择能力
 		var r: Rect2i = _rects[i]
 		if Rect2(Vector2(r.position), Vector2(r.size)).has_point(world_p):
 			return i
@@ -494,11 +498,14 @@ func _clear_selection() -> void:
 	selection_changed.emit(_selected)
 
 
-# 框选多选（仅选择工具；编辑工具不框选）
+# 框选多选（仅选择工具；编辑工具不框选）。锁定切片不参与框选。
 func _on_drag_select() -> void:
 	var drag_rect: Rect2 = _drag_world_rect()
 	var sel: Array[Rect2i] = []
-	for r: Rect2i in _rects:
+	for i: int in _rects.size():
+		if _is_locked(i):
+			continue
+		var r: Rect2i = _rects[i]
 		if Rect2(Vector2(r.position), Vector2(r.size)).intersects(drag_rect):
 			sel.append(r)
 	_selected = sel

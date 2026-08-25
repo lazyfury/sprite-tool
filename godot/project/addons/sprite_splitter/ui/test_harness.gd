@@ -583,5 +583,41 @@ func _auto_test() -> void:
 	canvas.set("_zoom", saved_zoom)
 	canvas.set_tool(canvas.Tool.SELECT)
 
+	# 锁定切片排除选择：锁定 sprite0 → 点击其区域不选中
+	_controller.set_sprite_locked(0, true)
+	await get_tree().process_frame
+	canvas.set_tool(canvas.Tool.EDIT)
+	canvas._on_click_select(Vector2(6, 6))   # sprite0 区域
+	_check(canvas.get("_edit_index") == -1,
+			"auto test: locked sprite not selectable by click")
+	# 锁定当前编辑对象 → 选择被取消
+	canvas.set_tool(canvas.Tool.EDIT)
+	canvas._on_click_select(Vector2(22, 6))   # sprite1（未锁定）
+	_check(canvas.get("_edit_index") == 1,
+			"auto test: select sprite1 for lock test")
+	_controller.set_sprite_locked(1, true)
+	await get_tree().process_frame
+	_check(canvas.get("_edit_index") == -1,
+			"auto test: locking selected sprite clears selection")
+	# 框选排除锁定项
+	_controller.set_sprite_locked(2, true)
+	await get_tree().process_frame
+	canvas.set_tool(canvas.Tool.SELECT)
+	canvas.set("_drag_start", canvas.world_to_screen(Vector2(0, 0)))
+	canvas.set("_drag_cur", canvas.world_to_screen(Vector2(64, 64)))
+	canvas._on_drag_select()
+	var has_locked: bool = false
+	for r: Variant in canvas.get("_selected"):
+		if r == canvas.get("_rects")[2]:
+			has_locked = true
+	_check(not has_locked,
+			"auto test: drag select excludes locked sprite")
+	# 还原
+	_controller.set_sprite_locked(0, false)
+	_controller.set_sprite_locked(1, false)
+	_controller.set_sprite_locked(2, false)
+	await get_tree().process_frame
+	canvas._on_click_select(Vector2(6, 6))
+
 	print("[sps-ui] === auto test done (fail=%s) ===" % _fail)
 	get_tree().quit(1 if _fail else 0)
