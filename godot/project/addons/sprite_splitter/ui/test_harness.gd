@@ -281,6 +281,26 @@ func _auto_test() -> void:
 			"auto test: registry selection follows applied config path")
 	_check(split_list.item_count == _controller.rects.size(),
 			"auto test: split list refreshed after apply data")
+	# 注册表项右键删除：临时创建配置 → 删除确认 → 文件删除 + registry 移除
+	var del_path: String = "res://sps_data_test/_delme.tres"
+	var del_data: SpriteSplitterData = SpriteSplitterData.new()
+	del_data.project_name = "待删除项"
+	del_data.source_image = "res://sprites/sheet.png"
+	ResourceSaver.save(del_data, del_path)
+	_controller._register_data(del_path)
+	_check(_controller.registry.entries.has(del_path),
+			"auto test: temp entry registered")
+	var del_item: Control = _main._make_reg_item(del_path)
+	del_item.delete_requested.emit(del_path)
+	var del_dlg: Variant = _main.get("_delete_dialog")
+	_check(del_dlg != null and del_dlg.visible,
+			"auto test: delete shows confirm dialog")
+	_main._on_delete_confirmed()
+	await get_tree().process_frame
+	_check(not FileAccess.file_exists(del_path),
+			"auto test: delete removes tres file")
+	_check(not _controller.registry.entries.has(del_path),
+			"auto test: delete removes registry entry")
 	# 内置文件系统拖放（FileSystem dock → 预览区画布，带确认弹窗）
 	var drop_img: Dictionary = {"type": "files",
 			"files": PackedStringArray(["res://sprites/sheet.png"])}

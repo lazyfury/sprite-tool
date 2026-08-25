@@ -21,6 +21,9 @@ var _pending_drop_path: String = ""
 # 注册表切换：脏数据确认弹窗 + 待切换条目
 var _switch_dialog: ConfirmationDialog = null
 var _pending_switch_path: String = ""
+# 注册表项删除：确认弹窗 + 待删除路径（右键）
+var _delete_dialog: ConfirmationDialog = null
+var _pending_delete_path: String = ""
 var _active_reg_path: String = ""                 # 当前选中/加载的项目路径（手动维护选中态）
 
 @onready var _header: PanelContainer = get_node("MainVBox/Header")
@@ -244,6 +247,7 @@ func _on_registry_updated() -> void:
 func _make_reg_item(path: String) -> Control:
 	var item: Control = REG_ITEM_SCENE.instantiate()
 	item.clicked.connect(_on_reg_item_clicked)
+	item.delete_requested.connect(_on_reg_item_delete_requested)
 	# 条目数据
 	var title: String = path.get_file().get_basename()
 	var uid_text: String = ""
@@ -277,6 +281,37 @@ func _on_reg_item_clicked(path: String) -> void:
 		_show_switch_dialog(path)
 	else:
 		_controller.load_registry_entry(path)
+
+
+# 注册表项右键 → 删除确认弹窗（删除 .tres 配置文件，不可撤销）
+func _on_reg_item_delete_requested(path: String) -> void:
+	_pending_delete_path = path
+	if _delete_dialog == null:
+		_delete_dialog = ConfirmationDialog.new()
+		_delete_dialog.title = "删除项目配置"
+		_delete_dialog.ok_button_text = "删除"
+		_delete_dialog.confirmed.connect(_on_delete_confirmed)
+		_delete_dialog.canceled.connect(_on_delete_canceled)
+		add_child(_delete_dialog)
+	var title: String = path.get_file().get_basename()
+	if ResourceLoader.exists(path):
+		var d: Variant = load(path)
+		if d is SpriteSplitterData and not String(d.project_name).is_empty():
+			title = String(d.project_name)
+	_delete_dialog.dialog_text = "删除项目「%s」？\n\n将删除配置文件（%s），此操作不可撤销。" \
+			% [title, path.get_file()]
+	_delete_dialog.popup_centered()
+
+
+func _on_delete_confirmed() -> void:
+	var p: String = _pending_delete_path
+	_pending_delete_path = ""
+	if _controller != null and not p.is_empty():
+		_controller.remove_registry_entry(p)
+
+
+func _on_delete_canceled() -> void:
+	_pending_delete_path = ""
 
 
 # 打开图片/配置后：按当前项目数据路径同步注册表选中项（无关联数据则取消选中）

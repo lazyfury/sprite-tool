@@ -116,6 +116,27 @@ func load_registry_entry(path: String) -> void:
 	apply_data(d, path)
 
 
+# 删除注册表条目（右键删除）：移除 registry 条目 + 删除 .tres 文件。
+# 若删除的是当前项目配置 → 解除关联（data/data_path 清空，注册表取消选中），
+# 当前图片与切分区域保持（用户可重新保存生成新配置）。
+func remove_registry_entry(path: String) -> void:
+	if registry == null or path.is_empty():
+		return
+	if path == data_path:
+		data = null
+		data_path = ""
+		is_dirty = false
+		data_dirty_changed.emit(false)
+		data_path_changed.emit("")   # 注册表取消选中
+	if registry.entries.has(path):
+		registry.entries.erase(path)
+		ResourceSaver.save(registry, data_dir + "/registry.tres")
+	if ResourceLoader.exists(path) or FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	registry_updated.emit()
+	status_changed.emit("已删除项目配置: " + path, false)
+
+
 func _wait_frame() -> void:
 	if _tree != null:
 		await _tree.process_frame

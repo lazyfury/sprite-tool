@@ -11,6 +11,7 @@ extends PanelContainer
 ## 编码约定（项目强制）：var 显式类型标注，不用 :=。
 
 signal clicked(path: String)
+signal delete_requested(path: String)   # 右键 → 请求删除该注册表项（main 确认弹窗）
 
 var path: String = ""
 var selected: bool = false
@@ -73,6 +74,11 @@ func get_labels() -> Array[Label]:
 
 func _gui_input(event: InputEvent) -> void:
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+	if mb == null or not mb.pressed:
+		return
+	if mb.button_index == MOUSE_BUTTON_LEFT:
 		clicked.emit(path)
+		accept_event()
+	elif mb.button_index == MOUSE_BUTTON_RIGHT:
+		delete_requested.emit(path)
 		accept_event()
