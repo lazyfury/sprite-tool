@@ -113,21 +113,26 @@ Mask background_mask(const Image& image, const BackgroundOptions& options) {
     if (w <= 0 || h <= 0) return mask;
 
     // ---- 背景参考色 + 噪声水平 ----
-    const BackgroundEstimate est = estimate_background(image, options.has_bg_color,
-                                                       options.bg_color);
-    const Pixel bg = est.color;
+    // 优先级：手动指定色 > 魔棒种子点色 > 环带中位数（自动估计）
+    const std::vector<Pixel> ring = collect_border_ring(image, 2);
+    const bool has_seed = options.seed_x >= 0 && options.seed_y >= 0 &&
+                          options.seed_x < w && options.seed_y < h;
+    const Pixel bg = options.has_bg_color ? options.bg_color
+            : (has_seed ? image.at(options.seed_x, options.seed_y)
+                        : median_color(ring));
+    const double sigma_sum = background_sigma_sum(ring, bg, 24);
 
     // ---- 自适应阈值 ----
     // 纯色背景 σ≈0 → 阈值保持用户给定（默认 12）；有压缩/渐变噪声 → 自动放大，
     // 避免「背景接近物体边缘时的偏色超过固定阈值导致 flood fill 断裂」。
     const int threshold = std::max(options.threshold,
-                                   static_cast<int>(std::ceil(kStrictSigma * est.sigma_sum)));
+                                   static_cast<int>(std::ceil(kStrictSigma * sigma_sum)));
     // 边缘过渡清扫容差：物体边缘因压缩/抗锯齿产生的偏色比纯背景噪声更宽，
     // 用更大容差 + 有限轮数从背景边界向内补吃（只吃薄过渡带，不深入物体内部）。
     const int relaxed = std::max(threshold,
-                                 static_cast<int>(std::ceil(kRelaxSigma * est.sigma_sum)));
+                                 static_cast<int>(std::ceil(kRelaxSigma * sigma_sum)));
 
-    // ---- BFS flood fill（四边播种，向内扩散）----
+    // ---- BFS flood fill（魔棒种子点 或 四边播种，向内扩散）----
     std::queue<std::pair<int, int>> queue;
     auto try_seed = [&](int x, int y) {
         if (x < 0 || y < 0 || x >= w || y >= h) return;
@@ -137,13 +142,17 @@ Mask background_mask(const Image& image, const BackgroundOptions& options) {
             queue.emplace(x, y);
         }
     };
-    for (int x = 0; x < w; ++x) {
-        try_seed(x, 0);
-        try_seed(x, h - 1);
-    }
-    for (int y = 0; y < h; ++y) {
-        try_seed(0, y);
-        try_seed(w - 1, y);
+    if (has_seed) {
+        try_seed(options.seed_x, options.seed_y);   // 魔棒：单点播种
+    } else {
+        for (int x = 0; x < w; ++x) {
+            try_seed(x, 0);
+            try_seed(x, h - 1);
+        }
+        for (int y = 0; y < h; ++y) {
+            try_seed(0, y);
+            try_seed(w - 1, y);
+        }
     }
     while (!queue.empty()) {
         const auto [x, y] = queue.front();
@@ -175,7 +184,61 @@ Mask background_mask(const Image& image, const BackgroundOptions& options) {
         if (to_add.empty()) break;
         for (const auto& [x, y] : to_add) mask.set(x, y, true);
     }
+
+    // ---- 收缩（背景掩码腐蚀 shrink px）----
+    // 4 邻全为背景才保留 → 背景边界向内收缩，防羽化/删除吃到物体边缘。
+    // 图像边界视为「外部背景」：图边像素不腐蚀（背景延伸到图外，不是物体边缘）。
+    for (int pass = 0; pass < options.shrink; ++pass) {
+        Mask eroded(w, h, false);
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                if (!mask.get(x, y)) continue;
+                const bool all_bg =
+                        (x <= 0 || mask.get(x - 1, y)) &&
+                        (x + 1 >= w || mask.get(x + 1, y)) &&
+                        (y <= 0 || mask.get(x, y - 1)) &&
+                        (y + 1 >= h || mask.get(x, y + 1));
+                if (all_bg) eroded.set(x, y, true);
+            }
+        }
+        mask = eroded;
+    }
     return mask;
+}
+
+
+// 羽化：二值背景 mask → 灰度 AlphaMask（255=背景）。radius px 内做 box blur
+// 迭代（3x3 均值 ≈ 高斯近似），边缘产生 0-255 渐变（软边 alpha）。
+AlphaMask feather_mask(const Mask& background, int radius) {
+    const int w = background.width();
+    const int h = background.height();
+    AlphaMask out(w, h, 0);
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            out.set(x, y, background.get(x, y) ? 255 : 0);
+        }
+    }
+    for (int pass = 0; pass < radius; ++pass) {
+        AlphaMask blurred(w, h, 0);
+        for (int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
+                int sum = 0;
+                for (int dy = -1; dy <= 1; ++dy) {
+                    for (int dx = -1; dx <= 1; ++dx) {
+                        // 图外视为背景（255）：图边像素不被羽化拉低（背景延伸到图外）
+                        if (x + dx < 0 || y + dy < 0 || x + dx >= w || y + dy >= h) {
+                            sum += 255;
+                        } else {
+                            sum += out.get(x + dx, y + dy);
+                        }
+                    }
+                }
+                blurred.set(x, y, static_cast<uint8_t>(sum / 9));
+            }
+        }
+        out = blurred;
+    }
+    return out;
 }
 
 void make_background_transparent(Image& image, const Mask& background) {
@@ -190,6 +253,24 @@ void make_background_transparent(Image& image, const Mask& background) {
             if (background.get(x, y)) {
                 image.at(x, y).a = 0;  // 背景像素 alpha 置 0
             }
+        }
+    }
+}
+
+void make_background_transparent(Image& image, const AlphaMask& background) {
+    const int w = image.width();
+    const int h = image.height();
+    if (w != background.width() || h != background.height()) {
+        throw std::invalid_argument(
+            "sps: make_background_transparent: image/alpha-mask size mismatch");
+    }
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            const uint8_t bgd = background.get(x, y);
+            if (bgd == 0) continue;
+            Pixel& p = image.at(x, y);
+            // 软边：背景密度越高 alpha 越低（边缘半透明过渡）
+            p.a = static_cast<uint8_t>((p.a * (255 - bgd)) / 255);
         }
     }
 }

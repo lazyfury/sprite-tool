@@ -53,10 +53,12 @@ std::unique_ptr<BackgroundRemover> create_background_remover(
     BackgroundBackend kind, const BackgroundRemoverOptions& options = {});
 
 // 纯算法版（core 内置，默认注册）：外圈环带采样 + 自适应阈值 flood fill + 边缘清扫。
+// 支持魔棒（seed 播种）、收缩（shrink）、羽化（feather 软边）。
 class ColorBackgroundRemover final : public BackgroundRemover {
 public:
     explicit ColorBackgroundRemover(BackgroundOptions options);
     Mask process(const Image& image) const override;
+    Image process_transparent(const Image& image) const override;
 
 private:
     BackgroundOptions options_;

@@ -35,6 +35,7 @@ set(SPS_CORE_SRC
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/analyzer.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/image/image.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/mask/mask.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../core/mask/alpha_mask.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/mask/mask_io.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/mask/morphology.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/segmentation/background.cpp

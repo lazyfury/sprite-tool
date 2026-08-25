@@ -279,3 +279,65 @@ TEST_CASE("Background: transition halo near object edge is cleaned", "[backgroun
     CHECK(bg.get(by, bx + bw));              // 过渡带（右）被清扫
     CHECK_FALSE(bg.get(bx + 2, by + 2));     // 物体内部仍是前景
 }
+
+TEST_CASE("Background: shrink contracts background mask (anti-halo)", "[background]") {
+    Image img = image_with_blocks(Pixel{253, 253, 253}, {{10, 10, 5, 5}}, Pixel{0, 0, 0}, 40, 40);
+    BackgroundOptions opts;
+    opts.threshold = 12;
+    opts.shrink = 2;
+    Mask bg = background_mask(img, opts);
+    CHECK(bg.get(0, 0));                        // 远离物体的背景仍保留
+    CHECK(bg.get(39, 39));
+    CHECK_FALSE(bg.get(9, 10));                 // 紧贴块：默认是背景，收缩后变前景（防白边）
+    CHECK_FALSE(bg.get(15, 10));
+    CHECK_FALSE(bg.get(9, 9));
+}
+
+TEST_CASE("Background: feather produces soft alpha gradient", "[background]") {
+    Image img = image_with_blocks(Pixel{253, 253, 253}, {{10, 10, 8, 8}}, Pixel{0, 0, 0}, 40, 40);
+    BackgroundOptions opts;
+    opts.threshold = 12;
+    Mask bg = background_mask(img, opts);
+    const AlphaMask alpha = feather_mask(bg, 2);
+    CHECK(alpha.get(0, 0) == 255);              // 背景深处：全背景
+    CHECK(alpha.get(39, 39) == 255);
+    const uint8_t edge = alpha.get(9, 10);      // 紧贴块边界：应被模糊（0 < edge < 255）
+    CHECK(edge > 0);
+    CHECK(edge < 255);
+    const uint8_t inner = alpha.get(14, 14);    // 块中心（距边界 4px > 羽化半径）：前景（0）
+    CHECK(inner == 0);
+}
+
+TEST_CASE("Background: soft transparent keeps edge pixels semi", "[background]") {
+    Image img = image_with_blocks(Pixel{253, 253, 253}, {{10, 10, 8, 8}}, Pixel{0, 0, 0}, 40, 40);
+    BackgroundOptions opts;
+    opts.threshold = 12;
+    Mask bg = background_mask(img, opts);
+    const AlphaMask alpha = feather_mask(bg, 2);
+    Image out = img;
+    make_background_transparent(out, alpha);
+    CHECK(out.at(0, 0).a == 0);                 // 背景深处 alpha 0
+    CHECK(out.at(14, 14).a == 255);             // 块中心保持不透明
+    const uint8_t edge_a = out.at(9, 10).a;     // 边缘半透明过渡
+    CHECK(edge_a > 0);
+    CHECK(edge_a < 255);
+}
+
+TEST_CASE("Background: seed point selects local region (magic wand)", "[background]") {
+    // 左右两色背景（无全局一致背景）：默认四边播种会跨色扩散失败，魔棒种子点只选局部
+    Image img(50, 50);
+    for (int y = 0; y < 50; ++y)
+        for (int x = 0; x < 50; ++x) {
+            if (x < 25) img.at(x, y) = Pixel{200, 50, 50, 255};    // 左：红
+            else        img.at(x, y) = Pixel{50, 50, 200, 255};    // 右：蓝
+        }
+    BackgroundOptions opts;
+    opts.threshold = 12;
+    opts.seed_x = 5;      // 点击左侧红色背景
+    opts.seed_y = 5;
+    Mask bg = background_mask(img, opts);
+    CHECK(bg.get(5, 5));                        // 种子点区域（红）是背景
+    CHECK(bg.get(24, 5));
+    CHECK_FALSE(bg.get(25, 5));                 // 蓝色区域保持前景（未被选择）
+    CHECK_FALSE(bg.get(40, 40));
+}

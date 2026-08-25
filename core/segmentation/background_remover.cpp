@@ -12,6 +12,20 @@ Mask ColorBackgroundRemover::process(const Image& image) const {
     return background_mask(image, options_);
 }
 
+// 软边版本：feather > 0 时 掩码 → AlphaMask 羽化 → alpha 渐变应用；
+// 否则走基类默认（二值 mask + 硬边，兼容旧行为）。
+Image ColorBackgroundRemover::process_transparent(const Image& image) const {
+    const Mask m = background_mask(image, options_);
+    Image out = image;
+    if (options_.feather > 0) {
+        const AlphaMask alpha = feather_mask(m, options_.feather);
+        make_background_transparent(out, alpha);
+    } else {
+        make_background_transparent(out, m);
+    }
+    return out;
+}
+
 namespace {
 
 using Registry = std::map<BackgroundBackend, BackgroundRemoverFactory>;

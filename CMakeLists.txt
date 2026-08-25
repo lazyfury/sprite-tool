@@ -16,6 +16,7 @@ add_library(sps_core STATIC
   core/analyzer.cpp
   core/image/image.cpp
   core/mask/mask.cpp
+  core/mask/alpha_mask.cpp
   core/mask/mask_io.cpp
   core/mask/morphology.cpp
   core/segmentation/background.cpp
