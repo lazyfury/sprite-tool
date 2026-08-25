@@ -22,7 +22,7 @@ font_color = Color(0.6521796, 0.65217966, 0.6521794, 1)
 
 [sub_resource type="LabelSettings" id="LabelSettings_fbh10"]
 line_spacing = 0.0
-font_color = Color(0.31246608, 0.31246608, 0.31246608, 1)
+font_color = Color(0.7121294, 0.7121294, 0.71212935, 1)
 
 [node name="RegItem" type="PanelContainer" unique_id=1554995766]
 offset_right = 310.0
@@ -38,11 +38,12 @@ mouse_filter = 2
 theme_override_constants/separation = 12
 
 [node name="Thumb" type="TextureRect" parent="Row" unique_id=107017264]
-custom_minimum_size = Vector2(48, 48)
+custom_minimum_size = Vector2(96, 96)
 layout_mode = 2
 size_flags_vertical = 4
 mouse_filter = 2
-stretch_mode = 5
+expand_mode = 2
+stretch_mode = 6
 
 [node name="Col" type="VBoxContainer" parent="Row" unique_id=721388949]
 custom_minimum_size = Vector2(180, 96)

@@ -662,6 +662,31 @@ func _auto_test() -> void:
 			"auto test: single select writes one selected state")
 	canvas._on_click_select(Vector2(50, 50))   # 清空
 	await get_tree().process_frame
+	# 自由裁切：画选区 → 选区移动（本体拖拽）→ 确认加入切片数据
+	var sprites_before: int = _controller.sprites.size()
+	canvas.set_tool(canvas.Tool.CROP)
+	canvas.set("_drag_start", canvas.world_to_screen(Vector2(60, 60)))
+	canvas.set("_drag_cur", canvas.world_to_screen(Vector2(100, 100)))
+	canvas._finish_crop()
+	_check(canvas.get("_selection") == Rect2i(60, 60, 40, 40),
+			"auto test: crop rect drawn")
+	canvas.set("_drag_mode", canvas.DragMode.MOVE)
+	canvas.set("_drag_origin", Rect2i(60, 60, 40, 40))
+	canvas.set("_drag_anchor", Vector2(80, 80))
+	canvas._apply_edit_drag(Vector2(90, 90))   # delta (10,10)
+	_check(canvas.get("_selection") == Rect2i(70, 70, 40, 40),
+			"auto test: crop rect moves by drag")
+	canvas.set("_drag_mode", canvas.DragMode.NONE)
+	_main._on_confirm_crop()
+	await get_tree().process_frame
+	_check(_controller.sprites.size() == sprites_before + 1,
+			"auto test: crop confirm adds sprite")
+	var new_s: Dictionary = _controller.sprites[_controller.sprites.size() - 1]
+	_check(int(new_s.get("x", -1)) == 70 and int(new_s.get("width", -1)) == 40,
+			"auto test: crop sprite rect matches moved selection")
+	_check(canvas.get("_selection").size == Vector2i.ZERO,
+			"auto test: crop cleared after confirm")
+	canvas.set_tool(canvas.Tool.SELECT)
 
 	print("[sps-ui] === auto test done (fail=%s) ===" % _fail)
 	get_tree().quit(1 if _fail else 0)

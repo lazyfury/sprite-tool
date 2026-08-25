@@ -24,6 +24,7 @@ signal selection_changed(rects: Array[Rect2i])
 signal view_changed
 signal drop_requested(path: String)   # 编辑器 FileSystem dock 拖入文件（确认弹窗前）
 signal geometry_committed(index: int, rect: Rect2i)   # 编辑提交：拖拽移动 / 四角缩放（松手时发）
+signal crop_confirmed(rect: Rect2i)   # 自由裁切确认：选区加入切片数据（工具栏确认按钮）
 
 enum Tool { MOVE, SELECT, EDIT, CROP }
 # 编辑拖拽模式（EDIT 工具的几何编辑：拖拽移动 / 四角缩放）
@@ -178,6 +179,8 @@ func set_tool(tool: int) -> void:
 	_dragging = false
 	_panning = false
 	_drag_mode = DragMode.NONE
+	if tool != Tool.CROP:
+		_selection = Rect2i(-1, -1, 0, 0)   # 切走清 CROP 选区
 	if tool == Tool.EDIT:
 		# 切到编辑模式：已有单选 → 保留为编辑对象（显示手柄）；
 		# 多选/无选 → 无编辑对象（编辑模式仍可单击选择）
@@ -236,18 +239,15 @@ func _handle_at(world_p: Vector2, r: Rect2i) -> int:
 	return DragMode.NONE
 
 
-# 编辑拖拽应用：根据 _drag_mode 计算新 rect（move 平移 / resize 按角调整），clamp 图内
-func _apply_edit_drag(wp: Vector2) -> void:
-	if _edit_index < 0 or _drag_mode == DragMode.NONE:
-		return
-	var delta: Vector2 = wp - _drag_anchor
-	var o: Rect2i = _drag_origin
-	var img: Vector2 = get_image_size()
+# 编辑拖拽计算（EDIT 切片 / CROP 选区共用）：按 _drag_mode 从 origin 计算新 rect，
+# move 平移 / resize 按角调整，clamp 图内
+func _calc_drag_rect(origin: Rect2i, mode: int, delta: Vector2, img: Vector2) -> Rect2i:
+	var o: Rect2i = origin
 	var x0: float = o.position.x
 	var y0: float = o.position.y
 	var x1: float = o.end.x
 	var y1: float = o.end.y
-	match _drag_mode:
+	match mode:
 		DragMode.MOVE:
 			x0 = o.position.x + delta.x
 			y0 = o.position.y + delta.y
@@ -265,15 +265,27 @@ func _apply_edit_drag(wp: Vector2) -> void:
 		DragMode.RESIZE_SE:
 			x1 = maxf(o.position.x + 1, o.end.x + delta.x)
 			y1 = maxf(o.position.y + 1, o.end.y + delta.y)
-	# clamp 到图像边界
 	if img.x > 0.0:
 		x0 = clampf(x0, 0.0, img.x - 1.0)
 		x1 = clampf(x1, 1.0, img.x)
 	if img.y > 0.0:
 		y0 = clampf(y0, 0.0, img.y - 1.0)
 		y1 = clampf(y1, 1.0, img.y)
-	_rects[_edit_index] = Rect2i(int(round(x0)), int(round(y0)),
+	return Rect2i(int(round(x0)), int(round(y0)),
 			int(round(x1 - x0)), int(round(y1 - y0)))
+
+
+# 编辑拖拽应用：EDIT 写 _rects[_edit_index]；CROP 写 _selection（拖拽实时显示，松手提交）
+func _apply_edit_drag(wp: Vector2) -> void:
+	if _drag_mode == DragMode.NONE:
+		return
+	var delta: Vector2 = wp - _drag_anchor
+	if _tool == Tool.CROP:
+		_selection = _calc_drag_rect(_drag_origin, _drag_mode, delta, get_image_size())
+	else:
+		if _edit_index < 0:
+			return
+		_rects[_edit_index] = _calc_drag_rect(_drag_origin, _drag_mode, delta, get_image_size())
 	queue_redraw()
 
 
@@ -413,6 +425,28 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 					_dragging = true
 					queue_redraw()
 					return
+			# CROP 工具：已有选区 → 手柄/本体编辑优先（移动 / 四角调整）
+			if _tool == Tool.CROP and _selection.size.x > 0 and _selection.size.y > 0:
+				var wp2: Vector2 = screen_to_world(e.position)
+				var hnd2: int = _handle_at(wp2, _selection)
+				if hnd2 != DragMode.NONE:
+					_drag_mode = hnd2
+					_drag_origin = _selection
+					_drag_anchor = wp2
+					_drag_start = e.position
+					_drag_cur = e.position
+					_dragging = true
+					queue_redraw()
+					return
+				if Rect2(Vector2(_selection.position), Vector2(_selection.size)).has_point(wp2):
+					_drag_mode = DragMode.MOVE
+					_drag_origin = _selection
+					_drag_anchor = wp2
+					_drag_start = e.position
+					_drag_cur = e.position
+					_dragging = true
+					queue_redraw()
+					return
 			_dragging = true
 			_drag_start = e.position
 			_drag_cur = e.position
@@ -423,20 +457,23 @@ func _handle_mouse_button(e: InputEventMouseButton) -> void:
 		_panning = false
 		return
 	if _dragging and _drag_mode != DragMode.NONE:
-		# 单击（位移小于阈值）：取消编辑拖拽，转为点击选择（不与单击冲突）
+		# 单击（位移小于阈值）：取消编辑拖拽，转为点击选择 / CROP 保持选区
 		if (_drag_cur - _drag_start).length() < CLICK_THRESHOLD:
 			_dragging = false
 			_drag_mode = DragMode.NONE
-			_click_select(screen_to_world(e.position))
+			if _tool == Tool.CROP:
+				pass   # CROP 单击选区：保持（确认/右键清除）
+			else:
+				_click_select(screen_to_world(e.position))
 			queue_redraw()
 			return
-		# 真正拖拽结束：提交几何变更（锁定项不提交）
-		var idx: int = _edit_index
-		var new_rect: Rect2i = _rects[idx]
+		# 真正拖拽结束：提交几何变更（锁定项不提交；CROP 选区已实时应用无需提交）
 		_dragging = false
 		_drag_mode = DragMode.NONE
-		if not _is_locked(idx):
-			geometry_committed.emit(idx, new_rect)
+		if _tool == Tool.CROP:
+			pass
+		elif not _is_locked(_edit_index):
+			geometry_committed.emit(_edit_index, _rects[_edit_index])
 		queue_redraw()
 		return
 	if not _dragging:
@@ -547,6 +584,22 @@ func _finish_crop() -> void:
 	selection_drawn.emit(rect)
 
 
+# CROP 确认（工具栏「确认裁切」）：选区加入切片数据 → 清选区
+func crop_confirm() -> void:
+	if _selection.size.x <= 0 or _selection.size.y <= 0:
+		return
+	crop_confirmed.emit(_selection)
+	clear_crop()
+
+
+# 清除 CROP 选区（确认后 / 右键 / 切工具）
+func clear_crop() -> void:
+	_selection = Rect2i(-1, -1, 0, 0)
+	_drag_mode = DragMode.NONE
+	_dragging = false
+	queue_redraw()
+
+
 # 拖拽屏幕矩形 → 世界矩形（线性变换：无旋转，缩放+平移）
 func _drag_world_rect() -> Rect2:
 	var tl: Vector2 = Vector2(min(_drag_start.x, _drag_cur.x), min(_drag_start.y, _drag_cur.y))
@@ -613,6 +666,16 @@ func _draw() -> void:
 		var cr: Rect2 = Rect2(Vector2(_selection.position), Vector2(_selection.size))
 		draw_rect(cr, CROP_FILL, true)
 		draw_rect(cr, CROP_STROKE, false, lw)
+		# 选区编辑手柄（移动 / 四角调整，确认按钮提交）
+		var h: float = HANDLE_SIZE / _zoom
+		var corners: Array[Vector2] = [cr.position,
+				Vector2(cr.end.x, cr.position.y),
+				Vector2(cr.position.x, cr.end.y),
+				cr.end]
+		for c: Vector2 in corners:
+			draw_rect(Rect2(c - Vector2(h, h), Vector2(h * 2, h * 2)), HANDLE_FILL, true)
+			draw_rect(Rect2(c - Vector2(h, h), Vector2(h * 2, h * 2)),
+					HANDLE_STROKE, false, 1.0 / _zoom)
 	# 拖拽中的临时框（按工具着色）
 	if _dragging:
 		var dr: Rect2 = _drag_world_rect()

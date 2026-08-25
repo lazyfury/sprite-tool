@@ -59,6 +59,7 @@ var _active_reg_path: String = ""                 # 当前选中/加载的项目
 @onready var _select_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ToolBar/SelectBtn")
 @onready var _edit_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ToolBar/EditBtn")
 @onready var _crop_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ToolBar/CropBtn")
+@onready var _confirm_crop_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ToolBar/ConfirmCropBtn")
 @onready var _zoom_out_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup/ZoomOutBtn")
 @onready var _zoom_label: Label = get_node("MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup/ZoomLabel")
 @onready var _zoom_in_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/ZoomGroup/ZoomInBtn")
@@ -79,6 +80,7 @@ func set_controller(c: SpsController) -> void:
 	_canvas.view_changed.connect(_on_canvas_view_changed)
 	_canvas.drop_requested.connect(_on_canvas_drop_requested)
 	_canvas.geometry_committed.connect(_on_canvas_geometry_committed)
+	_canvas.crop_confirmed.connect(_on_crop_confirmed)
 	_controller.registry_updated.connect(_on_registry_updated)
 	_controller.data_path_changed.connect(_on_data_path_changed)
 	_on_registry_updated()   # 初始填充注册表列表
@@ -573,6 +575,7 @@ func _setup_tool_buttons() -> void:
 	_select_btn.pressed.connect(_on_tool_select)
 	_edit_btn.pressed.connect(_on_tool_edit)
 	_crop_btn.pressed.connect(_on_tool_crop)
+	_confirm_crop_btn.pressed.connect(_on_confirm_crop)
 	_zoom_out_btn.pressed.connect(_on_zoom_out)
 	_zoom_in_btn.pressed.connect(_on_zoom_in)
 	_fit_btn.pressed.connect(_on_fit)
@@ -580,18 +583,37 @@ func _setup_tool_buttons() -> void:
 
 func _on_tool_move() -> void:
 	_canvas.set_tool(_canvas.Tool.MOVE)
+	_refresh_confirm_btn()
 
 
 func _on_tool_select() -> void:
 	_canvas.set_tool(_canvas.Tool.SELECT)
+	_refresh_confirm_btn()
 
 
 func _on_tool_edit() -> void:
 	_canvas.set_tool(_canvas.Tool.EDIT)
+	_refresh_confirm_btn()
 
 
 func _on_tool_crop() -> void:
 	_canvas.set_tool(_canvas.Tool.CROP)
+	_confirm_crop_btn.disabled = false   # 裁切模式：确认按钮可用
+
+
+# 非裁切工具：确认按钮禁用（切工具时由各 handler 调用 _refresh_confirm_btn）
+func _refresh_confirm_btn() -> void:
+	_confirm_crop_btn.disabled = _canvas.get_tool() != _canvas.Tool.CROP
+
+
+# 确认裁切：把画布选区加入切片数据
+func _on_confirm_crop() -> void:
+	_canvas.crop_confirm()
+
+
+func _on_crop_confirmed(rect: Rect2i) -> void:
+	if _controller != null:
+		_controller.add_sprite_from_rect(rect)
 
 
 func _on_zoom_out() -> void:

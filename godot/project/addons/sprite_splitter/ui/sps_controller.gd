@@ -250,6 +250,24 @@ func set_sprite_ignored(index: int, ignored: bool) -> void:
 	mark_dirty()
 
 
+# 自由裁切确认：把选区（世界坐标）加入切片数据。clamp 到图内，无效选区忽略。
+func add_sprite_from_rect(rect: Rect2i) -> void:
+	if image == null or rect.size.x < 1 or rect.size.y < 1:
+		return
+	var r: Rect2i = rect.intersection(Rect2i(Vector2i.ZERO,
+			Vector2i(image.get_width(), image.get_height())))
+	if r.size.x < 1 or r.size.y < 1:
+		return
+	sprites.append(_make_sprite(r, sprites.size()))
+	if data != null:
+		data.sprites = sprites.duplicate()
+		mark_dirty()
+	_sync_rects()
+	count_changed.emit("切分结果: %d 个精灵" % sprites.size())
+	status_changed.emit("已添加裁切选区（%d,%d %dx%d）" % [
+			r.position.x, r.position.y, r.size.x, r.size.y], false)
+
+
 # ---------- 加载 / 分析 / 切分 ----------
 
 # 绑定编辑器文件系统信号：源文件重命名/移动会触发重导入流程（resources_reimported /

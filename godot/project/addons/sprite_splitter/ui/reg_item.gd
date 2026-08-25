@@ -16,7 +16,7 @@ signal menu_requested(path: String, at_global: Vector2)   # 右键 → 请求上
 var path: String = ""
 var selected: bool = false
 
-const SEL_BG: Color = Color(0.152, 0.152, 0.181, 1.0)   # 选中高亮背景（可改）
+const SEL_BG: Color = Color(0.19, 0.19, 0.21)  # 选中高亮背景（可改）
 
 
 func setup(p: String, title: String, uid_text: String, time_text: String, path_text:String,
