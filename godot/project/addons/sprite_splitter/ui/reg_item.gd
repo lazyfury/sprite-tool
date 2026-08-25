@@ -11,7 +11,7 @@ extends PanelContainer
 ## 编码约定（项目强制）：var 显式类型标注，不用 :=。
 
 signal clicked(path: String)
-signal delete_requested(path: String)   # 右键 → 请求删除该注册表项（main 确认弹窗）
+signal menu_requested(path: String, at_global: Vector2)   # 右键 → 请求上下文菜单（文件系统风格）
 
 var path: String = ""
 var selected: bool = false
@@ -80,5 +80,5 @@ func _gui_input(event: InputEvent) -> void:
 		clicked.emit(path)
 		accept_event()
 	elif mb.button_index == MOUSE_BUTTON_RIGHT:
-		delete_requested.emit(path)
+		menu_requested.emit(path, get_global_mouse_position())
 		accept_event()

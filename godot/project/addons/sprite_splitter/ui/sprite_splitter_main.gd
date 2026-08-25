@@ -21,7 +21,14 @@ var _pending_drop_path: String = ""
 # 注册表切换：脏数据确认弹窗 + 待切换条目
 var _switch_dialog: ConfirmationDialog = null
 var _pending_switch_path: String = ""
-# 注册表项删除：确认弹窗 + 待删除路径（右键）
+# 注册表项右键上下文菜单（文件系统风格：打开/复制路径/显示/删除）
+const REG_MENU_OPEN: int = 0
+const REG_MENU_COPY: int = 1
+const REG_MENU_REVEAL: int = 2
+const REG_MENU_DELETE: int = 3
+var _reg_menu: PopupMenu = null
+var _reg_menu_path: String = ""
+# 注册表项删除：确认弹窗 + 待删除路径（右键菜单 → 删除）
 var _delete_dialog: ConfirmationDialog = null
 var _pending_delete_path: String = ""
 var _active_reg_path: String = ""                 # 当前选中/加载的项目路径（手动维护选中态）
@@ -75,12 +82,25 @@ func get_canvas_view() -> Control:
 
 func _ready() -> void:
 	_setup_tool_buttons()
+	_setup_reg_menu()
 	_apply_theme()
 	if Engine.is_editor_hint():
 		EditorInterface.get_base_control().theme_changed.connect(_apply_theme)
 	_file_button.pressed.connect(_on_file_button)
 	_data_btn.pressed.connect(_on_open_data)
 	_close_btn.pressed.connect(_on_close_image)
+
+
+# 注册表项右键上下文菜单（文件系统风格）：打开配置 / 复制路径 / 在文件管理器中显示 / 删除
+func _setup_reg_menu() -> void:
+	_reg_menu = PopupMenu.new()
+	_reg_menu.add_item("打开配置", REG_MENU_OPEN)
+	_reg_menu.add_item("复制路径", REG_MENU_COPY)
+	_reg_menu.add_item("在文件管理器中显示", REG_MENU_REVEAL)
+	_reg_menu.add_separator()
+	_reg_menu.add_item("删除…", REG_MENU_DELETE)
+	_reg_menu.id_pressed.connect(_on_reg_menu_id_pressed)
+	add_child(_reg_menu)
 
 
 # ---------- Header（打开素材 + 图片地址，主题化） ----------
@@ -247,7 +267,7 @@ func _on_registry_updated() -> void:
 func _make_reg_item(path: String) -> Control:
 	var item: Control = REG_ITEM_SCENE.instantiate()
 	item.clicked.connect(_on_reg_item_clicked)
-	item.delete_requested.connect(_on_reg_item_delete_requested)
+	item.menu_requested.connect(_on_reg_item_menu_requested)
 	# 条目数据
 	var title: String = path.get_file().get_basename()
 	var uid_text: String = ""
@@ -283,7 +303,31 @@ func _on_reg_item_clicked(path: String) -> void:
 		_controller.load_registry_entry(path)
 
 
-# 注册表项右键 → 删除确认弹窗（删除 .tres 配置文件，不可撤销）
+# 注册表项右键 → 上下文菜单（在鼠标位置弹出）
+func _on_reg_item_menu_requested(path: String, at_global: Vector2) -> void:
+	_reg_menu_path = path
+	_reg_menu.popup(Rect2i(Vector2i(at_global), Vector2i.ZERO))
+
+
+# 上下文菜单分派（文件系统风格）
+func _on_reg_menu_id_pressed(id: int) -> void:
+	var path: String = _reg_menu_path
+	if path.is_empty() or _controller == null:
+		return
+	match id:
+		REG_MENU_OPEN:
+			_on_reg_item_clicked(path)   # 打开配置 = 左键点击语义（含脏数据确认）
+		REG_MENU_COPY:
+			DisplayServer.clipboard_set(path)
+			if _controller != null:
+				_controller.status_changed.emit("已复制配置路径: " + path, false)
+		REG_MENU_REVEAL:
+			OS.shell_show_in_file_manager(ProjectSettings.globalize_path(path), true)
+		REG_MENU_DELETE:
+			_on_reg_item_delete_requested(path)
+
+
+# 注册表项删除确认弹窗（删除 .tres 配置文件，不可撤销）
 func _on_reg_item_delete_requested(path: String) -> void:
 	_pending_delete_path = path
 	if _delete_dialog == null:

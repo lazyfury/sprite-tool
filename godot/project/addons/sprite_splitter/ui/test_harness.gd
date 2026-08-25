@@ -281,7 +281,7 @@ func _auto_test() -> void:
 			"auto test: registry selection follows applied config path")
 	_check(split_list.item_count == _controller.rects.size(),
 			"auto test: split list refreshed after apply data")
-	# 注册表项右键删除：临时创建配置 → 删除确认 → 文件删除 + registry 移除
+	# 注册表项右键上下文菜单（文件系统风格）：菜单 → 复制路径 / 删除
 	var del_path: String = "res://sps_data_test/_delme.tres"
 	var del_data: SpriteSplitterData = SpriteSplitterData.new()
 	del_data.project_name = "待删除项"
@@ -291,7 +291,18 @@ func _auto_test() -> void:
 	_check(_controller.registry.entries.has(del_path),
 			"auto test: temp entry registered")
 	var del_item: Control = _main._make_reg_item(del_path)
-	del_item.delete_requested.emit(del_path)
+	del_item.menu_requested.emit(del_path, Vector2.ZERO)
+	var reg_menu: PopupMenu = _main.get("_reg_menu")
+	_check(reg_menu != null and reg_menu.visible,
+			"auto test: right-click shows context menu")
+	_check(reg_menu.item_count >= 4, "auto test: context menu has 4+ items")
+	# 复制路径 → 剪贴板（headless 无剪贴板实现，仅 GUI 环境校验内容）
+	_main._on_reg_menu_id_pressed(_main.REG_MENU_COPY)
+	if DisplayServer.get_name() != "headless":
+		_check(DisplayServer.clipboard_get() == del_path,
+				"auto test: copy path to clipboard")
+	# 删除项 → 确认弹窗 → 文件删除 + registry 移除
+	_main._on_reg_menu_id_pressed(_main.REG_MENU_DELETE)
 	var del_dlg: Variant = _main.get("_delete_dialog")
 	_check(del_dlg != null and del_dlg.visible,
 			"auto test: delete shows confirm dialog")
