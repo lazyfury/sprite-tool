@@ -118,4 +118,23 @@ std::vector<Component> connected_components(const Mask& mask) {
     return out;
 }
 
+std::vector<ComponentSprite> detect_components(const Mask& mask, int min_width,
+                                               int min_height, int min_pixels) {
+    std::vector<ComponentSprite> out;
+    const auto comps = connected_components(mask);
+    out.reserve(comps.size());
+    for (const auto& c : comps) {
+        if (c.bounds.width < min_width) continue;
+        if (c.bounds.height < min_height) continue;
+        if (c.area < min_pixels) continue;
+        ComponentSprite s;
+        s.bounds = c.bounds;
+        s.area = c.area;
+        s.cx = c.bounds.x + c.bounds.width / 2;
+        s.cy = c.bounds.y + c.bounds.height / 2;
+        out.push_back(s);
+    }
+    return out;
+}
+
 }  // namespace sps

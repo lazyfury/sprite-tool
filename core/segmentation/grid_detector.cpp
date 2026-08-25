@@ -11,21 +11,78 @@ namespace sps {
 
 namespace {
 
-// 统计一个 cell 内的前景像素数量
-int cell_foreground_count(const Mask& mask, int cell_x, int cell_y, int cell_size) {
-    const int w = mask.width();
-    const int h = mask.height();
+// cell 非空的最小前景像素数（Auto 评分路径；Grid 模式显式切割仍用 >=1）
+constexpr int kMinOpaqueCellPixels = 16;
+
+// floor 除法（b > 0）：C++ 整数除法向零截断，负被除数需向下取整
+int floor_div(int a, int b) {
+    const int q = a / b;
+    const int r = a % b;
+    return (r != 0 && a < 0) ? q - 1 : q;
+}
+
+// 统计 (x0,y0)-(x1,y1) 区域内的前景像素（边界自动 clamp 到图像）
+int cell_foreground_count(const Mask& mask, int x0, int y0, int x1, int y1) {
+    x0 = std::max(x0, 0);
+    y0 = std::max(y0, 0);
+    x1 = std::min(x1, mask.width());
+    y1 = std::min(y1, mask.height());
     int count = 0;
-    const int x0 = cell_x * cell_size;
-    const int y0 = cell_y * cell_size;
-    const int x1 = std::min(x0 + cell_size, w);
-    const int y1 = std::min(y0 + cell_size, h);
     for (int y = y0; y < y1; ++y) {
         for (int x = x0; x < x1; ++x) {
             if (mask.get(x, y)) ++count;
         }
     }
     return count;
+}
+
+// 网格几何统计：覆盖行列数、前景占用 cell 数、平均前景占比
+struct GridStats {
+    int rows = 0;
+    int columns = 0;
+    int occupied = 0;
+    double avg_foreground_ratio = 0;
+};
+
+GridStats grid_stats(const Mask& mask, int pw, int ph, int ox, int oy, int min_opaque) {
+    GridStats st;
+    const int w = mask.width();
+    const int h = mask.height();
+    if (pw <= 0 || ph <= 0 || w <= 0 || h <= 0) return st;
+    const int k0 = floor_div(-ox, pw);
+    const int k1 = floor_div(w - 1 - ox, pw);
+    const int l0 = floor_div(-oy, ph);
+    const int l1 = floor_div(h - 1 - oy, ph);
+    st.columns = k1 - k0 + 1;
+    st.rows = l1 - l0 + 1;
+    long total_fg = 0;
+    long covered = 0;
+    for (int ky = l0; ky <= l1; ++ky) {
+        for (int kx = k0; kx <= k1; ++kx) {
+            const int x0 = ox + kx * pw;
+            const int y0 = oy + ky * ph;
+            const int x1 = std::min(x0 + pw, w);
+            const int y1 = std::min(y0 + ph, h);
+            const int cx0 = std::max(x0, 0);
+            const int cy0 = std::max(y0, 0);
+            if (cx0 >= x1 || cy0 >= y1) continue;
+            const int fg = cell_foreground_count(mask, x0, y0, x1, y1);
+            total_fg += fg;
+            covered += static_cast<long>(x1 - cx0) * (y1 - cy0);
+            if (fg >= min_opaque) ++st.occupied;
+        }
+    }
+    st.avg_foreground_ratio = covered > 0 ? static_cast<double>(total_fg) / covered : 0.0;
+    return st;
+}
+
+// 组件中心 → cell 索引（floor 语义 + clamp 到 [0, size)）
+int component_cell_index(int center, int offset, int period, int size) {
+    if (period <= 0) return -1;
+    const int idx = floor_div(center - offset, period);
+    if (idx < 0) return 0;
+    if (idx >= size) return size - 1;
+    return idx;
 }
 
 // 计算一行投影（水平方向时按列统计，否则按行），返回投影数组
@@ -218,30 +275,41 @@ double size_consistency(const std::vector<Comp>& comps, int cell_w, int cell_h) 
 
 }  // namespace
 
-std::vector<SpriteRect> grid_detect(const Mask& mask, int cell_size) {
+std::vector<SpriteRect> grid_detect(const Mask& mask, int cell_width, int cell_height,
+                                    int offset_x, int offset_y, int min_opaque) {
     std::vector<SpriteRect> result;
-    if (mask.empty() || cell_size <= 0) return result;
+    if (mask.empty() || cell_width <= 0 || cell_height <= 0) return result;
 
-    const int cols = (mask.width() + cell_size - 1) / cell_size;
-    const int rows = (mask.height() + cell_size - 1) / cell_size;
+    const int w = mask.width();
+    const int h = mask.height();
+    const int k0 = floor_div(-offset_x, cell_width);
+    const int k1 = floor_div(w - 1 - offset_x, cell_width);
+    const int l0 = floor_div(-offset_y, cell_height);
+    const int l1 = floor_div(h - 1 - offset_y, cell_height);
 
-    // 每个 cell 至少 1 个前景像素才算非空（避免把空白 cell 当作 sprite）
-    for (int cy = 0; cy < rows; ++cy) {
-        for (int cx = 0; cx < cols; ++cx) {
-            if (cell_foreground_count(mask, cx, cy, cell_size) >= 1) {
-                SpriteRect r;
-                r.x = cx * cell_size;
-                r.y = cy * cell_size;
-                r.width = std::min(cell_size, mask.width() - r.x);
-                r.height = std::min(cell_size, mask.height() - r.y);
-                result.push_back(r);
-            }
+    for (int ky = l0; ky <= l1; ++ky) {
+        for (int kx = k0; kx <= k1; ++kx) {
+            const int x0 = offset_x + kx * cell_width;
+            const int y0 = offset_y + ky * cell_height;
+            const int x1 = std::min(x0 + cell_width, w);
+            const int y1 = std::min(y0 + cell_height, h);
+            const int cx0 = std::max(x0, 0);
+            const int cy0 = std::max(y0, 0);
+            if (cx0 >= x1 || cy0 >= y1) continue;  // cell 完全在图外
+            if (cell_foreground_count(mask, x0, y0, x1, y1) < min_opaque) continue;
+            SpriteRect r;
+            r.x = cx0;
+            r.y = cy0;
+            r.width = x1 - cx0;
+            r.height = y1 - cy0;
+            result.push_back(r);
         }
     }
     return result;
 }
 
-GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell) {
+GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell,
+                          const std::vector<ComponentSprite>* components) {
     GridDetection result;
     if (mask.empty()) return result;
 
@@ -265,22 +333,34 @@ GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell) {
     const auto periods_y = pick_periods(peaks_y, corr_y, 5);
     if (periods_x.empty() || periods_y.empty()) return result;
 
-    // ---- 3. 组件（用于对齐/边界/尺寸评分）----
-    // 只保留大组件（>= 最大尺寸的 30%），碎片（文字/装饰/噪点）不参与评分
-    const auto comps_all = connected_components(mask);
-    int max_w = 0, max_h = 0;
-    for (const auto& c : comps_all) {
-        max_w = std::max(max_w, c.bounds.width);
-        max_h = std::max(max_h, c.bounds.height);
+    // ---- 3. 组件（用于对齐/边界/尺寸评分 + Component→Cell mapping）----
+    // 外部组件（Auto 管线已过滤）优先；否则内部 CCL + 大组件过滤（>= 最大尺寸 30%）
+    std::vector<ComponentSprite> owned;
+    const std::vector<ComponentSprite>* src = components;
+    if (src == nullptr || src->empty()) {
+        const auto comps_all = connected_components(mask);
+        int max_w = 0, max_h = 0;
+        for (const auto& c : comps_all) {
+            max_w = std::max(max_w, c.bounds.width);
+            max_h = std::max(max_h, c.bounds.height);
+        }
+        owned.reserve(comps_all.size());
+        for (const auto& c : comps_all) {
+            if (c.bounds.width * 10 < max_w * 3 || c.bounds.height * 10 < max_h * 3) continue;
+            if (c.bounds.width < min_cell / 2 || c.bounds.height < min_cell / 2) continue;
+            ComponentSprite s;
+            s.bounds = c.bounds;
+            s.area = c.area;
+            s.cx = c.bounds.x + c.bounds.width / 2;
+            s.cy = c.bounds.y + c.bounds.height / 2;
+            owned.push_back(s);
+        }
+        src = &owned;
     }
     std::vector<Comp> comps;
-    comps.reserve(comps_all.size());
-    for (const auto& c : comps_all) {
-        if (c.bounds.width * 10 >= max_w * 3 && c.bounds.height * 10 >= max_h * 3 &&
-            c.bounds.width >= min_cell / 2 && c.bounds.height >= min_cell / 2) {
-            comps.push_back({c.bounds.x + c.bounds.width / 2,
-                             c.bounds.y + c.bounds.height / 2, c.bounds});
-        }
+    comps.reserve(src->size());
+    for (const auto& c : *src) {
+        comps.push_back({c.cx, c.cy, c.bounds});
     }
     const int n_comps = static_cast<int>(comps.size());
     if (n_comps < 3) return result;  // 组件太少无法验证
@@ -316,46 +396,63 @@ GridDetection detect_grid(const Mask& mask, int min_cell, int max_cell) {
             // boundary：组件 bbox 是否完整落在单个 cell 内（不跨越任何网格线）
             double boundary_ok = 0;
             for (const auto& c : comps) {
-                // 组件左边界和右边界应处于同一列 cell，上下同理
-                auto cell_index = [](int val, int offset, int period) {
-                    return (val - offset) / period;
-                };
-                const int left_cell = cell_index(c.bounds.x, cand.offset_x, px.period);
+                const int left_cell = floor_div(c.bounds.x - cand.offset_x, px.period);
                 const int right_cell =
-                    cell_index(c.bounds.x + c.bounds.width - 1, cand.offset_x, px.period);
-                const int top_cell = cell_index(c.bounds.y, cand.offset_y, py.period);
+                    floor_div(c.bounds.x + c.bounds.width - 1 - cand.offset_x, px.period);
+                const int top_cell = floor_div(c.bounds.y - cand.offset_y, py.period);
                 const int bot_cell =
-                    cell_index(c.bounds.y + c.bounds.height - 1, cand.offset_y, py.period);
-                const bool inside_one_cell = (left_cell == right_cell) &&
-                                             (top_cell == bot_cell);
+                    floor_div(c.bounds.y + c.bounds.height - 1 - cand.offset_y, py.period);
+                const bool inside_one_cell =
+                    (left_cell == right_cell) && (top_cell == bot_cell);
                 if (inside_one_cell) ++boundary_ok;
             }
             cand.boundary = boundary_ok / n_comps;
 
             // size_consistency
-            cand.size_consistency =
-                size_consistency(comps, px.period, py.period);
+            cand.size_consistency = size_consistency(comps, px.period, py.period);
 
-            // occupancy：用该网格切分后，非空 cell 占比应适中（0.05~0.9）
-            const auto rects = grid_detect(mask, std::max(px.period, py.period));
-            // 用实际 rects 数量评估（接近真实 cell 数 = 有占用分布）
-            const double grid_cells = rects.size();
-            // 理论总 cell 数
-            const int cols = (w + px.period - 1) / px.period;
-            const int rows = (h + py.period - 1) / py.period;
-            const double total_cells = cols * rows;
-            const double occupancy_ratio = total_cells > 0 ? grid_cells / total_cells : 0;
-            // 适中（0.1~0.9）给高分
-            cand.occupancy =
-                std::clamp(1.0 - std::abs(occupancy_ratio - 0.5) * 2.0, 0.0, 1.0);
+            // ---- 网格几何统计（修正：不再 max(px,py) 压方形，用真实 period + offset）----
+            const GridStats st = grid_stats(mask, px.period, py.period, cand.offset_x,
+                                            cand.offset_y, kMinOpaqueCellPixels);
+            cand.columns = st.columns;
+            cand.rows = st.rows;
+            cand.cell_occupancy = st.avg_foreground_ratio;
+
+            // ---- Component → Cell mapping：每组件一个 cell 线性索引，统计占用 cell ----
+            std::vector<int> indices;
+            indices.reserve(n_comps);
+            std::vector<int> sorted;
+            sorted.reserve(n_comps);
+            for (const auto& c : comps) {
+                const int cx = component_cell_index(c.cx, cand.offset_x, px.period, st.columns);
+                const int cy = component_cell_index(c.cy, cand.offset_y, py.period, st.rows);
+                const int lin = cy * st.columns + cx;
+                indices.push_back(lin);
+                sorted.push_back(lin);
+            }
+            std::sort(sorted.begin(), sorted.end());
+            const int unique_cells =
+                static_cast<int>(std::unique(sorted.begin(), sorted.end()) - sorted.begin());
+            cand.component_count = n_comps;
+            cand.occupied_cells = unique_cells;
+            cand.component_coverage = n_comps > 0
+                                          ? static_cast<double>(unique_cells) / n_comps
+                                          : 0.0;
+            cand.component_cell_indices = std::move(indices);
+
+            // ---- occupancy（修正：原「非空 cell 占比接近 0.5 最高分」对全占满的
+            //      完美网格给 0 分，方向反了。改为：几何占用率高 + cell 内前景占比
+            //      合理 → 高分；噪声网格 avg_fg 极低 → 降权）----
+            const double total_cells = static_cast<double>(st.rows) * st.columns;
+            const double occupied_ratio = total_cells > 0 ? st.occupied / total_cells : 0.0;
+            cand.occupancy = occupied_ratio * std::clamp(cand.cell_occupancy * 8.0, 0.0, 1.0);
 
             // 综合分（权重：周期 20% / 对齐 35% / 边界 25% / 尺寸 5% / 占用 15%）
-            // alignment 最高：组件中心对齐是最可靠特征；boundary 次高：组件跨边界是硬伤
             cand.score = 0.20 * cand.periodicity + 0.35 * cand.alignment +
                          0.25 * cand.boundary + 0.05 * cand.size_consistency +
                          0.15 * cand.occupancy;
 
-            result.candidates.push_back(cand);
+            result.candidates.push_back(std::move(cand));
         }
     }
 
