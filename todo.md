@@ -145,10 +145,12 @@
 - [x] merge_distance 合并（膨胀 bbox 相交 union）+ padding clamp 到 cell 边界（主组件概念）
 - [x] 回归测试 `tests/test_auto.cpp`：6 类场景（uniform grid→GRID / irregular→COMPONENTS / 鱼图 4×7→COMPONENTS_IN_GRID 28 bbox / touching / noise / empty cells）+ merge + padding
 - [x] SKILL.md 同步（auto 决策管线 + merge 适用范围）
+- [x] **Godot UI 透传（✅）**：`SpriteSplitter.split_detailed()` 返回 rects + auto 诊断（mode/confidence/layout/cell/offset）；侧栏新增「切割策略（自动/物体边界/网格单元 → core `SlicePolicy` 强制覆盖）+ Padding」控件（仅 auto 模式可编辑，`sps_data` 持久化）；切分后 InfoLabel 显示「检测到 N 组件 | 布局 | Cell | 策略 | 置信度」；画布灰色 grid overlay（cell 线 + 红框 = 实际 sprite，调试 Auto 决策）
+- [x] 恢复默认参数自动 min-size 推导（最大组件 1/4，clamp 2..64）：重构时误删导致 big 素材 auto 148 碎片 → 恢复后 80（与旧 golden 一致；用户显式传参时尊重用户）
 
-**Auto 重构验收（已达成）**：100 用例 / 2667 断言全绿；鱼图 4×7 / 176×176 布局 → 28 个 120×105 组件 BBox（非 176×176 cell）；grid8 素材 auto 仍 5 sprites 零回归；CLI `--format json` 输出 `auto` 诊断。
+**Auto 重构验收（已达成）**：100 用例 / 2667 断言全绿；鱼图 4×7 / 176×176 布局 → 28 个 120×105 组件 BBox（非 176×176 cell）；grid8 素材 auto 仍 5 sprites 零回归；CLI `--format json` 输出 `auto` 诊断；Godot headless 冒烟（main.gd）fail=false（含 split_detailed/slice_policy/padding 新断言）+ UI harness 98 断言全 PASS。
 
-**待办（可选）**：Godot UI 显示检测结果（方案 §22-23：切割策略/置信度/Padding 控件 + 预览灰色 grid overlay）；6 类回归素材固化为 fixtures PNG（方案 §25）。
+**待办（可选）**：6 类回归素材固化为 fixtures PNG（方案 §25）。
 
 ## 进行中
 
