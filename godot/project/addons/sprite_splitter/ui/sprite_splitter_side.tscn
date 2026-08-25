@@ -207,6 +207,31 @@ theme_override_constants/separation = 6
 layout_mode = 2
 text = "背景清理"
 
+[node name="BackendRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BackendLabel" type="Label" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BackendRow"]
+layout_mode = 2
+text = "后端"
+
+[node name="BackendOption" type="OptionButton" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BackendRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BgColorRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BgColorEnable" type="CheckButton" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "手动吸色"
+
+[node name="BgColorPicker" type="ColorPickerButton" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow"]
+layout_mode = 2
+color = Color(1, 1, 1, 1)
+
 [node name="BgThrRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
@@ -221,6 +246,19 @@ size_flags_horizontal = 3
 min_value = 0.0
 max_value = 64.0
 value = 12.0
+
+[node name="BgUrlRow" type="HBoxContainer" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BgUrlLabel" type="Label" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgUrlRow"]
+layout_mode = 2
+text = "Remote URL"
+
+[node name="BgUrl" type="LineEdit" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgUrlRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "http://127.0.0.1:8000"
 
 [node name="BgRemoveBtn" type="Button" parent="VBox/TabContainer/BgTab/VBox/BgCard/BgVBox"]
 layout_mode = 2

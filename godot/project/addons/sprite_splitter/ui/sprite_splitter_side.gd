@@ -18,6 +18,10 @@ const SLICE_POLICY_KEYS: Array[String] = [
 	"auto", "components", "grid"]
 const EXPORT_LABELS: Array[String] = [
 	"切 PNG", "仅 meta.json", "AtlasTexture .tres"]
+const BG_BACKEND_LABELS: Array[String] = [
+	"color（纯算法）", "remote（AI 服务）"]
+const BG_BACKEND_KEYS: Array[String] = [
+	"color", "remote"]
 
 var _controller: SpsController = null
 # 打开素材对话框已移至主视图 Header；侧栏保留导入 meta.json 对话框
@@ -42,6 +46,10 @@ var _meta_dialog: Variant = null
 @onready var _import_meta_btn: Button = get_node("VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox/ImportMetaBtn")
 @onready var _count_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/CountLabel")
 @onready var _bg_thr: SpinBox = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgThrRow/BgThr")
+@onready var _bg_backend_option: OptionButton = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BackendRow/BackendOption")
+@onready var _bg_color_enable: CheckButton = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow/BgColorEnable")
+@onready var _bg_color_picker: ColorPickerButton = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgColorRow/BgColorPicker")
+@onready var _bg_url: LineEdit = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgUrlRow/BgUrl")
 @onready var _bg_remove_btn: Button = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgRemoveBtn")
 @onready var _export_mode_option: OptionButton = get_node("VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/ExportModeOption")
 @onready var _out_dir: LineEdit = get_node("VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/OutDir")
@@ -104,6 +112,10 @@ func _rebuild_options() -> void:
 	for label: String in EXPORT_LABELS:
 		_export_mode_option.add_item(label)
 	_export_mode_option.select(0)
+	_bg_backend_option.clear()
+	for label: String in BG_BACKEND_LABELS:
+		_bg_backend_option.add_item(label)
+	_bg_backend_option.select(0)
 
 
 func _connect_signals() -> void:
@@ -127,6 +139,10 @@ func _connect_signals() -> void:
 	_slice_policy.item_selected.connect(_on_dirty_signal)
 	_padding.value_changed.connect(_on_dirty_signal)
 	_bg_thr.value_changed.connect(_on_dirty_signal)
+	_bg_backend_option.item_selected.connect(_on_bg_backend_changed)
+	_bg_color_enable.toggled.connect(_on_bg_color_enable_toggled)
+	_bg_color_picker.color_changed.connect(_on_dirty_signal)
+	_bg_url.text_changed.connect(_on_dirty_signal)
 
 
 # ---------- 主题化（跟随编辑器主题） ----------
@@ -196,7 +212,29 @@ func _on_analyze() -> void:
 
 func _on_bg_remove() -> void:
 	if _controller != null:
-		_controller.remove_background(int(_bg_thr.value))
+		_controller.remove_background(int(_bg_thr.value),
+				_current_bg_backend(), _bg_color_enable.button_pressed,
+				_bg_color_picker.color, _bg_url.text)
+
+
+func _current_bg_backend() -> String:
+	return BG_BACKEND_KEYS[_bg_backend_option.selected]
+
+
+# 后端切换：remote 显示 URL、禁用 color 参数（阈值/吸色）；color 反之
+func _on_bg_backend_changed(_index: int) -> void:
+	var is_remote: bool = _current_bg_backend() == "remote"
+	_bg_url.editable = is_remote
+	_bg_thr.editable = not is_remote
+	_bg_color_enable.disabled = is_remote
+	_bg_color_picker.disabled = is_remote or not _bg_color_enable.button_pressed
+	if _controller != null:
+		_controller.mark_dirty()
+
+
+func _on_bg_color_enable_toggled(_on: bool) -> void:
+	_bg_color_picker.disabled = not _on or _current_bg_backend() == "remote"
+	_on_dirty_signal()
 
 
 func _on_split() -> void:
@@ -241,6 +279,11 @@ func _build_options() -> Dictionary:
 			opts["padding"] = int(_padding.value)
 		if int(_merge_dist.value) > 0:
 			opts["merge_distance"] = int(_merge_dist.value)
+	# 去背景参数（save_project 持久化用；split 的 parse_options 忽略未知 key）
+	opts["background_backend"] = _current_bg_backend()
+	opts["use_bg_color"] = _bg_color_enable.button_pressed
+	opts["bg_color"] = _bg_color_picker.color
+	opts["bg_url"] = _bg_url.text
 	return opts
 
 
@@ -295,6 +338,19 @@ func _on_data_loaded(data: SpriteSplitterData) -> void:
 		_slice_policy.select(sp_idx)
 	_padding.set_value_no_signal(float(data.padding))
 	_bg_thr.set_value_no_signal(float(data.background_threshold))
+	var bg_idx: int = BG_BACKEND_KEYS.find(data.background_backend)
+	if bg_idx < 0:
+		bg_idx = 0
+	_bg_backend_option.select(bg_idx)
+	_bg_color_enable.set_pressed_no_signal(data.use_bg_color)
+	_bg_color_picker.color = data.bg_color
+	_bg_url.text = data.bg_url
+	# 刷新 enable 态（remote 禁用 color 参数）——不调 _on_bg_backend_changed（会 mark_dirty）
+	var is_remote_bg: bool = _current_bg_backend() == "remote"
+	_bg_url.editable = is_remote_bg
+	_bg_thr.editable = not is_remote_bg
+	_bg_color_enable.disabled = is_remote_bg
+	_bg_color_picker.disabled = is_remote_bg or not _bg_color_enable.button_pressed
 	_out_dir.text = data.out_dir
 	_export_mode_option.select(data.export_mode)
 	_info_label.text = "已恢复项目: " + data.project_name

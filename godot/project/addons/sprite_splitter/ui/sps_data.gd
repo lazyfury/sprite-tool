@@ -22,6 +22,10 @@ extends Resource
 @export var slice_policy: String = "auto"   # auto 模式切割策略：auto | components | grid
 @export var padding: int = 0                # auto 模式 rect 外扩
 @export var background_threshold: int = 12
+@export var background_backend: String = "color"   # 去背景后端：color | remote
+@export var use_bg_color: bool = false             # 手动吸色开关（color 后端）
+@export var bg_color: Color = Color(1, 1, 1, 1)    # 手动背景色
+@export var bg_url: String = "http://127.0.0.1:8000"  # remote 后端 base URL
 @export var out_dir: String = "res://out_sprites/ui"
 @export var export_mode: int = 0
 @export var sprites: Array[Rect2i] = []     # 切分结果（meta.json sprites 兼容）

@@ -52,9 +52,14 @@ public:
     // 分析：返回 Dictionary 统计（alpha 分布 / 分量数 / 推荐 min 尺寸），供 UI 参数推荐。
     Dictionary analyze(const Ref<Image> &p_image, int p_background_threshold = 12);
 
-    // 整图去背景：Color 后端（四角采样 + flood fill），背景像素 alpha 置 0。
-    // 返回透明 Image（同尺寸）；失败（null 图 / 不支持格式）返回 null。
-    // options: background_threshold int（RGB 曼哈顿距离阈值，默认 12）
+    // 整图去背景：背景像素 alpha 置 0，返回透明 Image（同尺寸）。
+    // 失败（null 图 / 不支持格式 / remote 不可达）返回 null。
+    // options:
+    //   background_threshold int    颜色距离阈值下限（默认 12）
+    //   backend              String "color"（默认，纯算法）| "remote"（HTTP AI 服务）
+    //   use_bg_color         bool   true 时用 bg_color 手动指定背景色（吸色；默认 false=环带采样）
+    //   bg_color             Color  手动背景色（0-1 float）
+    //   bg_url               String remote 后端 base URL（默认 http://127.0.0.1:8000）
     Ref<Image> remove_background(const Ref<Image> &p_image, const Dictionary &p_options);
 
     // 裁剪：返回子图（godot::Image），rect 越界自动 clamp。image 为 null 返回 null。

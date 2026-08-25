@@ -48,11 +48,17 @@ set(SPS_CORE_SRC
   ${CMAKE_CURRENT_SOURCE_DIR}/../core/export/sheet.cpp
 )
 
+# extra：Remote 背景后端（httplib，与 CLI 同源注册表；register_backend 幂等）
+set(SPS_EXTRA_SRC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../extra/bg_remote/bg_remote.cpp
+)
+
 add_library(${LIBNAME} SHARED
   src/register_types.cpp
   src/conversion.cpp
   src/sprite_splitter.cpp
   ${SPS_CORE_SRC}
+  ${SPS_EXTRA_SRC}
 )
 
 target_link_libraries(${LIBNAME} PRIVATE godot-cpp)
@@ -60,6 +66,8 @@ target_link_libraries(${LIBNAME} PRIVATE godot-cpp)
 target_include_directories(${LIBNAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/..
   ${CMAKE_CURRENT_SOURCE_DIR}/../core
+  ${CMAKE_CURRENT_SOURCE_DIR}/../extra/bg_remote
+  ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/httplib
   ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/stb
   ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/json
 )

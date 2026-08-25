@@ -360,6 +360,10 @@ func save_project(project_name: String, options: Dictionary, out_dir: String,
 	data.padding = int(options.get("padding", data.padding))
 	data.background_threshold = int(options.get("background_threshold",
 			data.background_threshold))
+	data.background_backend = String(options.get("background_backend", data.background_backend))
+	data.use_bg_color = bool(options.get("use_bg_color", data.use_bg_color))
+	data.bg_color = options.get("bg_color", data.bg_color)
+	data.bg_url = String(options.get("bg_url", data.bg_url))
 	data.out_dir = out_dir
 	data.export_mode = export_mode
 	data.sprites = rects.duplicate()   # 始终同步当前区域（含空）→ 配置与当前状态一致
@@ -448,15 +452,24 @@ func _auto_mode_name(mode: int) -> String:
 
 # 去背景：处理图写盘为新 PNG（res://out_sprites/<原名>_transparent.png，与 CLI 同名），
 # 并更新项目数据源（source_image / source_texture / sheet_uid）与 image_res_path。
+# backend：color（纯算法，可用手动吸色 bg_color）| remote（HTTP AI 服务，bg_url）。
 # 编辑器模式：触发扫描导入 → 等新 PNG 的 uid 生成 → 更新 uid/纹理 + 迁移 data_path；
 # 运行模式（无导入流程）：仅更新路径，uid/纹理留待编辑器扫描后生效。
-func remove_background(threshold: int) -> void:
+func remove_background(threshold: int, backend: String, use_bg_color: bool,
+		bg_color: Color, bg_url: String) -> void:
 	if image == null:
 		status_changed.emit("先打开素材表", true)
 		return
 	status_changed.emit("去背景中...", false)
 	await _wait_frame()
-	var out: Image = splitter.remove_background(image, {"background_threshold": threshold})
+	var opts: Dictionary = {"background_threshold": threshold, "backend": backend}
+	if backend == "color":
+		if use_bg_color:
+			opts["use_bg_color"] = true
+			opts["bg_color"] = bg_color
+	elif not bg_url.strip_edges().is_empty():
+		opts["bg_url"] = bg_url.strip_edges()
+	var out: Image = splitter.remove_background(image, opts)
 	if out == null:
 		status_changed.emit("去背景失败（图像格式不支持）", true)
 		return
@@ -475,7 +488,7 @@ func remove_background(threshold: int) -> void:
 	image_loaded.emit(ImageTexture.create_from_image(out))
 	rects_changed.emit([] as Array[Rect2i])   # 图已变：清空画布红框与切片列表
 	count_changed.emit("")
-	status_changed.emit("已去背景（背景透明）", false)
+	status_changed.emit("已去背景（%s，背景透明）" % backend, false)
 
 
 # 去背景图写盘：res://out_sprites/<原名stem>_transparent.png（与 CLI remove-background 一致）

@@ -1,6 +1,7 @@
 #include "sprite_splitter.h"
 
 #include "conversion.h"
+#include "bg_remote.hpp"
 
 #include <godot_cpp/classes/dir_access.hpp>
 #include <godot_cpp/classes/file_access.hpp>
@@ -13,6 +14,7 @@
 #include "core/segmentation/background_remover.hpp"
 #include "core/segmentation/splitter.hpp"
 
+#include <algorithm>
 #include <exception>
 #include <memory>
 
@@ -188,18 +190,43 @@ Ref<Image> SpriteSplitter::remove_background(const Ref<Image> &p_image,
         if (p_options.has("background_threshold")) {
             opts.color.threshold = static_cast<int>(p_options["background_threshold"]);
         }
+        // 吸色：手动指定背景色（Color 0-1 → sps Pixel 0-255）
+        if (p_options.has("use_bg_color") && p_options["use_bg_color"] &&
+            p_options.has("bg_color")) {
+            const Color c = p_options["bg_color"];
+            opts.color.has_bg_color = true;
+            opts.color.bg_color = {
+                static_cast<uint8_t>(std::clamp(c.r, 0.0f, 1.0f) * 255.0f),
+                static_cast<uint8_t>(std::clamp(c.g, 0.0f, 1.0f) * 255.0f),
+                static_cast<uint8_t>(std::clamp(c.b, 0.0f, 1.0f) * 255.0f), 255};
+        }
+        // 后端：color（默认）| remote
+        sps::BackgroundBackend backend = sps::BackgroundBackend::Color;
+        String backend_name = "color";
+        if (p_options.has("backend")) {
+            const String b = p_options["backend"];
+            if (b == "remote") {
+                backend = sps::BackgroundBackend::Remote;
+                backend_name = "remote";
+                if (p_options.has("bg_url")) {
+                    opts.remote_url = String(p_options["bg_url"]).utf8().get_data();
+                }
+                sps::bg_remote::register_backend();  // 幂等；确保 extra 后端已注册
+            }
+        }
         std::unique_ptr<sps::BackgroundRemover> remover =
-                sps::create_background_remover(sps::BackgroundBackend::Color, opts);
+                sps::create_background_remover(backend, opts);
         if (!remover) {
             UtilityFunctions::push_error(
-                    "SpriteSplitter.remove_background: Color backend not registered");
+                    String("SpriteSplitter.remove_background: backend not registered ({0})")
+                            .format(backend_name));
             return Ref<Image>();
         }
         const sps::Image out = remover->process_transparent(img);
         return to_godot_image(out);
     } catch (const std::exception &e) {
         UtilityFunctions::push_error(
-                String("SpriteSplitter.remove_background: {0}").format(String(e.what())));
+                String("SpriteSplitter.remove_background: ") + String(e.what()));
         return Ref<Image>();
     }
 }

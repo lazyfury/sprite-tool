@@ -393,7 +393,7 @@ func _auto_test() -> void:
 			"auto test: reimport repair fixes stale source_image (persisted)")
 	_check(_controller.load_image(DEFAULT_SHEET), "auto test: restore sheet")
 	# 去背景 → 写透明 PNG + 更新源（运行模式：路径更新，uid/纹理留待编辑器导入）
-	await _controller.remove_background(12)
+	await _controller.remove_background(12, "color", false, Color.WHITE, "http://127.0.0.1:8000")
 	_check(FileAccess.file_exists("res://out_sprites/sheet_transparent.png"),
 			"auto test: bg remove writes transparent png")
 	_check(_controller.data.source_image == "res://out_sprites/sheet_transparent.png",

@@ -106,6 +106,12 @@ func _run_tests() -> void:
 	print("[sps] grid8 bg+auto -> ", brects.size(), " rects")
 	_check(brects.size() == 5, "grid8 bg+auto: 5 rects (got %d)" % brects.size())
 
+	# --- 4b) remove_background remote：后端已注册验证（无服务 → null + unreachable，非 backend not registered）---
+	var remote_img: Image = ss.remove_background(sheet,
+			{"backend": "remote", "bg_url": "http://127.0.0.1:1"})
+	_check(remote_img == null,
+			"remote bg unreachable -> null (backend registered, err reported)")
+
 	# --- 5) analyze ---
 	var stats: Dictionary = ss.analyze(sheet)
 	print("[sps] analyze: ", stats)
