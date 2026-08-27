@@ -8,7 +8,7 @@ extends Control
 ## 同一变换绘制 → 天然像素对齐。
 ##
 ## 工具模式（工具栏切换，PS 风格）：
-##   MOVE   拖拽移动（左键/中键拖拽平移视图）；滚轮缩放、双击 fit
+##   MOVE   拖拽移动（左键/中键拖拽平移视图）；滚轮缩放、双击 fit；选中高亮保留（数据驱动）
 ##   SELECT 点击选中切分好的方块（高亮）；画矩形选中多个相交方块；右键清空
 ##   CROP   画矩形定义自由裁切区域（发出 selection_drawn 供导出选中）
 ##
@@ -639,9 +639,10 @@ func _draw() -> void:
 		var r: Rect2i = _rects[i]
 		var frame: Color = LOCKED_RECT_COLOR if _is_locked(i) else RECT_COLOR
 		draw_rect(Rect2(Vector2(r.position), Vector2(r.size)), frame, false, lw)
-	# SELECT/EDIT：选中方块高亮（黄）——由数据 selected 字段渲染（与列表 emoji 一致，
-	# 框选多选回流 set_sprites 后不丢高亮）
-	if _tool == Tool.SELECT or _tool == Tool.EDIT:
+	# 选中方块高亮（黄）——由数据 selected 字段渲染（与列表 emoji 一致，
+	# 框选多选回流 set_sprites 后不丢高亮；SELECT/EDIT/MOVE 均渲染：
+	# MOVE 平移视图时选中数据仍在，保持高亮一致）
+	if _tool == Tool.SELECT or _tool == Tool.EDIT or _tool == Tool.MOVE:
 		for i: int in _sprites.size():
 			if bool(_sprites[i].get("selected", false)):
 				var rr: Rect2 = Rect2(Vector2(_rects[i].position), Vector2(_rects[i].size))

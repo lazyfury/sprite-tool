@@ -1,0 +1,239 @@
+[gd_scene format=3 uid="uid://c0spsbldr01"]
+
+[ext_resource type="Script" uid="uid://020714bmhs7v" path="res://addons/sprite_splitter/ui/sheet_builder_window.gd" id="1_win"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+bg_color = Color(0, 0, 0, 0.3)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[node name="SheetBuilderWindow" type="Window" unique_id=141031824]
+oversampling_override = 1.0
+title = "创建 Sheets"
+position = Vector2i(0, 36)
+size = Vector2i(1920, 1080)
+min_size = Vector2i(440, 560)
+script = ExtResource("1_win")
+
+[node name="Scroll" type="ScrollContainer" parent="." unique_id=937756520]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="VBox" type="VBoxContainer" parent="Scroll" unique_id=523346227]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="MarginContainer" type="MarginContainer" parent="Scroll/VBox" unique_id=1668322200]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="FilesRow" type="HBoxContainer" parent="Scroll/VBox/MarginContainer" unique_id=1919952082]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FilesBtn" type="Button" parent="Scroll/VBox/MarginContainer/FilesRow" unique_id=539747917]
+layout_mode = 2
+text = "选择图片…"
+
+[node name="FilesLabel" type="Label" parent="Scroll/VBox/MarginContainer/FilesRow" unique_id=966547343]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "未选择图片"
+autowrap_mode = 3
+
+[node name="ResetBtn" type="Button" parent="Scroll/VBox/MarginContainer/FilesRow"]
+layout_mode = 2
+tooltip_text = "清空已选素材/预览/结果，并重新生成随机文件名"
+text = "🔄 重新开始"
+
+[node name="Split" type="HSplitContainer" parent="Scroll/VBox" unique_id=1921587915]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="LeftPanel" type="PanelContainer" parent="Scroll/VBox/Split" unique_id=563097845]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="LeftVBox" type="VBoxContainer" parent="Scroll/VBox/Split/LeftPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SourceList" type="ItemList" parent="Scroll/VBox/Split/LeftPanel/LeftVBox" unique_id=1285373036]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+max_columns = 0
+fixed_icon_size = Vector2i(48, 48)
+
+[node name="OrderRow" type="HBoxContainer" parent="Scroll/VBox/Split/LeftPanel/LeftVBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="UpBtn" type="Button" parent="Scroll/VBox/Split/LeftPanel/LeftVBox/OrderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "上移选中素材（调整 sheet 排布顺序）"
+text = "↑ 上移"
+
+[node name="DownBtn" type="Button" parent="Scroll/VBox/Split/LeftPanel/LeftVBox/OrderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "下移选中素材（调整 sheet 排布顺序）"
+text = "↓ 下移"
+
+[node name="RightPanel" type="VBoxContainer" parent="Scroll/VBox/Split" unique_id=1369698571]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="ParamCard" type="PanelContainer" parent="Scroll/VBox/Split/RightPanel" unique_id=679105633]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="ParamVBox" type="VBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard" unique_id=702323096]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ParamTitle" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox" unique_id=1963006563]
+layout_mode = 2
+text = "参数"
+
+[node name="ColsRow" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox" unique_id=134133266]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ColsLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/ColsRow" unique_id=4321774]
+layout_mode = 2
+text = "列数"
+
+[node name="Cols" type="SpinBox" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/ColsRow" unique_id=1032517694]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 64.0
+value = 8.0
+
+[node name="PaddingRow" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox" unique_id=2056691363]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PaddingLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/PaddingRow" unique_id=384587121]
+layout_mode = 2
+text = "间距 px"
+
+[node name="Padding" type="SpinBox" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/PaddingRow" unique_id=870102487]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 64.0
+value = 4.0
+
+[node name="CellRow" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox" unique_id=1241038578]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CellWLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellRow" unique_id=1080623371]
+layout_mode = 2
+text = "格子宽 (0=自适应)"
+
+[node name="CellW" type="SpinBox" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellRow" unique_id=572770272]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 2048.0
+
+[node name="CellHLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellRow" unique_id=1218733558]
+layout_mode = 2
+text = "格子高"
+
+[node name="CellH" type="SpinBox" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellRow" unique_id=1503190474]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 2048.0
+
+[node name="FileNameRow" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox" unique_id=659458370]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="FileNameLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/FileNameRow" unique_id=1180758349]
+layout_mode = 2
+text = "文件名"
+
+[node name="SheetFileName" type="LineEdit" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/FileNameRow" unique_id=753835460]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "空 = sheet"
+
+[node name="FileNameBtns" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RandomNameBtn" type="Button" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/FileNameBtns"]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "重新生成一个随机文件名"
+text = "🎲 随机文件名"
+
+[node name="OverwriteCheck" type="CheckButton" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox" unique_id=1302604746]
+layout_mode = 2
+text = "同名已存在时自动另存为（加序号）"
+
+[node name="ActionCard" type="PanelContainer" parent="Scroll/VBox/Split/RightPanel" unique_id=949330523]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="ActionVBox" type="VBoxContainer" parent="Scroll/VBox/Split/RightPanel/ActionCard" unique_id=1562040608]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="OutDirRow" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ActionCard/ActionVBox" unique_id=1847666616]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="OutDirLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ActionCard/ActionVBox/OutDirRow" unique_id=1318240029]
+layout_mode = 2
+text = "输出目录"
+
+[node name="OutDir" type="LineEdit" parent="Scroll/VBox/Split/RightPanel/ActionCard/ActionVBox/OutDirRow" unique_id=2142915688]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "res://out_sheet"
+
+[node name="PreviewBtn" type="Button" parent="Scroll/VBox/Split/RightPanel/ActionCard/ActionVBox" unique_id=1927560522]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "预览"
+
+[node name="Preview" type="TextureRect" parent="Scroll/VBox/Split/RightPanel/ActionCard/ActionVBox" unique_id=1133008747]
+visible = false
+custom_minimum_size = Vector2(0, 220)
+layout_mode = 2
+size_flags_horizontal = 3
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ExportBtn" type="Button" parent="Scroll/VBox/Split/RightPanel/ActionCard/ActionVBox" unique_id=144154134]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "导出 Sheet"
+
+[node name="ResultLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ActionCard/ActionVBox" unique_id=601886298]
+layout_mode = 2
+autowrap_mode = 3

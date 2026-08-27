@@ -1,0 +1,80 @@
+[gd_scene format=3 uid="uid://c0spscln001"]
+
+[ext_resource type="Script" uid="uid://cjubo3xashras" path="res://addons/sprite_splitter/ui/cleanup_window.gd" id="1_cln"]
+
+[node name="CleanupWindow" type="Window"]
+size = Vector2i(760, 480)
+title = "清理生成资源"
+exclusive = false
+script = ExtResource("1_cln")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Row" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SummaryLabel" type="Label" parent="VBox/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "共 0 个 | 占用 0 | 可清理 0"
+
+[node name="RefreshBtn" type="Button" parent="VBox/Row"]
+layout_mode = 2
+tooltip_text = "重新扫描占用状态（插件自身使用 / 项目文本引用）"
+text = "刷新检查"
+
+[node name="ListArea" type="Control" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="List" type="ItemList" parent="VBox/ListArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+select_mode = 1
+
+[node name="EmptyLabel" type="Label" parent="VBox/ListArea"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "暂无生成资源"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ActionRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CleanSelBtn" type="Button" parent="VBox/ActionRow"]
+layout_mode = 2
+tooltip_text = "删除列表中选中的未占用资源（需确认，不可撤销）"
+text = "清理选中"
+
+[node name="CleanAllBtn" type="Button" parent="VBox/ActionRow"]
+layout_mode = 2
+tooltip_text = "一键清理全部未占用资源（占用项自动跳过）"
+text = "清理全部未占用"
+
+[node name="CloseBtn" type="Button" parent="VBox/ActionRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "关闭"
+
+[node name="ResultLabel" type="Label" parent="VBox"]
+layout_mode = 2
+text = ""
+autowrap_mode = 2

@@ -57,6 +57,16 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = "打开素材表..."
 
+[node name="CreateSheetsBtn" type="Button" parent="MainVBox/Header/HeaderRow"]
+layout_mode = 2
+tooltip_text = "从多张已切分小图组装 sprite sheet（独立窗口）"
+text = "创建 Sheets"
+
+[node name="CleanupBtn" type="Button" parent="MainVBox/Header/HeaderRow"]
+layout_mode = 2
+tooltip_text = "列出全部生成资源，检查占用并清理（独立窗口）"
+text = "清理资源"
+
 [node name="DataBtn" type="Button" parent="MainVBox/Header/HeaderRow" unique_id=419270011]
 layout_mode = 2
 tooltip_text = "打开 SpriteSplitterData 项目配置（Inspector 编辑）"
@@ -119,6 +129,20 @@ theme_override_constants/separation = 6
 [node name="TitleLabel" type="Label" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox" unique_id=1884872156]
 layout_mode = 2
 text = "切片数据"
+
+[node name="GroupRow" type="HBoxContainer" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox" unique_id=1100835839]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="GroupOption" type="OptionButton" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox/GroupRow" unique_id=1025229248]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "选择分组（编辑面板可设置切片分组）"
+
+[node name="SelectGroupBtn" type="Button" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox/GroupRow" unique_id=450739904]
+layout_mode = 2
+tooltip_text = "选中该分组全部切片（画布/列表/编辑面板同步）"
+text = "按组选择"
 
 [node name="ListArea" type="Control" parent="MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox" unique_id=1884872157]
 layout_mode = 2
@@ -252,7 +276,7 @@ toggle_mode = true
 button_group = SubResource("ButtonGroup_6o1d3")
 text = "裁切"
 
-[node name="ConfirmCropBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ToolBar"]
+[node name="ConfirmCropBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow/ToolBar" unique_id=1456710794]
 layout_mode = 2
 disabled = true
 text = "✅ 确认裁切"
@@ -260,6 +284,15 @@ text = "✅ 确认裁切"
 [node name="VSep" type="VSeparator" parent="MainVBox/ToolBarMargin/ToolBarRow" unique_id=665405334]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="DeleteSelBtn" type="Button" parent="MainVBox/ToolBarMargin/ToolBarRow" unique_id=2142073389]
+layout_mode = 2
+tooltip_text = "删除选中的切片（需确认，不可撤销）"
+text = "删除选中"
+
+[node name="VSep2" type="VSeparator" parent="MainVBox/ToolBarMargin/ToolBarRow" unique_id=1108323132]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
 
 [node name="ZoomGroup" type="HBoxContainer" parent="MainVBox/ToolBarMargin/ToolBarRow" unique_id=1477598717]
 layout_mode = 2

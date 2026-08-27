@@ -154,3 +154,23 @@
 ## 进行中
 
 （当前：M1–M4b 全部完成；M5 全部完成（核心链路 + addons 布局 + 独立场景 UI + 编辑器 dock/框选/导入 meta）；M5.3 sheet 打包导出（需 GDExtension 补 sheet API）可选；M4 ONNX 内嵌搁置；Auto 重构核心已完成，UI 透传待做）
+
+## 未保存退出拦截（2026-08-27，✅）
+
+> 编辑器关闭时有未保存修改 → 官方弹窗「Save & Quit / Discard / Cancel」，无需 hack。
+
+- [x] `editor_plugin.gd`：`_get_unsaved_status(for_scene)`（退出编辑器时 for_scene 为空 → 有 dirty 返回提示串；关场景忽略）+ `_save_external_data()`（调 controller.flush_on_exit）。Godot 4.2+ 官方 API（PR #67503），4.6.2 编辑器模式实测加载 OK
+- [x] `sps_controller.gd`：`has_unsaved_changes()`（= is_dirty；registry 无脏状态，每次注册即落盘）+ `flush_on_exit()`（同步兜底落盘，无视自动保存防抖/挂起，跳过资产扫描；`_save_now`/`_flush_save` 加 `p_refresh_fs` 参数）
+- [x] 回归 harness +4 断言（exit guard：见脏/落盘/持久化/clean 空操作）；全量 fail=false
+
+## 统一输出目录 + 生成资源注册表 + 清理窗口（2026-08-27，✅）
+
+> 需求：统一 out 目录（父目录可在项目设置配置）；注册表记录所有生成的资源以备清理；清理窗口列出并检查占用。
+
+- [x] **输出根目录（ProjectSettings 配置）**：`sprite_splitter/out_root`（默认 `res://out_sprites`；`set_out_root(persist=true)` 编辑器模式才写 project.godot，headless 仅内存不污染）；侧栏导出 tab「输出根目录」行（LineEdit + 默认按钮，输入内存生效、回车/失焦/默认按钮持久化，全局设置不 mark_dirty）；所有生成资源统一落根目录下——新建项目数据 out_dir = `<root>/<uid>`（旧 `res://out_sprites/ui/<uid>` 作废，测试断言已同步）、去背景 PNG、导出空目录 fallback、Tools 快捷入口（原 res://sprites）
+- [x] **生成资源注册表（SpriteOutputRegistry）**：`ui/sps_output_registry.gd`（@tool Resource，`<data_dir>/output_registry.tres`，与项目注册表 SpriteSplitterRegistry 职责分离——只管生成产物）；登记全部写盘产物（切分 PNG / meta.json / AtlasTexture .tres / 去背景 PNG / sheet PNG+meta），去重+时间/大小更新+`purge_missing` 自愈；controller `register_output_file(path, kind)` 统一出口（导出/去背景/sheet/快捷入口自动登记）
+- [x] **清理窗口（cleanup_window.gd/.tscn）**：main Header「清理资源」按钮打开独立窗口（复用单例，仿 sheet_builder_window）；ItemList 列出注册资源（🔴占用/🟢可清理 + 类型/大小/时间，tooltip 完整路径）；占用检查 `check_outputs_usage`（① 插件自身：当前图 image_res_path / 项目数据 source_image；② 项目文本资源 .tscn/.tres/.gd/.json/.cfg 含路径或 uid 引用，排除 .godot 缓存与生成资源自身——互相引用不算占用）；「清理选中」「清理全部未占用」+ ConfirmationDialog 确认，占用项拒绝（force=true 可强制）；删除后注册表移除 + 资产库重扫
+- [x] 回归：harness **227 PASS**（+20 断言：out_root set/get/default_out_dir、三模式导出自动登记、去背景登记+占用判定、清理窗口列表/占用标注、未占用删除+注册表移除/占用拒绝）；sheet_test 87 PASS 零回归
+- [ ] GUI 编辑器实测（插件重启用新 Header 按钮；清理窗口打开/占用标注/删除流程；输出根目录改值持久化到项目设置）
+
+**坑（已入 SKILL.md）**：① 测试脚本（.gd）里出现生成资源完整路径字面量 → 被占用扫描误判为"项目引用" → 断言/代码里路径拆串拼接规避；② 手写 tscn 根节点漏 `script = ExtResource(...)` 行 → 场景加载成功但脚本不挂（instantiate 后 `get_script()==null`，探针对照才定位）

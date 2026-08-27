@@ -30,20 +30,32 @@ var _meta_dialog: Variant = null
 @onready var _tabs: TabContainer = get_node("VBox/TabContainer")
 @onready var _project_name_edit: LineEdit = get_node("VBox/ProjectRow/ProjectNameEdit")
 @onready var _save_btn: Button = get_node("VBox/ProjectRow/SaveBtn")
-@onready var _save_state_label: Label = get_node("VBox/ProjectRow/SaveStateLabel")
+@onready var _save_state_label: Label = get_node("VBox/SaveStateLabel")
 @onready var _analyze_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody/AnalyzeBtn")
 @onready var _info_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody/InfoLabel")
 @onready var _mode_option: OptionButton = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ModeOption")
-@onready var _min_w: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/MinW")
-@onready var _min_h: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/MinH")
-@onready var _cell_size: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/CellSize")
-@onready var _merge_dist: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/MergeDist")
-@onready var _alpha_thr: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/AlphaThr")
-@onready var _slice_policy: OptionButton = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/SlicePolicy")
-@onready var _padding: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/ParamGrid/Padding")
+@onready var _min_w: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/BaseParamCard/BaseParamVBox/BaseParamBody/MinW")
+@onready var _min_h: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/BaseParamCard/BaseParamVBox/BaseParamBody/MinH")
+@onready var _grid_cell_w: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/GridParamCard/GridParamVBox/GridParamBody/CellW")
+@onready var _grid_cell_h: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/GridParamCard/GridParamVBox/GridParamBody/CellH")
+@onready var _merge_dist: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/CompParamCard/CompParamVBox/CompParamBody/MergeDist")
+@onready var _alpha_thr: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/BaseParamCard/BaseParamVBox/BaseParamBody/AlphaThr")
+@onready var _slice_policy: OptionButton = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/AutoParamCard/AutoParamVBox/AutoParamBody/SlicePolicy")
+@onready var _padding: SpinBox = get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/AutoParamCard/AutoParamVBox/AutoParamBody/Padding")
 @onready var _split_btn: Button = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody/SplitBtn")
 @onready var _auto_analyze: CheckButton = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody/AutoAnalyze")
 @onready var _import_meta_btn: Button = get_node("VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox/ImportMetaBtn")
+@onready var _sheet_cols: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/ColsRow/Cols")
+@onready var _sheet_padding: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/PaddingRow/Padding")
+@onready var _sheet_cell_w: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/CellRow/CellW")
+@onready var _sheet_cell_h: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/CellRow/CellH")
+@onready var _sheet_file_name: LineEdit = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/FileNameRow/SheetFileName")
+@onready var _sheet_overwrite_check: CheckButton = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/OverwriteCheck")
+@onready var _sheet_out_dir: LineEdit = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/OutDirRow/SheetOutDir")
+@onready var _sheet_preview_btn: Button = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/SheetPreviewBtn")
+@onready var _sheet_preview_tex: TextureRect = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/SheetPreview")
+@onready var _sheet_export_btn: Button = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/SheetExportBtn")
+@onready var _sheet_info_label: Label = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/SheetInfo")
 @onready var _count_label: Label = get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody/CountLabel")
 @onready var _bg_thr: SpinBox = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgThrRow/BgThr")
 @onready var _bg_shrink: SpinBox = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgShrinkRow/BgShrink")
@@ -54,18 +66,32 @@ var _meta_dialog: Variant = null
 @onready var _bg_url: LineEdit = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgUrlRow/BgUrl")
 @onready var _bg_remove_btn: Button = get_node("VBox/TabContainer/BgTab/VBox/BgCard/BgVBox/BgRemoveBtn")
 @onready var _export_mode_option: OptionButton = get_node("VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/ExportModeOption")
+@onready var _out_root: LineEdit = get_node("VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/OutRootRow/OutRoot")
+@onready var _out_root_default_btn: Button = get_node("VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/OutRootRow/OutRootDefaultBtn")
 @onready var _out_dir: LineEdit = get_node("VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/OutDir")
 @onready var _export_btn: Button = get_node("VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/ExportRow/ExportBtn")
 @onready var _export_sel_btn: Button = get_node("VBox/TabContainer/ExportTab/VBox/ExportCard/ExportVBox/ExportRow/ExportSelBtn")
 @onready var _status_label: Label = get_node("VBox/StatusLabel")
+# 基础信息（分析 tab 只读展示：uid/路径/尺寸/纹理/数据）
+@onready var _info_uid: Label = get_node("VBox/TabContainer/SplitTab/VBox/InfoCard/InfoVBox/InfoBody/InfoUid")
+@onready var _info_path: Label = get_node("VBox/TabContainer/SplitTab/VBox/InfoCard/InfoVBox/InfoBody/InfoPath")
+@onready var _info_size: Label = get_node("VBox/TabContainer/SplitTab/VBox/InfoCard/InfoVBox/InfoBody/InfoSize")
+@onready var _info_texture: Label = get_node("VBox/TabContainer/SplitTab/VBox/InfoCard/InfoVBox/InfoBody/InfoTexture")
+@onready var _info_data: Label = get_node("VBox/TabContainer/SplitTab/VBox/InfoCard/InfoVBox/InfoBody/InfoData")
 # 功能卡片（主题色分组样式，_apply_theme 统一设置）
 @onready var _cards: Array[PanelContainer] = [
 	get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard"),
+	get_node("VBox/TabContainer/SplitTab/VBox/InfoCard"),
 	get_node("VBox/TabContainer/SplitTab/VBox/ParamCard"),
+	get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/BaseParamCard"),
+	get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/GridParamCard"),
+	get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/CompParamCard"),
+	get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/AutoParamCard"),
 	get_node("VBox/TabContainer/SplitTab/VBox/ActionCard"),
 	get_node("VBox/TabContainer/BgTab/VBox/BgCard"),
 	get_node("VBox/TabContainer/ExportTab/VBox/ExportCard"),
 	get_node("VBox/TabContainer/ImportTab/VBox/ImportCard"),
+	get_node("VBox/TabContainer/SheetTab/VBox/SheetCard"),
 ]
 
 
@@ -81,6 +107,10 @@ func set_controller(c: SpsController) -> void:
 	_controller.data_loaded.connect(_on_data_loaded)
 	_controller.data_dirty_changed.connect(_on_data_dirty)
 	_controller.data_saved.connect(_on_data_saved)
+	_controller.autosave_state_changed.connect(_on_autosave_state)
+	_controller.autosave_countdown.connect(_on_autosave_countdown)
+	_controller.image_loaded.connect(_on_info_updated)   # 打开/关闭素材 → 刷新基础信息
+	_refresh_out_root()   # 全局输出根目录（项目设置），不随项目数据加载
 
 
 func _ready() -> void:
@@ -88,23 +118,26 @@ func _ready() -> void:
 	_rebuild_options()
 	_setup_fold_headers()
 	_connect_signals()
+	_refresh_export_sel_btn()
 	_apply_theme()
 	if Engine.is_editor_hint():
 		EditorInterface.get_base_control().theme_changed.connect(_apply_theme)
 
 
-# 功能分组 tab（切分[含分析]/去背景/导出/导入；选择图片+地址在顶部 Header）
+# 功能分组 tab（切分[含分析]/去背景/导出/导入/Sheet；选择图片+地址在顶部 Header）
 func _setup_tabs() -> void:
 	_tabs.set_tab_title(0, "切分")
 	_tabs.set_tab_title(1, "去背景")
 	_tabs.set_tab_title(2, "导出")
 	_tabs.set_tab_title(3, "导入")
+	_tabs.set_tab_title(4, "Sheet")
 
 
 # 检查器风格折叠分组（原生 Button flat + toggle）：header 点击 → body 展开/收起，
-# 箭头 ▾/▸ 同步。tscn 的 header 已设 flat/toggle/左对齐，这里补箭头前缀与连接。
+# 箭头 ▾/▸ 同步。幂等：tscn 里 header text 可能已带 ▾（手动编辑），先 trim 再加，
+# 避免双三角。
 func _setup_fold_header(header: Button, body: Control) -> void:
-	header.text = "▾ " + header.text
+	header.text = "▾ " + header.text.trim_prefix("▾ ").trim_prefix("▸ ")
 	header.toggled.connect(func(on: bool) -> void:
 		body.visible = on
 		header.text = ("▾ " if on else "▸ ") + header.text.trim_prefix("▾ ").trim_prefix("▸ ")
@@ -116,8 +149,24 @@ func _setup_fold_headers() -> void:
 			get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeHeader"),
 			get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody"))
 	_setup_fold_header(
+			get_node("VBox/TabContainer/SplitTab/VBox/InfoCard/InfoVBox/InfoHeader"),
+			get_node("VBox/TabContainer/SplitTab/VBox/InfoCard/InfoVBox/InfoBody"))
+	_setup_fold_header(
 			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamHeader"),
 			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody"))
+	# 参数按功能分组（通用/网格/组件/自动，嵌套折叠）
+	_setup_fold_header(
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/BaseParamCard/BaseParamVBox/BaseParamHeader"),
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/BaseParamCard/BaseParamVBox/BaseParamBody"))
+	_setup_fold_header(
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/GridParamCard/GridParamVBox/GridParamHeader"),
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/GridParamCard/GridParamVBox/GridParamBody"))
+	_setup_fold_header(
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/CompParamCard/CompParamVBox/CompParamHeader"),
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/CompParamCard/CompParamVBox/CompParamBody"))
+	_setup_fold_header(
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/AutoParamCard/AutoParamVBox/AutoParamHeader"),
+			get_node("VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamBody/AutoParamCard/AutoParamVBox/AutoParamBody"))
 	_setup_fold_header(
 			get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionHeader"),
 			get_node("VBox/TabContainer/SplitTab/VBox/ActionCard/ActionVBox/ActionBody"))
@@ -150,15 +199,23 @@ func _connect_signals() -> void:
 	_import_meta_btn.pressed.connect(_on_import_meta)
 	_export_btn.pressed.connect(_on_export)
 	_export_sel_btn.pressed.connect(_on_export_selected)
+	_sheet_preview_btn.pressed.connect(_on_sheet_preview)
+	_sheet_export_btn.pressed.connect(_on_sheet_export)
 	_save_btn.pressed.connect(_on_save_project)
 	_mode_option.item_selected.connect(_on_mode_changed)
 	# 参数/项目名/导出位置变化 → 标记未保存（脏数据）
 	_project_name_edit.text_changed.connect(_on_dirty_signal)
 	_out_dir.text_changed.connect(_on_dirty_signal)
-	_export_mode_option.item_selected.connect(_on_dirty_signal)
+	_export_mode_option.item_selected.connect(_on_export_mode_changed)
+	# 输出根目录（全局项目设置，非项目数据）：输入内存生效，回车/失焦/默认按钮持久化
+	_out_root.text_changed.connect(_on_out_root_changed)
+	_out_root.text_submitted.connect(_on_out_root_committed)
+	_out_root.focus_exited.connect(_on_out_root_committed)
+	_out_root_default_btn.pressed.connect(_on_out_root_default)
 	_min_w.value_changed.connect(_on_dirty_signal)
 	_min_h.value_changed.connect(_on_dirty_signal)
-	_cell_size.value_changed.connect(_on_dirty_signal)
+	_grid_cell_w.value_changed.connect(_on_dirty_signal)
+	_grid_cell_h.value_changed.connect(_on_dirty_signal)
 	_merge_dist.value_changed.connect(_on_dirty_signal)
 	_alpha_thr.value_changed.connect(_on_dirty_signal)
 	_slice_policy.item_selected.connect(_on_dirty_signal)
@@ -178,8 +235,8 @@ func _apply_theme() -> void:
 	var th: Theme = null
 	if Engine.is_editor_hint():
 		th = EditorInterface.get_editor_theme()
+	# 尊重 tscn 手动定义的 panel override（用户手动改样式优先，代码只兜底未定义项）
 	var bg: Color = _theme_color(th, "dark_color_1", Color(0.16, 0.16, 0.18))
-	# 侧栏整体背景：无边框 + 大圆角（与卡片风格一致）
 	var sb: StyleBoxFlat = StyleBoxFlat.new()
 	sb.bg_color = bg
 	sb.content_margin_left = 10.0
@@ -187,11 +244,13 @@ func _apply_theme() -> void:
 	sb.content_margin_right = 10.0
 	sb.content_margin_bottom = 8.0
 	sb.set_corner_radius_all(8)
-	add_theme_stylebox_override("panel", sb)
+	if not has_theme_stylebox_override("panel"):
+		add_theme_stylebox_override("panel", sb)
 	# 功能卡片：主题色（dark_color_2 略亮一档）+ 圆角（无边框）
 	var card_bg: Color = _theme_color(th, "dark_color_2", Color(0.19, 0.19, 0.21))
 	for card: PanelContainer in _cards:
-		card.add_theme_stylebox_override("panel", _make_card(card_bg))
+		if not card.has_theme_stylebox_override("panel"):
+			card.add_theme_stylebox_override("panel", _make_card(card_bg))
 
 
 func _make_card(bg: Color) -> StyleBoxFlat:
@@ -281,7 +340,8 @@ func _on_split() -> void:
 
 func _on_mode_changed(_index: int) -> void:
 	var mode: String = _current_mode()
-	_cell_size.editable = mode == MODE_GRID
+	_grid_cell_w.editable = mode == MODE_GRID
+	_grid_cell_h.editable = mode == MODE_GRID
 	_merge_dist.editable = mode == MODE_COMPONENTS
 	# 切割策略 / Padding 仅 auto 模式生效（可编辑）
 	_slice_policy.editable = mode == MODE_AUTO
@@ -303,7 +363,9 @@ func _build_options() -> Dictionary:
 		"alpha_threshold": int(_alpha_thr.value),
 	}
 	if _current_mode() == MODE_GRID:
-		opts["grid_cell_size"] = int(_cell_size.value)
+		opts["grid_cell_size"] = int(_grid_cell_w.value)   # 兼容字段：默认用宽（正方形时宽=高）
+		opts["grid_cell_w"] = int(_grid_cell_w.value)
+		opts["grid_cell_h"] = int(_grid_cell_h.value)
 	if _current_mode() == MODE_COMPONENTS and int(_merge_dist.value) > 0:
 		opts["merge_distance"] = int(_merge_dist.value)
 	if _current_mode() == MODE_AUTO:
@@ -352,13 +414,82 @@ func _on_export() -> void:
 
 func _on_export_selected() -> void:
 	if _controller != null:
-		_controller.export_selected(_out_dir.text)
+		_controller.export_selected(_out_dir.text, _export_mode_option.selected)
+
+
+# ---------- 输出根目录（全局项目设置，非项目数据，不 mark_dirty） ----------
+
+# 显示当前根目录（set_controller 时调用；全局配置不随项目数据加载覆盖）
+func _refresh_out_root() -> void:
+	if _controller == null or _out_root == null:
+		return
+	_out_root.text = _controller.get_out_root()
+
+
+# 输入过程：仅内存生效（立即影响后续导出/去背景/sheet 落盘位置），不逐键写盘
+func _on_out_root_changed(_v: String) -> void:
+	if _controller != null:
+		_controller.set_out_root(_out_root.text)
+
+
+# 回车 / 失焦：持久化到 project.godot（项目设置 → sprite_splitter/out_root）
+func _on_out_root_committed(_v: String = "") -> void:
+	if _controller != null:
+		_controller.set_out_root(_out_root.text, true)
+		_on_status("输出根目录已保存: " + _controller.get_out_root(), false)
+
+
+# 恢复默认 res://out_sprites 并持久化
+func _on_out_root_default() -> void:
+	if _controller != null:
+		_controller.set_out_root(_controller.DEFAULT_OUT_ROOT, true)
+		_out_root.text = _controller.get_out_root()
+		_on_status("输出根目录已恢复默认: " + _controller.get_out_root(), false)
+
+
+# ---------- Sheet 重排（预览 / 导出；多图组装已移至主视图「创建 Sheets」独立窗口） ----------
+
+func _on_sheet_preview() -> void:
+	if _controller == null:
+		return
+	var result: Dictionary = _controller.build_sheet_preview(int(_sheet_cols.value),
+			int(_sheet_padding.value), int(_sheet_cell_w.value), int(_sheet_cell_h.value))
+	if result.is_empty():
+		_sheet_preview_tex.visible = false
+		return
+	var sheet_img: Image = result["sheet"]
+	_sheet_preview_tex.texture = ImageTexture.create_from_image(sheet_img)
+	_sheet_preview_tex.visible = true
+	var clip_note: String = ""
+	var clipped: int = int(result.get("clipped", 0))
+	if clipped > 0:
+		clip_note = "  ⚠ %d 个精灵超出格子已裁剪" % clipped
+	_sheet_info_label.text = "预览：%dx%d，%d 个精灵（列 %d，间距 %d%s）" % [
+		sheet_img.get_width(), sheet_img.get_height(), result["rects"].size(),
+		int(_sheet_cols.value), int(_sheet_padding.value), clip_note]
+
+
+func _on_sheet_export() -> void:
+	if _controller == null:
+		return
+	var result: Dictionary = _controller.export_sheet(int(_sheet_cols.value),
+			int(_sheet_padding.value), _sheet_out_dir.text.strip_edges(),
+			int(_sheet_cell_w.value), int(_sheet_cell_h.value),
+			_sheet_file_name.text.strip_edges(), not _sheet_overwrite_check.button_pressed)
+	if not result.is_empty():
+		var clip_note: String = ""
+		if int(result.get("clipped", 0)) > 0:
+			clip_note = "\n⚠ %d 个精灵超出格子已裁剪" % int(result.get("clipped", 0))
+		_sheet_info_label.text = "已导出：\n%s\n%s（%dx%d，%d 个精灵%s）" % [
+			result.get("sheet_path", ""), result.get("sheet_meta_path", ""),
+			result.get("width", 0), result.get("height", 0), result.get("count", 0), clip_note]
 
 
 # ---------- controller 信号 → 侧栏 UI ----------
 
 # 加载素材时恢复关联项目数据（参数/导出/项目名）到 UI
 func _on_data_loaded(data: SpriteSplitterData) -> void:
+	_refresh_info_panel()   # 配置就绪后基础信息（uid/data_path）刷新
 	if data.project_name != "":
 		_project_name_edit.text = data.project_name
 	var mode_idx: int = MODE_LABELS.find(data.mode)
@@ -366,7 +497,8 @@ func _on_data_loaded(data: SpriteSplitterData) -> void:
 		_mode_option.select(mode_idx)
 	_min_w.set_value_no_signal(float(data.min_width))
 	_min_h.set_value_no_signal(float(data.min_height))
-	_cell_size.set_value_no_signal(float(data.grid_cell_size))
+	_grid_cell_w.set_value_no_signal(float(data.grid_cell_w if data.grid_cell_w > 0 else data.grid_cell_size))
+	_grid_cell_h.set_value_no_signal(float(data.grid_cell_h if data.grid_cell_h > 0 else data.grid_cell_size))
 	_merge_dist.set_value_no_signal(float(data.merge_distance))
 	_alpha_thr.set_value_no_signal(float(data.alpha_threshold))
 	var sp_idx: int = SLICE_POLICY_KEYS.find(data.slice_policy)
@@ -391,38 +523,78 @@ func _on_data_loaded(data: SpriteSplitterData) -> void:
 	_bg_color_picker.disabled = is_remote_bg or not _bg_color_enable.button_pressed
 	_out_dir.text = data.out_dir
 	_export_mode_option.select(data.export_mode)
+	_refresh_export_sel_btn()   # 编程 select 不发 item_selected，手动刷新导出选中按钮
 	_info_label.text = "已恢复项目: " + data.project_name
 
 
 # 保存项目（参数/导出位置/项目名/rects → .tres，uid 关联）
+# 导出模式切换：标记脏 + 联动「导出选中」按钮（meta.json 模式不支持导出选中 → 禁用）
+func _on_export_mode_changed(_index: int) -> void:
+	_on_dirty_signal()
+	_refresh_export_sel_btn()
+
+
+# 「导出选中」可用性：仅 PNG / AtlasTexture 模式；meta.json 模式禁用（带 tooltip 说明）
+func _refresh_export_sel_btn() -> void:
+	var is_meta: bool = _export_mode_option.selected == 1   # EXPORT_META
+	_export_sel_btn.disabled = is_meta
+	_export_sel_btn.tooltip_text = ("meta.json 模式不支持导出选中（仅 PNG / AtlasTexture）"
+			if is_meta else "按当前导出模式导出选中的切片（PNG / AtlasTexture，忽略项除外）")
+
+
 func _on_save_project() -> void:
 	if _controller != null:
 		_controller.save_project(_project_name_edit.text.strip_edges(),
 				_build_options(), _out_dir.text, _export_mode_option.selected)
 
 
-# 任意参数/项目名/导出位置变化 → 标记脏数据（参数信号统一入口）
+# 任意参数/项目名/导出位置变化 → 同步最新参数到 controller + 标记脏数据（参数信号统一入口）。
+# sync_save_params 内部 mark_dirty（触发自动保存防抖调度），并保证自动保存带上最新参数。
 func _on_dirty_signal(_v: Variant = null) -> void:
 	if _controller != null:
-		_controller.mark_dirty()
+		_controller.sync_save_params(_project_name_edit.text.strip_edges(),
+				_build_options(), _out_dir.text, _export_mode_option.selected)
 
 
-# 脏数据状态 → 保存按钮旁状态提示
+# 脏数据状态 → 保存按钮旁状态提示（空文本时隐藏，不占布局空间）
 func _on_data_dirty(dirty: bool) -> void:
 	if dirty:
-		_save_state_label.text = "⚠ 未保存"
-		_save_state_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.3))
+		_set_save_state_text("⚠ 未保存", Color(1.0, 0.8, 0.3))
 	else:
-		_save_state_label.text = ""
+		_set_save_state_text("")
 
 
 # 保存成功 → 短暂显示 ✅，随后恢复（除非期间又产生脏数据）
 func _on_data_saved() -> void:
-	_save_state_label.text = "✅ 已保存"
-	_save_state_label.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
+	_set_save_state_text("✅ 已保存", Color(0.7, 1.0, 0.7))
 	await get_tree().create_timer(1.8).timeout
 	if _controller == null or not _controller.is_dirty:
-		_save_state_label.text = ""
+		_set_save_state_text("")
+
+
+# 保存进行中（自动/手动）：禁用保存按钮防重复点击；label 由 dirty/saved 信号管理
+# （保存完成后 data_saved 显示 ✅，此处不覆盖）
+func _on_autosave_state(saving: bool) -> void:
+	_save_btn.disabled = saving
+	if saving:
+		_set_save_state_text("💾 保存中…")
+
+
+# 自动保存倒计时：3 → 2 → 1 秒后保存；0 = 保存完成/取消 → 清除提示
+# （只清自己显示的 ⏳ 文本，不覆盖 data_saved 的 ✅ 或保存失败的 ⚠）
+func _on_autosave_countdown(sec: int) -> void:
+	if sec > 0:
+		_set_save_state_text("⏳ %d 秒后自动保存" % sec, Color(0.7, 0.85, 1.0))
+	elif _save_state_label.text.begins_with("⏳"):
+		_set_save_state_text("")
+
+
+# 统一设置保存状态提示：空文本 → visible=false（Label 不占行高）；非空 → 显示 + 着色
+func _set_save_state_text(text: String, color: Color = Color(0.7, 0.85, 1.0)) -> void:
+	_save_state_label.text = text
+	_save_state_label.visible = not text.is_empty()
+	if not text.is_empty():
+		_save_state_label.add_theme_color_override("font_color", color)
 
 
 func _on_status(text: String, is_error: bool) -> void:
@@ -433,6 +605,43 @@ func _on_status(text: String, is_error: bool) -> void:
 
 func _on_count(text: String) -> void:
 	_count_label.text = text
+
+
+# 打开/关闭素材（image_loaded）→ 刷新基础信息
+func _on_info_updated(_tex: Texture2D) -> void:
+	_refresh_info_panel()
+
+
+# 基础信息（只读展示）：UID / 路径 / 尺寸 / 纹理 / 项目数据路径。
+# 数据来源 controller 字段；关闭素材（image null）→ 全部回 "-"。
+func _refresh_info_panel() -> void:
+	if _controller == null:
+		return
+	var uid_text: String = "-"
+	var path_text: String = "-"
+	var size_text: String = "-"
+	var tex_text: String = "无"
+	var data_text: String = "-"
+	if _controller.image != null:
+		path_text = _controller.image_res_path \
+				if not _controller.image_res_path.is_empty() else _controller.image_name
+		size_text = "%d×%d" % [_controller.image.get_width(), _controller.image.get_height()]
+		tex_text = "已导入（res://，AtlasTexture 可用）" \
+				if _controller.image_res_path.begins_with("res://") else "外部 / 内存图"
+	if _controller.data != null:
+		if not String(_controller.data.sheet_uid).is_empty():
+			uid_text = _controller.data.sheet_uid
+		elif _controller.image_res_path.begins_with("res://"):
+			var id: int = ResourceLoader.get_resource_uid(_controller.image_res_path)
+			if id != ResourceUID.INVALID_ID:
+				uid_text = ResourceUID.id_to_text(id)
+	if not _controller.data_path.is_empty():
+		data_text = _controller.data_path
+	_info_uid.text = "UID: " + uid_text
+	_info_path.text = "路径: " + path_text
+	_info_size.text = "尺寸: " + size_text
+	_info_texture.text = "纹理: " + tex_text
+	_info_data.text = "数据: " + data_text
 
 
 func _on_analyze_done(stats: Dictionary) -> void:

@@ -40,6 +40,9 @@ struct SplitOptions {
 
     // Grid 模式下的格子尺寸（M2）
     int grid_cell_size = 16;
+    // Grid 模式指定格子宽/高（非正方形格子；0 = 用 grid_cell_size 正方形兜底）
+    int grid_cell_w = 0;
+    int grid_cell_h = 0;
 
     // ---- Auto 模式（决策管线）扩展参数 ----
     // 最终 rect 外扩像素（ComponentsInGrid 时 clamp 到 cell，防止吃到邻居）

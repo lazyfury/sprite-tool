@@ -17,6 +17,8 @@ extends Resource
 @export var min_width: int = 2
 @export var min_height: int = 2
 @export var grid_cell_size: int = 16
+@export var grid_cell_w: int = 0   # grid 模式格子宽（>0 覆盖 grid_cell_size；0 = 正方形兜底）
+@export var grid_cell_h: int = 0   # grid 模式格子高（>0 覆盖 grid_cell_size；0 = 正方形兜底）
 @export var merge_distance: int = 0
 @export var alpha_threshold: int = 1
 @export var slice_policy: String = "auto"   # auto 模式切割策略：auto | components | grid

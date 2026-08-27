@@ -12,6 +12,12 @@ var _side: Control = null   # 侧栏引用（editor_plugin 注入，切换前保
 const REG_THUMB_SIZE: int = 48   # 注册表缩略图边长（等比 contain 居中）
 const REG_ITEM_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/reg_item.tscn")
 const REG_SEP_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/reg_sep.tscn")
+const SHEET_WINDOW_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/sheet_builder_window.tscn")
+const CLEANUP_WINDOW_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/cleanup_window.tscn")
+# 创建 Sheets 独立窗口（复用单例，关闭仅 hide）
+var _sheet_window: Window = null
+# 清理生成资源窗口（复用单例，关闭仅 hide）
+var _cleanup_window: Window = null
 # 文件对话框：编辑器模式 EditorFileDialog / 运行模式 FileDialog → Variant
 var _dialog: Variant = null
 var _data_dialog: Variant = null
@@ -31,10 +37,13 @@ var _reg_menu_path: String = ""
 # 注册表项删除：确认弹窗 + 待删除路径（右键菜单 → 删除）
 var _delete_dialog: ConfirmationDialog = null
 var _pending_delete_path: String = ""
-# 切片列表右键菜单（重命名/锁定/导出忽略）与重命名弹窗
-const SPRITE_MENU_RENAME: int = 0
-const SPRITE_MENU_LOCK: int = 1
-const SPRITE_MENU_IGNORE: int = 2
+# 选中切片批量删除：确认弹窗
+var _delete_sel_dialog: ConfirmationDialog = null
+# 切片列表右键菜单（编辑/重命名/锁定/导出忽略）与重命名弹窗
+const SPRITE_MENU_EDIT: int = 0
+const SPRITE_MENU_RENAME: int = 1
+const SPRITE_MENU_LOCK: int = 2
+const SPRITE_MENU_IGNORE: int = 3
 var _sprite_menu: PopupMenu = null
 var _sprite_menu_index: int = -1
 var _rename_dialog: AcceptDialog = null
@@ -44,6 +53,8 @@ var _active_reg_path: String = ""                 # 当前选中/加载的项目
 
 @onready var _header: PanelContainer = get_node("MainVBox/Header")
 @onready var _file_button: Button = get_node("MainVBox/Header/HeaderRow/FileButton")
+@onready var _create_sheets_btn: Button = get_node("MainVBox/Header/HeaderRow/CreateSheetsBtn")
+@onready var _cleanup_btn: Button = get_node("MainVBox/Header/HeaderRow/CleanupBtn")
 @onready var _data_btn: Button = get_node("MainVBox/Header/HeaderRow/DataBtn")
 @onready var _close_btn: Button = get_node("MainVBox/Header/HeaderRow/CloseBtn")
 @onready var _file_label: Label = get_node("MainVBox/Header/HeaderRow/FileLabel")
@@ -51,6 +62,9 @@ var _active_reg_path: String = ""                 # 当前选中/加载的项目
 @onready var _split_list: ItemList = get_node("MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox/ListArea/SplitList")
 @onready var _split_empty: Label = get_node("MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox/ListArea/EmptyLabel")
 @onready var _split_card: PanelContainer = get_node("MainVBox/HSplitContainer/Control/RightVBox/CardPanel")
+@onready var _group_option: OptionButton = get_node("MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox/GroupRow/GroupOption")
+@onready var _select_group_btn: Button = get_node("MainVBox/HSplitContainer/Control/RightVBox/CardPanel/CardVBox/GroupRow/SelectGroupBtn")
+@onready var _delete_sel_btn: Button = get_node("MainVBox/ToolBarMargin/ToolBarRow/DeleteSelBtn")
 @onready var _reg_card: PanelContainer = get_node("MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel")
 @onready var _reg_scroll: ScrollContainer = get_node("MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox/RegListArea/RegScroll")
 @onready var _reg_vbox: VBoxContainer = get_node("MainVBox/HSplitContainer/Control/RightVBox/RegCardPanel/RegVBox/RegListArea/RegScroll/RegVBoxList")
@@ -102,10 +116,15 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		EditorInterface.get_base_control().theme_changed.connect(_apply_theme)
 	_file_button.pressed.connect(_on_file_button)
+	_create_sheets_btn.pressed.connect(_on_create_sheets)
+	_cleanup_btn.pressed.connect(_on_cleanup)
 	_data_btn.pressed.connect(_on_open_data)
 	_close_btn.pressed.connect(_on_close_image)
 	_split_list.item_clicked.connect(_on_split_list_clicked)
 	_split_list.item_selected.connect(_on_split_list_selected)
+	_split_list.item_activated.connect(_on_split_list_activated)
+	_select_group_btn.pressed.connect(_on_select_group)
+	_delete_sel_btn.pressed.connect(_on_delete_selected)
 
 
 # 注册表项右键上下文菜单（文件系统风格）：打开配置 / 复制路径 / 在文件管理器中显示 / 删除
@@ -120,9 +139,10 @@ func _setup_reg_menu() -> void:
 	add_child(_reg_menu)
 
 
-# 切片列表右键菜单（复杂结构操作）：重命名 / 锁定解锁 / 导出忽略包含
+# 切片列表右键菜单（复杂结构操作）：编辑 / 重命名 / 锁定解锁 / 导出忽略包含
 func _setup_sprite_menu() -> void:
 	_sprite_menu = PopupMenu.new()
+	_sprite_menu.add_item("编辑…", SPRITE_MENU_EDIT)
 	_sprite_menu.add_item("重命名…", SPRITE_MENU_RENAME)
 	_sprite_menu.add_item("🔒 锁定", SPRITE_MENU_LOCK)
 	_sprite_menu.add_item("🙈 导出忽略", SPRITE_MENU_IGNORE)
@@ -163,6 +183,8 @@ func _on_sprite_menu_id_pressed(id: int) -> void:
 	var idx: int = _sprite_menu_index
 	var s: Dictionary = _controller.sprites[idx]
 	match id:
+		SPRITE_MENU_EDIT:
+			_open_sprite_editor(idx)
 		SPRITE_MENU_RENAME:
 			_open_rename_dialog(idx)
 		SPRITE_MENU_LOCK:
@@ -196,6 +218,20 @@ func _open_rename_dialog(index: int) -> void:
 func _on_rename_confirmed() -> void:
 	if _controller != null and _rename_index >= 0:
 		_controller.rename_sprite(_rename_index, _rename_edit.text.strip_edges())
+
+
+# ---------- 切片编辑入口（独立 dock 面板，侧栏停靠） ----------
+
+# 列表双击 → 请求编辑该切片（多选守卫/收敛单选在 controller）
+func _on_split_list_activated(index: int) -> void:
+	_open_sprite_editor(index)
+
+
+# 转发给 controller：request_edit_sprite 做多选守卫（>1 拒绝提示）并收敛单选，
+# 发 edit_sprite_requested 让编辑 dock 填充表单
+func _open_sprite_editor(index: int) -> void:
+	if _controller != null:
+		_controller.request_edit_sprite(index)
 
 
 # ---------- Header（打开素材 + 图片地址，主题化） ----------
@@ -259,6 +295,40 @@ func _on_file_button() -> void:
 func _on_file_selected(path: String) -> void:
 	if _controller != null:
 		_controller.load_image(path)
+
+
+# 创建 Sheets：独立窗口（从多张已切分小图组装 sheet）。单例复用，关闭仅 hide。
+# 窗口尺寸按当前屏幕比例自适应（macOS 屏幕缩放场景固定像素会偏小）。
+func _on_create_sheets() -> void:
+	if _sheet_window == null:
+		_sheet_window = SHEET_WINDOW_SCENE.instantiate()
+		if Engine.is_editor_hint():
+			EditorInterface.get_base_control().add_child(_sheet_window)   # 编辑器根下独立顶级窗口
+		else:
+			add_child(_sheet_window)
+		_sheet_window.set_controller(_controller)
+	_sheet_window.reset_file_name()   # 每次打开初始化随机文件名（确定性链路，不依赖 visibility 信号）
+	var screen: Vector2i = DisplayServer.screen_get_size()
+	_sheet_window.min_size = Vector2i(maxi(520, screen.x / 3), maxi(560, screen.y / 2))
+	_sheet_window.size = Vector2i(maxi(640, screen.x * 60 / 100), maxi(640, screen.y * 56 / 100))
+	_sheet_window.popup_centered()
+
+
+# 清理生成资源：独立窗口（列出注册表全部产物 + 占用检查 + 清理未占用）。
+# 复用单例：首次 instantiate 挂编辑器根，之后仅 hide/show；打开即 refresh（最新占用态）。
+func _on_cleanup() -> void:
+	if _cleanup_window == null:
+		_cleanup_window = CLEANUP_WINDOW_SCENE.instantiate()
+		if Engine.is_editor_hint():
+			EditorInterface.get_base_control().add_child(_cleanup_window)   # 编辑器根下独立顶级窗口
+		else:
+			add_child(_cleanup_window)
+		_cleanup_window.set_controller(_controller)
+	_cleanup_window.refresh()
+	var screen2: Vector2i = DisplayServer.screen_get_size()
+	_cleanup_window.min_size = Vector2i(maxi(560, screen2.x / 3), maxi(420, screen2.y / 2))
+	_cleanup_window.size = Vector2i(maxi(680, screen2.x * 52 / 100), maxi(480, screen2.y * 46 / 100))
+	_cleanup_window.popup_centered()
 
 
 # 打开 SpriteSplitterData 配置：文件对话框选择 .tres → 加载应用到插件
@@ -636,15 +706,93 @@ func _on_rects_changed(rects: Array[Rect2i]) -> void:
 
 
 # 复杂切片结构 → 画布 + 右侧列表（名称 + emoji 状态 + xywh）
+# 列表原生高亮按数据 selected 恢复（单选高亮对应项；多选/无选取消）——
+# 任何 sprites_changed 路径（画布选择/列表点击/编辑 dock 保存/右键锁定）都保持列表高亮同步
 func _on_sprites_changed(sprites_in: Array[Dictionary]) -> void:
 	_canvas.set_sprites(sprites_in)
 	_split_list.clear()
 	for i: int in sprites_in.size():
 		_split_list.add_item(_sprite_label(sprites_in[i], i))
+	# 数据 selected → 列表原生高亮（ItemList.select() 不发 item_selected，无循环）
+	var sel_idx: int = -1
+	for i: int in sprites_in.size():
+		if bool(sprites_in[i].get("selected", false)):
+			if sel_idx >= 0:
+				sel_idx = -1   # 多选：不设原生高亮（emoji ✅ 仍标记）
+				break
+			sel_idx = i
+	if sel_idx >= 0:
+		_split_list.select(sel_idx)
+	else:
+		_split_list.deselect_all()
+	# 分组下拉跟随数据重建（保留当前选择）
+	_rebuild_group_options()
 	# 空状态：无区域时显示「暂无数据」
 	var empty: bool = sprites_in.is_empty()
 	_split_empty.visible = empty
 	_split_list.visible = not empty
+
+
+# 分组下拉选项：全部 + 未分组 + 全部分组（按出现顺序）；重建时尽量保留当前选择
+func _rebuild_group_options() -> void:
+	var groups: Array[String] = _controller.get_groups() if _controller != null else []
+	var cur: String = ""
+	var sel: int = _group_option.selected
+	if sel > 0 and sel < _group_option.item_count:
+		cur = _group_option.get_item_text(sel)
+	_group_option.clear()
+	_group_option.add_item("全部")
+	_group_option.add_item("未分组")
+	for g: String in groups:
+		_group_option.add_item(g)
+	_group_option.select(0)
+	if cur == "未分组":
+		_group_option.select(1)
+		return
+	for i: int in groups.size():
+		if groups[i] == cur:
+			_group_option.select(i + 2)
+			break
+
+
+# 按组选择：全部（选中所有）/ 未分组（group 为空串）/ 指定分组
+func _on_select_group() -> void:
+	if _controller == null:
+		return
+	var sel: int = _group_option.selected
+	if sel <= 0:
+		_controller.select_all()
+		return
+	if sel == 1:
+		_controller.select_group("")
+		return
+	_controller.select_group(_group_option.get_item_text(sel))
+
+
+# 批量删除选中切片：确认弹窗（不可撤销），确认后删除当前选中的全部切片
+func _on_delete_selected() -> void:
+	if _controller == null:
+		return
+	var n: int = 0
+	for s: Dictionary in _controller.sprites:
+		if bool(s.get("selected", false)):
+			n += 1
+	if n == 0:
+		_controller.status_changed.emit("没有选中的切片可删除", true)
+		return
+	if _delete_sel_dialog == null:
+		_delete_sel_dialog = ConfirmationDialog.new()
+		_delete_sel_dialog.title = "删除选中切片"
+		_delete_sel_dialog.ok_button_text = "删除"
+		_delete_sel_dialog.confirmed.connect(_on_delete_sel_confirmed)
+		add_child(_delete_sel_dialog)
+	_delete_sel_dialog.dialog_text = "删除选中的 %d 个切片？\n此操作不可撤销。" % n
+	_delete_sel_dialog.popup_centered()
+
+
+func _on_delete_sel_confirmed() -> void:
+	if _controller != null:
+		_controller.remove_selected_sprites()
 
 
 # 列表项文本：{✅选中}{🔒锁定}{🙈忽略}#N 名称  (x,y) w×h
@@ -679,17 +827,8 @@ func _on_canvas_selection_drawn(rect_world: Rect2i) -> void:
 func _on_canvas_selection_changed(selected: Array[Rect2i]) -> void:
 	if _controller != null:
 		_controller.on_canvas_selection(selected)
-	# 画布选中 → 列表选中状态同步（ItemList 原生选中高亮）：
-	# 单选 → 高亮对应项；多选/无选 → 取消高亮。锁定项画布不选中，此处自然不同步。
-	if selected.size() == 1:
-		var rects: Array = _canvas.get("_rects")
-		for i: int in rects.size():
-			if rects[i] == selected[0]:
-				_split_list.select(i)
-				return
-		_split_list.deselect_all()
-	else:
-		_split_list.deselect_all()
+	# 列表高亮统一由 _on_sprites_changed 按数据 selected 恢复（单一数据源，
+	# 避免此处手动高亮与编辑保存等路径的 sprites_changed 重建互相覆盖）
 
 
 # 画布编辑提交（拖拽移动 / 四角缩放）→ 更新切片数据

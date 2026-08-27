@@ -1,8 +1,0 @@
-[gd_resource type="Resource" script_class="SpriteSplitterRegistry" format=3]
-
-[ext_resource type="Script" path="res://addons/sprite_splitter/ui/sps_registry.gd" id="1_4uq54"]
-
-[resource]
-script = ExtResource("1_4uq54")
-entries = Array[String](["res://sps_data_test/bco6uc60471nl.tres", "res://sps_data_test/24bpa006lphg.tres"])
-updated_at = 1787647045

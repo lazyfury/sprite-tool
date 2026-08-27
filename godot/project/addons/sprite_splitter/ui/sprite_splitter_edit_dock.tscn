@@ -1,0 +1,261 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sprite_splitter/ui/sprite_splitter_edit_dock.gd" id="1_edit"]
+
+[node name="切片数据" type="PanelContainer"]
+custom_minimum_size = Vector2(260, 0)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_edit")
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="VBox" type="VBoxContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="EditHint" type="Label" parent="Scroll/VBox"]
+layout_mode = 2
+autowrap_mode = 3
+text = "选择一个切片在此编辑，或多选后批量设置分组"
+
+[node name="GroupBatch" type="VBoxContainer" parent="Scroll/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BatchHint" type="Label" parent="Scroll/VBox/GroupBatch"]
+layout_mode = 2
+autowrap_mode = 3
+text = "已选 N 个切片：批量设置分组"
+
+[node name="BatchRow" type="HBoxContainer" parent="Scroll/VBox/GroupBatch"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BatchPick" type="OptionButton" parent="Scroll/VBox/GroupBatch/BatchRow"]
+layout_mode = 2
+tooltip_text = "选择已有分组（填充到输入框）"
+
+[node name="BatchGroupEdit" type="LineEdit" parent="Scroll/VBox/GroupBatch/BatchRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "分组名（留空 = 未分组）"
+
+[node name="BatchSaveBtn" type="Button" parent="Scroll/VBox/GroupBatch/BatchRow"]
+layout_mode = 2
+tooltip_text = "把输入的分组应用到所有选中切片"
+text = "保存"
+
+[node name="EditForm" type="VBoxContainer" parent="Scroll/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BaseCard" type="PanelContainer" parent="Scroll/VBox/EditForm"]
+layout_mode = 2
+
+[node name="BaseVBox" type="VBoxContainer" parent="Scroll/VBox/EditForm/BaseCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BaseHeader" type="Button" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+flat = true
+toggle_mode = true
+button_pressed = true
+text = "基本"
+alignment = 0
+
+[node name="BaseBody" type="VBoxContainer" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="UidRow" type="HBoxContainer" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="UidLabel" type="Label" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody/UidRow"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "UID"
+
+[node name="EditUid" type="Label" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody/UidRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "-"
+
+[node name="NameRow" type="HBoxContainer" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NameLabel" type="Label" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody/NameRow"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "名称"
+
+[node name="EditName" type="LineEdit" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody/NameRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "切片名称"
+
+[node name="GroupRow" type="HBoxContainer" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GroupLabel" type="Label" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody/GroupRow"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "分组"
+
+[node name="EditGroup" type="LineEdit" parent="Scroll/VBox/EditForm/BaseCard/BaseVBox/BaseBody/GroupRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "分组名（留空 = 未分组）"
+
+[node name="PosCard" type="PanelContainer" parent="Scroll/VBox/EditForm"]
+layout_mode = 2
+
+[node name="PosVBox" type="VBoxContainer" parent="Scroll/VBox/EditForm/PosCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PosHeader" type="Button" parent="Scroll/VBox/EditForm/PosCard/PosVBox"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+flat = true
+toggle_mode = true
+button_pressed = true
+text = "位置"
+alignment = 0
+
+[node name="PosBody" type="VBoxContainer" parent="Scroll/VBox/EditForm/PosCard/PosVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="EditXRow" type="HBoxContainer" parent="Scroll/VBox/EditForm/PosCard/PosVBox/PosBody"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EditXLabel" type="Label" parent="Scroll/VBox/EditForm/PosCard/PosVBox/PosBody/EditXRow"]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "X"
+
+[node name="EditX" type="SpinBox" parent="Scroll/VBox/EditForm/PosCard/PosVBox/PosBody/EditXRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100000.0
+step = 1.0
+rounded = true
+
+[node name="EditYRow" type="HBoxContainer" parent="Scroll/VBox/EditForm/PosCard/PosVBox/PosBody"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EditYLabel" type="Label" parent="Scroll/VBox/EditForm/PosCard/PosVBox/PosBody/EditYRow"]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "Y"
+
+[node name="EditY" type="SpinBox" parent="Scroll/VBox/EditForm/PosCard/PosVBox/PosBody/EditYRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 100000.0
+step = 1.0
+rounded = true
+
+[node name="SizeCard" type="PanelContainer" parent="Scroll/VBox/EditForm"]
+layout_mode = 2
+
+[node name="SizeVBox" type="VBoxContainer" parent="Scroll/VBox/EditForm/SizeCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SizeHeader" type="Button" parent="Scroll/VBox/EditForm/SizeCard/SizeVBox"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+flat = true
+toggle_mode = true
+button_pressed = true
+text = "尺寸"
+alignment = 0
+
+[node name="SizeBody" type="VBoxContainer" parent="Scroll/VBox/EditForm/SizeCard/SizeVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="EditWRow" type="HBoxContainer" parent="Scroll/VBox/EditForm/SizeCard/SizeVBox/SizeBody"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EditWLabel" type="Label" parent="Scroll/VBox/EditForm/SizeCard/SizeVBox/SizeBody/EditWRow"]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "宽"
+
+[node name="EditW" type="SpinBox" parent="Scroll/VBox/EditForm/SizeCard/SizeVBox/SizeBody/EditWRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 100000.0
+step = 1.0
+rounded = true
+
+[node name="EditHRow" type="HBoxContainer" parent="Scroll/VBox/EditForm/SizeCard/SizeVBox/SizeBody"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EditHLabel" type="Label" parent="Scroll/VBox/EditForm/SizeCard/SizeVBox/SizeBody/EditHRow"]
+custom_minimum_size = Vector2(28, 0)
+layout_mode = 2
+text = "高"
+
+[node name="EditH" type="SpinBox" parent="Scroll/VBox/EditForm/SizeCard/SizeVBox/SizeBody/EditHRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 100000.0
+step = 1.0
+rounded = true
+
+[node name="FlagCard" type="PanelContainer" parent="Scroll/VBox/EditForm"]
+layout_mode = 2
+
+[node name="FlagVBox" type="VBoxContainer" parent="Scroll/VBox/EditForm/FlagCard"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FlagHeader" type="Button" parent="Scroll/VBox/EditForm/FlagCard/FlagVBox"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+flat = true
+toggle_mode = true
+button_pressed = true
+text = "状态"
+alignment = 0
+
+[node name="FlagBody" type="HBoxContainer" parent="Scroll/VBox/EditForm/FlagCard/FlagVBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="EditLocked" type="CheckBox" parent="Scroll/VBox/EditForm/FlagCard/FlagVBox/FlagBody"]
+layout_mode = 2
+text = "🔒 锁定"
+
+[node name="EditIgnored" type="CheckBox" parent="Scroll/VBox/EditForm/FlagCard/FlagVBox/FlagBody"]
+layout_mode = 2
+text = "🙈 导出忽略"
+
+[node name="SaveEditBtn" type="Button" parent="Scroll/VBox/EditForm"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "保存"

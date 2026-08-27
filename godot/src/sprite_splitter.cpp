@@ -58,6 +58,12 @@ static sps::SplitOptions parse_options(const Dictionary &p_options) {
     if (p_options.has("grid_cell_size")) {
         opts.grid_cell_size = static_cast<int>(p_options["grid_cell_size"]);
     }
+    if (p_options.has("grid_cell_w")) {
+        opts.grid_cell_w = static_cast<int>(p_options["grid_cell_w"]);
+    }
+    if (p_options.has("grid_cell_h")) {
+        opts.grid_cell_h = static_cast<int>(p_options["grid_cell_h"]);
+    }
     if (p_options.has("padding")) {
         opts.padding = static_cast<int>(p_options["padding"]);
     }

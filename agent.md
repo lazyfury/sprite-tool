@@ -25,7 +25,7 @@
 | 项 | 状态 | 备注 |
 |---|---|---|
 | macOS | darwin-arm64 | Apple Silicon |
-| Godot | **4.6.2.stable**（`/Applications/Godot.app`） | 目标引擎版本 |
+| Godot | **4.7.2.stable**（`/Applications/Godot.app`；⚠️ 2026-08-27 实测本机已从 4.6.2 升级到 4.7.2，原 4.6.2 记录作废） | 目标引擎版本 |
 | 编译器 | Apple clang 21.0.0（Xcode CLT） | 完整支持 C++20/23 |
 | git | 2.50.1 | — |
 | Homebrew | 6.0.18 | 可装 cmake/ninja |
@@ -48,7 +48,7 @@
 - 稳定分支：`godot-4.5-stable`（旧绑定体系）；GDExtension 兼容性：**低版本扩展可在高版本 Godot 运行**（4.5 扩展可在 4.6 运行）
 - ✅ **godot-cpp 现已官方支持 CMake**（现代化重构，二级但活跃维护）——本机无 scons，Phase 5 用 **CMake** 构建动态库（选项前缀 `GODOTCPP_`，见 `.pi/skills/godot-gdextension/SKILL.md` §5.1）
 - ⚠️ 官方文档 C++ 章节 4.6 起迁移到 `tutorials/scripting/cpp/`（旧 `gdextension/` 路径 404）；docs 站有反爬，rst 源走 godot-docs GitHub raw
-- 结论：**Godot 4.6 + GDExtension 路线可行**，Phase 5 再实施（当前机器有 Godot 4.6.2 可直接验证）
+- 结论：**Godot 4.6 + GDExtension 路线可行**，Phase 5 再实施（当前机器有 Godot 4.7.2 可直接验证）
 
 ### 2.4 魔棒背景清理调研（M3 补充，⏸ 搁置 — 待 UI 阶段再评估）
 
@@ -200,7 +200,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
 
 **M5 调研结论（2026-08-25）**：
 - GDExtension 加载机制：运行时只读 `res://.godot/extension_list.cfg`（编辑器扫描 *.gdextension 生成，含 addons/），不扫描 res://；删缓存后须编辑器导入或手动写列表（SKILL.md §2.5）
-- 4.6.2 编辑器模式崩溃（EditorHelp 扩展文档生成 bug）：带扩展 `--import`/`-e` 退出时崩，与 reloadable 无关；规避 = 无扩展两步法导入（SKILL.md §7）
+- 4.6.2 编辑器模式崩溃（EditorHelp 扩展文档生成 bug）：带扩展 `--import`/`-e` 退出时崩，与 reloadable 无关；规避 = 无扩展两步法导入（SKILL.md §7）。**✅ 4.7.2 已修复**（2026-08-27 实测 `--editor --quit-after` 带扩展正常退出，插件加载无错误）
 
 ## 5. 验证标准（每模块提交前）
 

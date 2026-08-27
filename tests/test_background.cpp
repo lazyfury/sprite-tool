@@ -280,17 +280,18 @@ TEST_CASE("Background: transition halo near object edge is cleaned", "[backgroun
     CHECK_FALSE(bg.get(bx + 2, by + 2));     // 物体内部仍是前景
 }
 
-TEST_CASE("Background: shrink contracts background mask (anti-halo)", "[background]") {
-    Image img = image_with_blocks(Pixel{253, 253, 253}, {{10, 10, 5, 5}}, Pixel{0, 0, 0}, 40, 40);
+TEST_CASE("Background: shrink erodes subject edge (cleaner removal)", "[background]") {
+    Image img = image_with_blocks(Pixel{253, 253, 253}, {{10, 10, 8, 8}}, Pixel{0, 0, 0}, 40, 40);
     BackgroundOptions opts;
     opts.threshold = 12;
     opts.shrink = 2;
     Mask bg = background_mask(img, opts);
-    CHECK(bg.get(0, 0));                        // 远离物体的背景仍保留
+    CHECK(bg.get(0, 0));                        // 背景保留
     CHECK(bg.get(39, 39));
-    CHECK_FALSE(bg.get(9, 10));                 // 紧贴块：默认是背景，收缩后变前景（防白边）
-    CHECK_FALSE(bg.get(15, 10));
-    CHECK_FALSE(bg.get(9, 9));
+    CHECK(bg.get(9, 10));                       // 紧贴块背景仍背景（背景膨胀扩大）
+    CHECK(bg.get(10, 10));                      // 块边缘 1px 被吃掉（消弱主体边缘）
+    CHECK(bg.get(11, 11));                      // 块 2px 内被吃
+    CHECK_FALSE(bg.get(14, 14));                // 块中心（距边 4px）仍前景
 }
 
 TEST_CASE("Background: feather produces soft alpha gradient", "[background]") {

@@ -98,9 +98,12 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
     }
     if (!mask.any_foreground()) return result;
 
-    // ---- Grid 模式：直接按网格出 rects（显式 cell_size，原点 0）----
+    // ---- Grid 模式：直接按网格出 rects（显式 cell 宽高，原点 0）----
     if (options.mode == DetectionMode::Grid) {
-        auto rects = grid_detect(mask, options.grid_cell_size);
+        // 宽/高分离：grid_cell_w/h > 0 用指定值，否则 grid_cell_size 正方形兜底
+        const int cell_w = options.grid_cell_w > 0 ? options.grid_cell_w : options.grid_cell_size;
+        const int cell_h = options.grid_cell_h > 0 ? options.grid_cell_h : options.grid_cell_size;
+        auto rects = grid_detect(mask, cell_w, cell_h, 0, 0, 1);
         for (const auto& r : rects) {
             SpriteRect p;
             if (finalize_rect(r, options, image.width(), image.height(), p)) {

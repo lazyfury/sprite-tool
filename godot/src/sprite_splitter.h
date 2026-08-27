@@ -26,6 +26,8 @@ namespace godot {
 //   merge_distance       int    合并距离（px），默认 0
 //   mode                 String "components" | "grid" | "auto"，默认 "components"
 //   grid_cell_size       int    grid 模式格子尺寸，默认 16
+//   grid_cell_w          int    grid 模式格子宽（>0 覆盖 grid_cell_size；0 = 正方形兜底）
+//   grid_cell_h          int    grid 模式格子高（>0 覆盖 grid_cell_size；0 = 正方形兜底）
 //   padding              int    auto 模式最终 rect 外扩（ComponentsInGrid 时 clamp 到 cell），默认 0
 //   slice_policy         String auto 模式的强制策略覆盖：
 //                              "auto"（默认，自动决策）| "components"（强制物体边界）| "grid"（强制网格单元）

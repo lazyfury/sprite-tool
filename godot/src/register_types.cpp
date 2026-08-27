@@ -1,5 +1,6 @@
 #include "register_types.h"
 
+#include "sprite_sheet_builder.h"
 #include "sprite_splitter.h"
 
 #include <gdextension_interface.h>
@@ -13,6 +14,7 @@ void initialize_sprite_splitter_module(ModuleInitializationLevel p_level) {
         return;
     }
     GDREGISTER_CLASS(SpriteSplitter);
+    GDREGISTER_CLASS(SpriteSheetBuilder);
 }
 
 void uninitialize_sprite_splitter_module(ModuleInitializationLevel p_level) {

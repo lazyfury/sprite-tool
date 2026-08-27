@@ -58,6 +58,7 @@ add_library(${LIBNAME} SHARED
   src/register_types.cpp
   src/conversion.cpp
   src/sprite_splitter.cpp
+  src/sprite_sheet_builder.cpp
   ${SPS_CORE_SRC}
   ${SPS_EXTRA_SRC}
 )

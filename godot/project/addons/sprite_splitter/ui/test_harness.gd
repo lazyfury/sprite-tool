@@ -13,7 +13,11 @@ const UiProbeScript: GDScript = preload("res://addons/sprite_splitter/ui/ui_prob
 var _controller: SpsController = null
 var _main: Control = null
 var _side: Control = null
+var _edit: Control = null   # 切片编辑 dock（独立面板，与 side 并列）
 var _fail: bool = false
+var _save_count: int = 0   # data_saved 计数（自动保存断言用；成员变量避免 lambda 闭包捕获问题）
+var _countdown_last: int = -1          # 最近一次倒计时秒数（0 = 保存完成/取消）
+var _countdown_seen_positive: bool = false   # 是否收到过正数倒计时（3→2→1 提示出现过）
 
 @onready var _main_holder: Control = get_node("MainHolder")
 @onready var _side_holder: Control = get_node("SideHolder")
@@ -37,12 +41,16 @@ func _ready() -> void:
 	# 测试数据隔离：独立目录 res://sps_data_test（构造注入），绝不碰用户真实 sps_data/
 	_clean_test_data("res://sps_data_test")
 	_controller = SpsController.new(get_tree(), "res://sps_data_test")
+	_controller.autosave_enabled = false   # 默认关自动保存：现有断言依赖 is_dirty 状态；自动保存段单独开启
 	_main = load("res://addons/sprite_splitter/ui/sprite_splitter_main.tscn").instantiate()
 	_side = load("res://addons/sprite_splitter/ui/sprite_splitter_side.tscn").instantiate()
+	_edit = load("res://addons/sprite_splitter/ui/sprite_splitter_edit_dock.tscn").instantiate()
 	_main_holder.add_child(_main)
 	_side_holder.add_child(_side)
+	add_child(_edit)   # 编辑 dock 独立面板（harness 直接挂 root）
 	_main.set_controller(_controller)
 	_side.set_controller(_controller)
+	_edit.set_controller(_controller)
 	_main.set_side(_side)   # 主视图需侧栏参数（注册表切换前保存）
 	_selftest()
 	if _auto_test_requested():
@@ -57,6 +65,32 @@ func _check(cond: bool, msg: String) -> void:
 	else:
 		printerr("[sps-ui] FAIL: ", msg)
 		_fail = true
+
+
+func _on_data_saved_count() -> void:
+	_save_count += 1
+
+
+# 统计目录内文件数（顶层，不含子目录）——导出断言用（不依赖具体文件名/坐标）
+func _count_files_in(dir: String) -> int:
+	var d: DirAccess = DirAccess.open(dir)
+	if d == null:
+		return 0
+	var n: int = 0
+	d.list_dir_begin()
+	var f: String = d.get_next()
+	while not f.is_empty():
+		if not d.current_is_dir():
+			n += 1
+		f = d.get_next()
+	d.list_dir_end()
+	return n
+
+
+func _on_countdown(sec: int) -> void:
+	_countdown_last = sec
+	if sec > 0:
+		_countdown_seen_positive = true
 
 
 func _auto_test_requested() -> bool:
@@ -101,10 +135,10 @@ func _auto_test() -> void:
 
 	# 加载 → 切分（自动分析）→ 画布更新
 	_check(_controller.load_image(DEFAULT_SHEET), "auto test: load image")
-	var expect_dir: String = "res://out_sprites/ui/" \
+	var expect_dir: String = "res://out_sprites/" \
 			+ _controller.data.sheet_uid.trim_prefix("uid://")
 	_check(_controller.data.out_dir == expect_dir,
-			"auto test: default out_dir has uid subdir")
+			"auto test: default out_dir = out_root/uid subdir")
 	_side._on_split()
 	_check(not _controller.rects.is_empty(), "auto test: split produced rects")
 	_check(canvas.get("_rects").size() == _controller.rects.size(),
@@ -486,11 +520,12 @@ func _auto_test() -> void:
 	_check(split_empty.visible, "auto test: empty hint shown after close")
 	_check(_controller.load_image(DEFAULT_SHEET), "auto test: reload after close")
 
-	# 侧栏功能分组 tab（切分[含分析]/去背景/导出/导入；卡片样式主题色）
+	# 侧栏功能分组 tab（切分[含分析]/去背景/导出/导入/Sheet；卡片样式主题色）
 	var tabs: TabContainer = _side.get_node("VBox/TabContainer")
-	_check(tabs.get_tab_count() == 4, "auto test: side tabs grouped (4)")
+	_check(tabs.get_tab_count() == 5, "auto test: side tabs grouped (5)")
 	_check(tabs.get_tab_title(0) == "切分" and tabs.get_tab_title(1) == "去背景"
-			and tabs.get_tab_title(2) == "导出" and tabs.get_tab_title(3) == "导入",
+			and tabs.get_tab_title(2) == "导出" and tabs.get_tab_title(3) == "导入"
+			and tabs.get_tab_title(4) == "Sheet",
 			"auto test: tab titles set")
 	tabs.current_tab = 2
 	_check(tabs.current_tab == 2, "auto test: switch to export tab")
@@ -500,7 +535,7 @@ func _auto_test() -> void:
 	# 分析并入切分 tab（分析按钮/参数/操作卡片）
 	_check(_side.get_node("VBox/TabContainer/SplitTab/VBox/AnalyzeCard/AnalyzeVBox/AnalyzeBody/AnalyzeBtn") != null,
 			"auto test: analyze merged into split tab")
-	_check(_side.get("_cards").size() == 6, "auto test: side has 6 themed cards")
+	_check(_side.get("_cards").size() == 12, "auto test: side has 12 themed cards")   # 含基础信息 + 参数分组卡 + Sheet 卡
 	# 检查器风格折叠分组：header 箭头 + 点击收起/展开 body
 	var param_header: Button = _side.get_node(
 			"VBox/TabContainer/SplitTab/VBox/ParamCard/ParamVBox/ParamHeader")
@@ -708,6 +743,360 @@ func _auto_test() -> void:
 	_check(canvas.get("_selection").size == Vector2i.ZERO,
 			"auto test: crop cleared after confirm")
 	canvas.set_tool(canvas.Tool.SELECT)
+
+	# 切片编辑窗口：update_sprite_fields 批量提交（名称/几何/锁定/忽略）
+	canvas.select_index(0)
+	_controller.update_sprite_fields(0, {
+		"name": "改名测试", "x": 5, "y": 6, "width": 10, "height": 11,
+	})
+	_check(_controller.sprites[0]["name"] == "改名测试",
+			"auto test: edit fields renames sprite")
+	_check(_controller.rects[0] == Rect2i(5, 6, 10, 11),
+			"auto test: edit fields updates geometry")
+	_controller.update_sprite_fields(0, {"locked": true, "ignored": true})
+	_check(bool(_controller.sprites[0]["locked"]),
+			"auto test: edit fields locks sprite")
+	_check(bool(_controller.sprites[0]["ignored"]),
+			"auto test: edit fields ignores sprite")
+	# 锁定项几何保持原值（与画布一致）
+	_controller.update_sprite_fields(0, {"x": 99, "y": 99, "width": 99, "height": 99})
+	_check(_controller.rects[0] == Rect2i(5, 6, 10, 11),
+			"auto test: locked sprite geometry kept")
+	# 解锁后可改几何；空名称保持原名
+	_controller.update_sprite_fields(0,
+			{"x": 1, "y": 2, "width": 3, "height": 4, "locked": false, "name": "   "})
+	_check(_controller.rects[0] == Rect2i(1, 2, 3, 4),
+			"auto test: unlocked geometry editable")
+	_check(_controller.sprites[0]["name"] == "改名测试",
+			"auto test: blank name kept")
+	# 恢复原状（画布编辑窗口测试用 sprite[0] 原始 4,4,8,8）
+	_controller.update_sprite_fields(0, {"x": 4, "y": 4, "width": 8, "height": 8,
+			"locked": false, "ignored": false, "name": "精灵 1"})
+
+	# 切片编辑 dock：单选填充 / 多选拒绝 / 画布联动 / 保存提交
+	_main._open_sprite_editor(1)
+	_check(_edit.get("_form").visible,
+			"auto test: edit dock shows form on single select")
+	_check(not String(_edit.get("_uid_label").text).is_empty(),
+			"auto test: edit dock shows uid")
+	_check(int(_edit.get("_w").value) == 8,
+			"auto test: edit dock prefills width")
+	# 多选 → 拒绝（表单隐藏回提示）
+	_controller.sprites[1]["selected"] = true
+	_controller.sprites[2]["selected"] = true
+	_controller.sprites_changed.emit(_controller.sprites)   # 选中变化 → dock 刷新
+	_main._open_sprite_editor(1)
+	_check(not _edit.get("_form").visible,
+			"auto test: edit dock refuses multi-select")
+	_controller.sprites[1]["selected"] = false
+	_controller.sprites[2]["selected"] = false
+	_controller.sprites_changed.emit(_controller.sprites)
+	# 画布单选 → dock 表单可见（sprites_changed 联动）
+	canvas.select_index(0)
+	_check(_edit.get("_form").visible,
+			"auto test: canvas single select shows edit form")
+	# 保存 → 数据更新（改名称 + 宽）
+	_edit.get("_name_edit").text = "dock改名"
+	_edit.get("_w").value = 12.0
+	_edit._on_save()
+	_check(_controller.sprites[0]["name"] == "dock改名",
+			"auto test: edit dock save renames")
+	_check(_controller.rects[0].size.x == 12,
+			"auto test: edit dock save updates width")
+	# 列表高亮与数据同步：编辑保存（sprites_changed 重建列表）后原生高亮不丢
+	_check(split_list.is_selected(0),
+			"auto test: list highlight kept after edit save")
+
+	# 导出选中（数据 selected 驱动，单选/多选/忽略项排除）
+	var sel_out: String = "res://out_sprites/ui_sel_test"
+	if DirAccess.dir_exists_absolute(sel_out):   # 清理上次残留
+		var sdir: DirAccess = DirAccess.open(sel_out)
+		sdir.list_dir_begin()
+		var sf: String = sdir.get_next()
+		while not sf.is_empty():
+			DirAccess.remove_absolute(sel_out + "/" + sf)
+			sf = sdir.get_next()
+		sdir.list_dir_end()
+		DirAccess.remove_absolute(sel_out)
+	canvas._clear_selection()
+	_controller.export_selected(sel_out)
+	await get_tree().process_frame
+	_check(not DirAccess.dir_exists_absolute(sel_out),
+			"auto test: export selected no-op without selection")
+	# 单选 2 号 → 导出 1 个 png
+	canvas.select_index(2)
+	_controller.export_selected(sel_out)
+	await get_tree().process_frame
+	_check(_count_files_in(sel_out) == 1,
+			"auto test: export selected exports single png")
+	# 多选 2、3 且 3 号 ignored → 仍只导出 1 个（忽略项排除）
+	_controller.set_sprite_ignored(3, true)
+	_controller.sprites[3]["selected"] = true
+	_controller.sprites_changed.emit(_controller.sprites)
+	_controller.export_selected(sel_out)
+	await get_tree().process_frame
+	_check(_count_files_in(sel_out) == 1,
+			"auto test: export selected skips ignored")
+	# 多选 2、3 都不忽略 → 导出 2 个
+	_controller.set_sprite_ignored(3, false)
+	_controller.export_selected(sel_out)
+	await get_tree().process_frame
+	_check(_count_files_in(sel_out) == 2,
+			"auto test: export selected multi exports all")
+	# meta.json 模式：导出选中被拒（UI 按钮禁用 + controller 兜底），不写文件
+	var meta_count_before: int = _count_files_in(sel_out)
+	_controller.export_selected(sel_out, _controller.EXPORT_META)
+	await get_tree().process_frame
+	_check(_count_files_in(sel_out) == meta_count_before,
+			"auto test: export selected refuses meta mode")
+	# side 按钮：meta 模式禁用 / PNG 模式启用
+	_side._export_mode_option.select(1)
+	_side._refresh_export_sel_btn()
+	_check(_side._export_sel_btn.disabled,
+			"auto test: export selected btn disabled in meta mode")
+	_side._export_mode_option.select(0)
+	_side._refresh_export_sel_btn()
+	_check(not _side._export_sel_btn.disabled,
+			"auto test: export selected btn enabled in png mode")
+	# 导出选中 AtlasTexture（atlas_sel_NN.tres，2 个）
+	_controller.export_selected(sel_out, _controller.EXPORT_TRES)
+	await get_tree().process_frame
+	_check(FileAccess.file_exists(sel_out + "/atlas_sel_01.tres"),
+			"auto test: export selected atlas tres")
+	canvas._clear_selection()
+
+	# 切片分组：字段写入 / 去重 / 按组选择 / 编辑面板保存
+	_controller.update_sprite_fields(0, {"group": "主角"})
+	_controller.update_sprite_fields(1, {"group": "主角"})
+	_check(String(_controller.sprites[0].get("group", "")) == "主角",
+			"auto test: group field written")
+	_check(_controller.get_groups() == ["主角"],
+			"auto test: get_groups dedup ordered")
+	_controller.select_group("主角")
+	_check(bool(_controller.sprites[0]["selected"])
+			and bool(_controller.sprites[1]["selected"]),
+			"auto test: select group selects members")
+	_check(not bool(_controller.sprites[2]["selected"]),
+			"auto test: select group clears non-members")
+	_controller.select_group("")
+	_check(bool(_controller.sprites[2]["selected"])
+			and not bool(_controller.sprites[0]["selected"]),
+			"auto test: select ungrouped")
+	# 编辑面板分组输入保存
+	canvas._clear_selection()
+	_main._open_sprite_editor(0)
+	_edit.get("_group_edit").text = "武器"
+	_edit._on_save()
+	_check(String(_controller.sprites[0].get("group", "")) == "武器",
+			"auto test: edit dock saves group")
+	# 还原分组，避免影响后续自动保存断言
+	_controller.update_sprite_fields(0, {"group": ""})
+	_controller.update_sprite_fields(1, {"group": ""})
+	canvas._clear_selection()
+
+	# 多选批量分组：多选时编辑面板显示批量表单；输入保存应用到全部选中；下拉填充
+	canvas.select_index(2)
+	_controller.sprites[3]["selected"] = true
+	_controller.sprites_changed.emit(_controller.sprites)
+	await get_tree().process_frame
+	_check(_edit.get("_group_batch").visible and not _edit.get("_form").visible,
+			"auto test: edit dock shows batch form on multi-select")
+	_edit.get("_batch_group_edit").text = "批量组"
+	_edit._on_batch_save()
+	_check(String(_controller.sprites[2].get("group", "")) == "批量组"
+			and String(_controller.sprites[3].get("group", "")) == "批量组",
+			"auto test: batch group applies to all selected")
+	# 下拉选已有分组 → 填充输入框
+	_edit.get("_batch_pick").select(1)
+	_edit._on_batch_pick_selected(1)
+	_check(String(_edit.get("_batch_group_edit").text) == "批量组",
+			"auto test: batch pick fills input")
+	# 单选时批量表单隐藏、完整表单显示
+	canvas._clear_selection()
+	_main._open_sprite_editor(0)
+	_check(not _edit.get("_group_batch").visible and _edit.get("_form").visible,
+			"auto test: edit dock single select hides batch")
+	# 还原分组
+	_controller.update_sprite_fields(2, {"group": ""})
+	_controller.update_sprite_fields(3, {"group": ""})
+	canvas._clear_selection()
+	# 按组选择下拉含「全部」；选择全部 → 所有切片选中
+	var go: OptionButton = _main.get("_group_option")
+	_main._rebuild_group_options()
+	_check(go.item_count >= 2 and go.get_item_text(0) == "全部",
+			"auto test: group dropdown has select-all")
+	_controller.select_all()
+	var all_sel: bool = true
+	for s: Dictionary in _controller.sprites:
+		if not bool(s.get("selected", false)):
+			all_sel = false
+	_check(all_sel, "auto test: select all marks every sprite")
+	canvas._clear_selection()
+	# 批量删除选中切片（含确认按钮存在性）
+	_check(_main.get("_delete_sel_btn") != null,
+			"auto test: delete selected btn exists")
+	var before_cnt: int = _controller.sprites.size()
+	canvas.select_index(4)
+	_controller.sprites[5]["selected"] = true
+	_controller.sprites_changed.emit(_controller.sprites)
+	var removed_n: int = _controller.remove_selected_sprites()
+	_check(removed_n == 2 and _controller.sprites.size() == before_cnt - 2,
+			"auto test: remove selected sprites")
+	_check(_controller.rects.size() == _controller.sprites.size(),
+			"auto test: remove selected syncs rects")
+	_check(_controller.is_dirty, "auto test: remove selected marks dirty")
+	_check(_controller.remove_selected_sprites() == 0,
+			"auto test: remove selected no-op without selection")
+	canvas._clear_selection()
+
+	# 分析 tab 基础信息（只读）：uid / 路径 / 尺寸 / 纹理 / 数据
+	_side._refresh_info_panel()
+	_check(String(_side.get("_info_uid").text).begins_with("UID:")
+			and not String(_side.get("_info_uid").text).ends_with(": -"),
+			"auto test: info panel shows uid")
+	_check(not String(_side.get("_info_path").text).ends_with(": -"),
+			"auto test: info panel shows path")
+	_check(not String(_side.get("_info_size").text).ends_with(": -"),
+			"auto test: info panel shows size")
+	_check(not String(_side.get("_info_texture").text).ends_with(": -"),
+			"auto test: info panel shows texture state")
+	_check(not String(_side.get("_info_data").text).ends_with(": -"),
+			"auto test: info panel shows data path")
+
+	# ---- 自动保存（防抖限流 + 保存锁 + 参数同步）----
+	_controller.autosave_enabled = true
+	_controller.autosave_delay = 0.1   # 加速：防抖 0.1s
+	_save_count = 0
+	_controller.data_saved.connect(_on_data_saved_count)
+	_countdown_last = -1
+	_countdown_seen_positive = false
+	_controller.autosave_countdown.connect(_on_countdown)
+	var dp: String = _controller.data_path
+	_check(not dp.is_empty(), "auto test: autosave has data path")
+	# 防抖：停止修改后 delay 秒落盘一次，dirty 清空
+	_controller.mark_dirty()
+	await get_tree().create_timer(0.35).timeout
+	_check(not _controller.is_dirty, "auto test: autosave flushes dirty after debounce")
+	_check(_save_count == 1, "auto test: autosave saved once")
+	_check(_countdown_seen_positive and _countdown_last == 0,
+			"auto test: autosave shows countdown then clears")
+	# 连续修改 → 防抖合并为一次保存（限流）
+	_controller.mark_dirty()
+	await get_tree().create_timer(0.05).timeout
+	_controller.mark_dirty()
+	await get_tree().create_timer(0.05).timeout
+	_controller.mark_dirty()
+	await get_tree().create_timer(0.35).timeout
+	_check(_save_count == 2, "auto test: autosave debounce merges rapid changes")
+	# 挂起（去背景类数据迁移流程）→ 不保存；恢复 → 补调度保存
+	_controller.suspend_autosave()
+	_controller.mark_dirty()
+	await get_tree().create_timer(0.35).timeout
+	_check(_save_count == 2 and _controller.is_dirty,
+			"auto test: autosave suspended during migration")
+	_controller.resume_autosave()
+	await get_tree().create_timer(0.35).timeout
+	_check(_save_count == 3 and not _controller.is_dirty,
+			"auto test: autosave resumes after suspend")
+	# 参数同步：sync_save_params 后自动保存带上最新参数（落盘可查）
+	_controller.sync_save_params("自动保存项目", _side._build_options(),
+			"res://out_auto", 0)
+	await get_tree().create_timer(0.35).timeout
+	var saved_d: Variant = load(dp)
+	_check(saved_d is SpriteSplitterData
+			and String(saved_d.project_name) == "自动保存项目",
+			"auto test: autosave persists synced project name")
+	_check(String(saved_d.out_dir) == "res://out_auto",
+			"auto test: autosave persists synced out_dir")
+	_controller.autosave_enabled = false   # 收尾关闭，避免影响退出流程
+
+	# ---- 退出拦截（flush_on_exit，模拟 EditorPlugin._save_external_data） ----
+	# 自动保存挂起（数据迁移中退出）→ 兜底保存仍同步落盘
+	_controller.suspend_autosave()
+	_controller.sync_save_params("退出兜底项目", _side._build_options(),
+			"res://out_exit", 0)
+	_check(_controller.has_unsaved_changes(), "auto test: exit guard sees dirty")
+	_controller.flush_on_exit()
+	_check(not _controller.has_unsaved_changes(),
+			"auto test: exit guard flushes dirty")
+	var exit_d: Variant = load(dp)
+	_check(exit_d is SpriteSplitterData
+			and String(exit_d.project_name) == "退出兜底项目",
+			"auto test: exit guard persists data")
+	# 无修改时兜底保存为空操作（不额外写盘）
+	var saved_before: int = _save_count
+	_controller.flush_on_exit()
+	_check(_save_count == saved_before, "auto test: exit guard noop when clean")
+	_controller.resume_autosave()
+
+	# ---- 输出根目录（ProjectSettings 配置）+ 生成资源注册表 + 清理窗口 ----
+	# out_root：默认值 + set/get（headless 仅内存生效，不写 project.godot）
+	_controller.set_out_root("res://out_sprites")   # 复位默认（防止测试环境残留配置）
+	_check(_controller.get_out_root() == "res://out_sprites",
+			"cleanup: default out_root")
+	_controller.set_out_root("res://out_root_b")
+	_check(_controller.get_out_root() == "res://out_root_b",
+			"cleanup: set/get out_root")
+	_check(_controller.default_out_dir("abc") == "res://out_root_b/abc",
+			"cleanup: default_out_dir follows out_root")
+	_controller.set_out_root("res://out_sprites")
+	# 生成资源注册表：初始化 + 落盘（data_dir 注入隔离）
+	var out_reg: SpriteOutputRegistry = _controller.output_registry
+	_check(out_reg != null, "cleanup: output registry initialized")
+	_check(FileAccess.file_exists("res://sps_data_test/output_registry.tres"),
+			"cleanup: output registry persisted")
+	# 导出三模式 → 全部登记（export 为协程：exporting 复位需 2 帧，逐次等足避免被挡）
+	# 路径拆串拼接：避免 .gd 源码含完整路径被占用扫描误判为"项目引用"
+	var clean_dir: String = "res://out_clean"
+	var clean_png: String = clean_dir + "/" + "sprite_01.png"
+	_controller.export(0, clean_dir, _side._build_options())
+	for _i in 2:
+		await get_tree().process_frame
+	_check(FileAccess.file_exists(clean_png)
+			and out_reg.has(clean_png),
+			"cleanup: exported png registered")
+	_controller.export(1, clean_dir, _side._build_options())
+	for _i in 2:
+		await get_tree().process_frame
+	_check(out_reg.has(clean_dir + "/" + "meta.json"),
+			"cleanup: meta.json registered")
+	_controller.export(2, clean_dir, _side._build_options())
+	for _i in 2:
+		await get_tree().process_frame
+	_check(out_reg.has(clean_dir + "/" + "atlas_01.tres"),
+			"cleanup: atlas tres registered")
+	# 去背景产物登记 + 占用判定（去背景图成为当前源 → 占用；纯导出 PNG → 可清理）
+	await _controller.remove_background(12, "color", false, Color.WHITE,
+			"http://127.0.0.1:8000", 1, 1)
+	var bg_path: String = "res://out_sprites/sheet_transparent.png"
+	_check(out_reg.has(bg_path) and FileAccess.file_exists(bg_path),
+			"cleanup: bg transparent png registered")
+	_check(_controller.is_output_occupied(bg_path),
+			"cleanup: bg png occupied (current source)")
+	_check(not _controller.is_output_occupied(clean_png),
+			"cleanup: fresh export not occupied")
+	# 清理窗口：实例化 + 列表条目数 + 占用标注
+	var cw: Window = load("res://addons/sprite_splitter/ui/cleanup_window.tscn").instantiate()
+	add_child(cw)
+	cw.set_controller(_controller)
+	cw.refresh()
+	var cl: ItemList = cw.get_node("VBox/ListArea/List")
+	_check(cl.item_count == out_reg.entries.size(),
+			"cleanup: window lists all entries")
+	_check(bool(cw.get("_usage").get(bg_path, false)),
+			"cleanup: window usage marks occupied")
+	# 清理：未占用删除 + 注册表移除；占用拒绝
+	var del_ok: Dictionary = _controller.cleanup_outputs([clean_png])
+	_check(int(del_ok.get("deleted", 0)) == 1
+			and not FileAccess.file_exists(clean_png),
+			"cleanup: unused png deleted")
+	_check(not out_reg.has(clean_png),
+			"cleanup: registry entry removed after delete")
+	var del_occ: Dictionary = _controller.cleanup_outputs([bg_path])
+	_check(int(del_occ.get("deleted", 0)) == 0
+			and FileAccess.file_exists(bg_path),
+			"cleanup: occupied png refused")
+	cw.queue_free()
 
 	print("[sps-ui] === auto test done (fail=%s) ===" % _fail)
 	get_tree().quit(1 if _fail else 0)

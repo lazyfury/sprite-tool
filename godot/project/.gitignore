@@ -3,6 +3,15 @@
 
 # 运行时测试产物
 out_sprites/
+out_sheet/
+out_sheet_test/
+out_probe/
+out_exit/
+out_auto/
+out_clean/
+
+# headless 测试隔离目录（每次运行清空重建，不提交）
+sps_data_test/
 
 # GDExtension 动态库产物（.gdextension 配置文件保留提交）
 addons/sprite_splitter/bin/macos/
