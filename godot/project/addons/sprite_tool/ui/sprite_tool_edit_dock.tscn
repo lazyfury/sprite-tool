@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/sprite_tool/ui/sprite_splitter_edit_dock.gd" id="1_edit"]
+[ext_resource type="Script" path="res://addons/sprite_tool/ui/sprite_tool_edit_dock.gd" id="1_edit"]
 
 [node name="切片数据" type="PanelContainer"]
 custom_minimum_size = Vector2(260, 0)

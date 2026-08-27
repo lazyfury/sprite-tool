@@ -145,24 +145,28 @@ size_flags_horizontal = 3
 max_value = 64.0
 value = 4.0
 
-[node name="CellRow" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox" unique_id=1241038578]
+[node name="CellWRow" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox" unique_id=1241038578]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="CellWLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellRow" unique_id=1080623371]
+[node name="CellWLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellWRow" unique_id=1080623371]
 layout_mode = 2
 text = "格子宽 (0=自适应)"
 
-[node name="CellW" type="SpinBox" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellRow" unique_id=572770272]
+[node name="CellW" type="SpinBox" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellWRow" unique_id=572770272]
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 2048.0
 
-[node name="CellHLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellRow" unique_id=1218733558]
+[node name="CellHRow" type="HBoxContainer" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CellHLabel" type="Label" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellHRow" unique_id=1218733558]
 layout_mode = 2
 text = "格子高"
 
-[node name="CellH" type="SpinBox" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellRow" unique_id=1503190474]
+[node name="CellH" type="SpinBox" parent="Scroll/VBox/Split/RightPanel/ParamCard/ParamVBox/CellHRow" unique_id=1503190474]
 layout_mode = 2
 size_flags_horizontal = 3
 max_value = 2048.0

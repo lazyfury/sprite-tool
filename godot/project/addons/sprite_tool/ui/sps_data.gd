@@ -2,7 +2,7 @@
 class_name SpriteSplitterData
 extends Resource
 
-## Sprite Splitter 项目数据（.tres，可运行时编辑并保存）：
+## sprite-tool 项目数据（.tres，可运行时编辑并保存）：
 ## - 兼容 meta.json 数据（sprites = rects 数组，与导出 meta.json 同源）
 ## - 保存常用切分参数 + 导出位置 + 项目名称
 ## - 通过素材 uid 关联（sheet_uid），加载素材时自动匹配加载/初始化

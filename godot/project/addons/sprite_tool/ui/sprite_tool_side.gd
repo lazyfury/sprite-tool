@@ -47,8 +47,8 @@ var _meta_dialog: Variant = null
 @onready var _import_meta_btn: Button = get_node("VBox/TabContainer/ImportTab/VBox/ImportCard/ImportVBox/ImportMetaBtn")
 @onready var _sheet_cols: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/ColsRow/Cols")
 @onready var _sheet_padding: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/PaddingRow/Padding")
-@onready var _sheet_cell_w: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/CellRow/CellW")
-@onready var _sheet_cell_h: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/CellRow/CellH")
+@onready var _sheet_cell_w: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/CellWRow/CellW")
+@onready var _sheet_cell_h: SpinBox = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/CellHRow/CellH")
 @onready var _sheet_file_name: LineEdit = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/FileNameRow/SheetFileName")
 @onready var _sheet_overwrite_check: CheckButton = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/OverwriteCheck")
 @onready var _sheet_out_dir: LineEdit = get_node("VBox/TabContainer/SheetTab/VBox/SheetCard/SheetVBox/OutDirRow/SheetOutDir")
@@ -432,7 +432,7 @@ func _on_out_root_changed(_v: String) -> void:
 		_controller.set_out_root(_out_root.text)
 
 
-# 回车 / 失焦：持久化到 project.godot（项目设置 → sprite_splitter/out_root）
+# 回车 / 失焦：持久化到 project.godot（项目设置 → sprite_tool/out_root）
 func _on_out_root_committed(_v: String = "") -> void:
 	if _controller != null:
 		_controller.set_out_root(_out_root.text, true)

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b0spsmain01"]
 
-[ext_resource type="Script" uid="uid://o7mhqbrdrkll" path="res://addons/sprite_tool/ui/sprite_splitter_main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://o7mhqbrdrkll" path="res://addons/sprite_tool/ui/sprite_tool_main.gd" id="1_main"]
 [ext_resource type="Script" uid="uid://bk46nx0u2csgd" path="res://addons/sprite_tool/ui/canvas_view.gd" id="2_canvas"]
 [ext_resource type="PackedScene" uid="uid://btlqwjnqddink" path="res://addons/sprite_tool/ui/reg_item.tscn" id="3_lsfdp"]
 

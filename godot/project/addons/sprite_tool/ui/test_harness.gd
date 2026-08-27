@@ -42,9 +42,9 @@ func _ready() -> void:
 	_clean_test_data("res://sps_data_test")
 	_controller = SpsController.new(get_tree(), "res://sps_data_test")
 	_controller.autosave_enabled = false   # 默认关自动保存：现有断言依赖 is_dirty 状态；自动保存段单独开启
-	_main = load("res://addons/sprite_tool/ui/sprite_splitter_main.tscn").instantiate()
-	_side = load("res://addons/sprite_tool/ui/sprite_splitter_side.tscn").instantiate()
-	_edit = load("res://addons/sprite_tool/ui/sprite_splitter_edit_dock.tscn").instantiate()
+	_main = load("res://addons/sprite_tool/ui/sprite_tool_main.tscn").instantiate()
+	_side = load("res://addons/sprite_tool/ui/sprite_tool_side.tscn").instantiate()
+	_edit = load("res://addons/sprite_tool/ui/sprite_tool_edit_dock.tscn").instantiate()
 	_main_holder.add_child(_main)
 	_side_holder.add_child(_side)
 	add_child(_edit)   # 编辑 dock 独立面板（harness 直接挂 root）

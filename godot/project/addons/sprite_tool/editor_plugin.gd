@@ -1,22 +1,23 @@
 @tool
 extends EditorPlugin
 
-## Sprite Splitter 编辑器插件（M5.3）—— 主屏幕 + 双 dock 挂载：
+## sprite-tool 编辑器插件（M5.3）—— 主屏幕 + 双 dock 挂载：
 ##   - 主屏幕（EditorInterface.get_editor_main_screen()）：全屏画布预览
 ##     （图片/切分红框/框选 + 工具条 移动/选择/裁切 + 缩放），顶部标签栏
-##     2D｜3D｜Sprite Splitter 切换，参考 limboai LimboAIEditorPlugin。
-##   - 侧栏 dock 1（DOCK_SLOT_RIGHT_BL）：操作面板（打开素材/参数/分析/去背景/
-##     切分/导入 meta.json/导出）。
-##   - 侧栏 dock 2（DOCK_SLOT_RIGHT_BR）：切片编辑面板（单选切片编辑数据）。
+##     2D｜3D｜sprite-tool 切换，参考 limboai LimboAIEditorPlugin。
+##   - 侧栏 dock 1（DOCK_SLOT_RIGHT_UL）：操作面板（打开素材/参数/分析/去背景/
+##     切分/导入 meta.json/导出）——右侧第一排。
+##   - 侧栏 dock 2（DOCK_SLOT_RIGHT_BL）：切片编辑面板（单选切片编辑数据）——
+##     第一排正下方，与 dock 1 同列上下排布。
 ## 三视图共享 SpsController（业务逻辑），跨区域交互由信号桥接。
 ## 保留 Tools 菜单快捷入口：选 PNG → 自动切分导出 res://sprites/。
 ##
 ## 编码约定（项目强制）：var 显式类型标注，不用 :=。
 
 const MENU_NAME: String = "sprite-tool..."
-const MAIN_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_splitter_main.tscn")
-const SIDE_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_splitter_side.tscn")
-const EDIT_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_splitter_edit_dock.tscn")
+const MAIN_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_tool_main.tscn")
+const SIDE_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_tool_side.tscn")
+const EDIT_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_tool_edit_dock.tscn")
 const ICON_PATH: String = "res://addons/sprite_tool/icon.svg"
 
 var _controller: SpsController = null
@@ -34,10 +35,10 @@ func _enter_tree() -> void:
 	_main_ui.hide()   # 默认隐藏，点主屏幕标签时 _make_visible 切换
 	_main_ui.set_controller(_controller)
 	_side_ui = SIDE_SCENE.instantiate()
-	add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_BL, _side_ui)
+	add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_UL, _side_ui)   # 操作面板：右侧第一排（上排左）
 	_side_ui.set_controller(_controller)
 	_edit_ui = EDIT_SCENE.instantiate()
-	add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_BR, _edit_ui)   # 编辑面板独立停靠（右侧下半区）
+	add_control_to_dock(EditorPlugin.DOCK_SLOT_RIGHT_BL, _edit_ui)   # 编辑面板：第一排正下方（下排左，与 side 同列上下排布）
 	_edit_ui.set_controller(_controller)
 	_main_ui.set_side(_side_ui)   # 主视图需要侧栏当前参数（注册表切换前保存用）
 	add_tool_menu_item(MENU_NAME, _on_menu_split)
@@ -70,7 +71,7 @@ func _get_unsaved_status(for_scene: String) -> String:
 	if not for_scene.is_empty():
 		return ""
 	if _controller != null and _controller.has_unsaved_changes():
-		return "Sprite Splitter 有未保存的项目数据（关闭会丢失）。保存后再退出？"
+		return "sprite-tool 有未保存的项目数据（关闭会丢失）。保存后再退出？"
 	return ""
 
 
@@ -126,7 +127,7 @@ func _on_file_selected(path: String) -> void:
 		"min_width": 2,
 		"min_height": 2,
 	}
-	# 统一输出到配置的输出根目录（项目设置 → sprite_splitter/out_root）
+	# 统一输出到配置的输出根目录（项目设置 → sprite_tool/out_root）
 	var out_root: String = _controller.get_out_root()
 	var files: PackedStringArray = _controller.splitter.split_and_export(
 			_controller.image, opts, out_root)

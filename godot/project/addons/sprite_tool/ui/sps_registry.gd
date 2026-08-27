@@ -2,7 +2,7 @@
 class_name SpriteSplitterRegistry
 extends Resource
 
-## Sprite Splitter 项目注册表（.tres）：登记所有已保存的 SpriteSplitterData 路径。
+## sprite-tool 项目注册表（.tres）：登记所有已保存的 SpriteSplitterData 路径。
 ## 默认注册表：res://sps_data/registry.tres（与项目数据同目录，随项目走）；
 ## 新建/保存项目数据时自动注册，UI 注册表列表据此展示并支持点击加载。
 ##

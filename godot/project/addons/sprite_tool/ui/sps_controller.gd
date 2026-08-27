@@ -1,7 +1,7 @@
 class_name SpsController
 extends RefCounted
 
-## Sprite Splitter 共享控制器（M5.3 主视图/侧栏拆分）：
+## sprite-tool 共享控制器（M5.3 主视图/侧栏拆分）：
 ## 持有全部状态与业务逻辑（加载/分析/切分/去背景/导入/导出），通过信号驱动
 ## 主视图（画布）与侧栏（参数/操作）两个独立 UI——EditorPlugin 分别挂到
 ## 编辑器主屏幕与侧边 dock，跨区域交互由本 controller 桥接。
@@ -31,7 +31,7 @@ const EXPORT_TRES: int = 2
 var data_dir: String = "res://sps_data"   # 项目数据目录（测试可注入隔离）
 
 # ---------- 输出根目录（ProjectSettings 配置，所有生成资源统一落此目录下） ----------
-const SETTING_OUT_ROOT: String = "sprite_splitter/out_root"
+const SETTING_OUT_ROOT: String = "sprite_tool/out_root"
 const DEFAULT_OUT_ROOT: String = "res://out_sprites"
 const OUTPUT_REG_FILE: String = "output_registry.tres"
 
@@ -160,7 +160,7 @@ func remove_registry_entry(path: String) -> void:
 	status_changed.emit("已删除项目配置: " + path, false)
 
 
-# ---------- 输出根目录（ProjectSettings 配置：项目设置 → sprite_splitter/out_root） ----------
+# ---------- 输出根目录（ProjectSettings 配置：项目设置 → sprite_tool/out_root） ----------
 # 所有生成资源（切分 PNG / meta.json / AtlasTexture .tres / 去背景 PNG / sheet）统一落
 # 此根目录下；项目数据 out_dir 默认 = <out_root>/<uid 子目录>。编辑器模式改动才写盘
 # project.godot（headless/运行模式仅内存生效，测试注入不污染项目设置）。
