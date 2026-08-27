@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="SpriteSplitterData" format=3 uid="uid://b1q0o4yb6482s"]
 
-[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_splitter/ui/sps_data.gd" id="1_svv1c"]
+[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_tool/ui/sps_data.gd" id="1_svv1c"]
 [ext_resource type="Texture2D" uid="uid://5sg83q0j6kcj" path="res://sprites/ChatGPT Image 2026年8月25日 21_47_15.png" id="2_yfyqc"]
 
 [resource]
@@ -796,4 +796,4 @@ sprites = Array[Dictionary]([{
 "x": 998,
 "y": 1020
 }])
-modified_at = 1787840317
+modified_at = 1787843515

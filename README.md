@@ -23,6 +23,19 @@
 - **语言**：GDScript UI + C++20 核心（CMake 构建）
 - **许可**：未指定（发布前补充）
 
+## 🖼️ 界面预览
+
+<p align="center">
+  <img src="docs/screenshots/ui-main-screen.jpg" alt="主屏幕：全屏画布 + 切片数据侧栏 + 项目注册表" width="88%"/>
+  <br/><em>主屏幕：画布自动检测描边，右侧为切片数据与项目注册表</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/ui-slice-edit.jpg" alt="切片编辑：框选/移动/锁定与分组" width="46%"/>
+  <img src="docs/screenshots/ui-crop-tool.jpg" alt="裁切工具：拖拽微调精灵边界" width="46%"/>
+  <br/><em>左：切片编辑（框选 / 移动 / 锁定 / 分组）　右：裁切工具微调边界</em>
+</p>
+
 ## 📦 安装（Godot 插件）
 
 1. 拷贝 `addons/sprite_tool/` 到你的项目 `res://addons/`
