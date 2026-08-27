@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="SpriteSplitterData" format=3 uid="uid://dlx7b3h1fxnjg"]
 
-[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_splitter/ui/sps_data.gd" id="1_njm2c"]
+[ext_resource type="Script" uid="uid://2s5vckh2bsph" path="res://addons/sprite_tool/ui/sps_data.gd" id="1_njm2c"]
 [ext_resource type="Texture2D" uid="uid://b2ynb75xa3ulw" path="res://out_sheet/ui/ChatGPT Image 2026年8月25日 21_47_15_sheet.png" id="2_7dw38"]
 
 [resource]
@@ -14,7 +14,7 @@ min_height = 57
 slice_policy = "grid"
 padding = 2
 out_dir = "res://out_sprites/b2ynb75xa3ulw"
-sprites = Array[Dictionary]([{
+sprites = [{
 "group": "",
 "height": 237,
 "ignored": false,
@@ -795,5 +795,5 @@ sprites = Array[Dictionary]([{
 "width": 157,
 "x": 945,
 "y": 1896
-}])
+}]
 modified_at = 1787840411
