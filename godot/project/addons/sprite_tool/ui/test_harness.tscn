@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b0spstest01"]
 
-[ext_resource type="Script" path="res://addons/sprite_splitter/ui/test_harness.gd" id="1_test"]
+[ext_resource type="Script" path="res://addons/sprite_tool/ui/test_harness.gd" id="1_test"]
 
 [node name="TestHarness" type="Control"]
 layout_mode = 3

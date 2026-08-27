@@ -1,8 +1,48 @@
-# Sprite Splitter
+# sprite-tool
 
-雪碧图智能切割工具（Sprite Sheet Analyzer）：从 Sprite Sheet 中自动检测并切分出独立精灵，导出 PNG / JSON 元数据 / Godot AtlasTexture。
+**Sprite Sheet 智能切分工具**（Sprite Sheet Analyzer / 雪碧图智能切割）——自动检测并切分出独立精灵，导出 PNG / JSON 元数据 / Godot AtlasTexture。**C++20 核心算法 + Godot 4.x 编辑器插件 + CLI** 三端一体。
 
-**核心产品是分析器，不是单纯的切割器** —— 检测出 sprite rects 后，可自由导出为多种目标格式。
+> 核心产品是**分析器**，不是单纯的切割器：检测出 sprite rects 后，可自由导出为多种目标格式，也可在编辑器内可视化微调。
+
+---
+
+## ✨ 特性（Godot 4 编辑器插件）
+
+| | |
+|---|---|
+| 🧩 智能检测 | Auto 模式：投影 + 自相关找网格周期、多维评分，低置信自动回退连通分量 |
+| 🔲 多策略切分 | 自动 / 连通分量 / 网格单元（可强制覆盖）+ Padding / 最小尺寸 / 合并距离 |
+| 🎨 背景清理 | 四角采样 + Flood Fill + 魔棒种子点 + 收缩/羽化软边；可接 Remote AI 后端 |
+| 🖱️ 编辑器内可视化 | 主屏幕全屏画布：缩放/平移/框选/裁切/编辑，切片锁定/忽略/分组 |
+| 📦 多种导出 | 切 PNG / meta.json / AtlasTexture .tres / 导出选中 / Sprite Sheet 打包 |
+| 🧹 生成资源管理 | 统一输出根目录（项目设置可配）+ 生成资源注册表 + 清理窗口（占用检查） |
+| 📁 项目持久化 | 参数/区域/项目名存为 .tres，随素材 uid 自动关联，未保存退出拦截 |
+| ⚡ C++ 核心 | 零第三方运行时依赖，GDExtension 薄封装，headless 回归 227 断言全绿 |
+
+- **引擎**：Godot 4.x（GDExtension，`compatibility_minimum 4.1`，4.6 / 4.7 实测）
+- **语言**：GDScript UI + C++20 核心（CMake 构建）
+- **许可**：未指定（发布前补充）
+
+## 📦 安装（Godot 插件）
+
+1. 拷贝 `addons/sprite_tool/` 到你的项目 `res://addons/`
+2. 打开项目 → **项目设置 → 插件**，启用 **sprite-tool**
+3. 顶部标签栏出现 **sprite-tool**（2D｜3D｜sprite-tool），点击进入编辑器内切分界面
+
+> 需要预编译 GDExtension 动态库（`addons/sprite_tool/bin/<平台>/`）；源码构建见下文「CLI 快速上手」内的构建命令与 `godot/CMakeLists.txt`。
+
+## 🚀 快速开始（编辑器内）
+
+1. **打开素材表**：选择 PNG 雪碧图
+2. **分析** → 自动填充推荐参数 → **切分**（画布显示检测框）
+3. 用 **移动 / 选择 / 编辑 / 裁切** 工具微调（锁定 / 忽略 / 分组）
+4. **导出**：切 PNG ｜ 仅 meta.json ｜ AtlasTexture .tres；或 **创建 Sheets** 打包
+
+## 🔧 CLI（可选）
+
+同一核心的独立命令行工具（`build/sprite-split`），支持批处理与纯管道：`info / split / manual / from-json / sheet / remove-background`，`--format json` 机器可读。详见下文「CLI 快速上手」。
+
+---
 
 ## 技术路线
 
@@ -31,7 +71,7 @@ C++ Core ──────── Godot GDExtension（Phase 5）
 | M4a | Remote AI 后端：`--bg-backend remote --bg-url` HTTP 调用 `examples/rembg-api`（Python rembg 独立服务，含 upload/url 两接口 + 失败回退纯算法）。统一走 `BackgroundRemover` 接口（core 抽象 + `extra/bg_remote` 实现） | ✅ 完成 |
 | M4b | **CLI 解耦重构**：CLI11 开源解析库替代手写解析；split/remove-background 分离（`--stdout` 真管道 + 全命令 stdin `-` 输入）；删除 --contract | ✅ 完成 |
 | M4 | AI 分割（ONNX 内嵌，可选） | ⏸ 搁置（remote 路线已覆盖主要场景） |
-| M5 | Godot GDExtension 编辑器插件（导出 PNG / AtlasTexture / SpriteFrames） | ⏸ 搁置 |
+| M5 | Godot GDExtension 编辑器插件：主屏幕画布 + 双 dock + 切片编辑/分组 + 去背景 + 导入 meta.json + 导出（PNG / AtlasTexture）+ Sprite Sheet 打包 + 统一输出根目录 / 生成资源注册表 / 清理窗口 | ✅ 完成 |
 
 > 规划细节见 [`agent.md`](agent.md)，任务状态见 [`todo.md`](todo.md)。
 
@@ -116,7 +156,7 @@ ctest --test-dir build
 core/           C++ 核心算法库（image / mask / segmentation / model / analyzer / export）
 cli/            CLI 入口（CLI11 子命令）
 extra/          Remote 背景后端（sps_bg_remote，httplib）
-godot/          Godot GDExtension（Phase 5）
+godot/          Godot GDExtension（插件：addons/sprite_tool + 测试工程 project/）
 tests/          Catch2 单元测试
 examples/       rembg-api 独立 Python 服务
 docs/           设计文档（含重构指南 refactoring-guide.md）
@@ -125,5 +165,7 @@ third_party/    vendored 第三方依赖（stb / catch2 / json / httplib / cli11
 
 ## 状态
 
-**M1–M4b 已完成**：92 用例全绿；CLI11 子命令化 + 机器可读 JSON 输出 + split/remover 解耦
-（--stdout 真管道 + stdin 输入）可用。M4（ONNX 内嵌 AI 分割）、M5（Godot GDExtension）搁置。
+**M1–M5 已完成**：CLI 92 用例全绿（CLI11 子命令化 + 机器可读 JSON + split/remove 解耦管道）；
+Godot 插件主屏幕 + 双 dock（切分/编辑）+ 导出（PNG / AtlasTexture / Sheet 打包）+ 输出根目录 /
+生成资源注册表 / 清理窗口；headless 回归 227 断言全绿 + sheet_test 87 断言全绿。
+M4（ONNX 内嵌 AI 分割）、M3+（魔棒交互 UI）搁置。

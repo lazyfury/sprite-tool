@@ -5,15 +5,15 @@ extends Control
 ## 行为一致（重排网格、sheet.png + sheet_meta.json、src/dst 映射、边界防御）。
 ## 与 test_harness 解耦——新增类独立验证，不污染既有 79 断言。
 ##
-## 运行：Godot --headless --path . res://addons/sprite_splitter/ui/sheet_test.tscn -- --sps-sheet-test
+## 运行：Godot --headless --path . res://addons/sprite_tool/ui/sheet_test.tscn -- --sps-sheet-test
 ## 编码约定（项目强制）：var 显式类型标注，不用 :=。
 
 const FLAG: String = "--sps-sheet-test"
 const SHEET: String = "res://sprites/sheet.png"
 const OUT_DIR: String = "res://out_sheet_test"
 const DATA_DIR2: String = "res://sps_data_test2"
-const SIDE_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/sprite_splitter_side.tscn")
-const SHEET_WINDOW_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/sheet_builder_window.tscn")
+const SIDE_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_splitter_side.tscn")
+const SHEET_WINDOW_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sheet_builder_window.tscn")
 const COLS: int = 8
 const PADDING: int = 4
 

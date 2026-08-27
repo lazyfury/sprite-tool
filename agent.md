@@ -1,11 +1,11 @@
-# Sprite Splitter — 项目规划（agent.md）
+# sprite-tool — 项目规划（agent.md）
 
 > 本文档是项目级智能体工作指南：目标、架构、里程碑与验证标准。
 > 开发前先读本文件 §5 验证标准与 §6 开发规范；任务状态以 `todo.md` 为准。
 
 ## 1. 项目概述
 
-- **名称**：Sprite Splitter（雪碧图智能切割 / Sprite Sheet Analyzer）
+- **项目名**：sprite-tool；**产品名**：Sprite Splitter（雪碧图智能切割 / Sprite Sheet Analyzer）
 - **定位**：核心产品是 **Sprite Sheet Analyzer**（分析出 sprite rects），而非单纯的图像切割器；支持导出 PNG / JSON 元数据 / Godot AtlasTexture 资源；支持自动检测 + 手动框选（meta.json 往返）
 - **技术路线**：**C++20 核心算法库（零外部依赖、不依赖 Godot）+ CLI frontend + Godot GDExtension 薄封装**（Phase 5）
 - **当前状态**：M1–M3.5 已完成（CLI 子命令化 + 机器可读输出，92 用例 / 2418 断言全绿；auto 回退 components 时自动滤噪）；M4/M5 搁置
@@ -192,7 +192,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
 - [x] godot-cpp 引入（**git submodule** `godot/godot-cpp`，godot-4.5-stable @ e83fd09，gitlink 指针不入库；本环境 github.com git clone 不通 → api.github.com tarball + `git update-index --cacheinfo 160000` 建指针，2026-08-25 实测）
 - [x] 数据转换层：godot::Image ↔ core Image；SpriteRect → Rect2i（`godot/src/conversion.cpp`）
 - [x] `SpriteSplitter` 类（RefCounted，GDScript 可调 `split/analyze/crop/export_sprite/split_and_export`，`godot/src/sprite_splitter.cpp`）
-- [x] addons 规范布局（`project/addons/sprite_splitter/`：plugin.cfg + editor_plugin.gd（@tool EditorPlugin）+ bin/（.gdextension + 动态库））
+- [x] addons 规范布局（`project/addons/sprite_tool/`：plugin.cfg + editor_plugin.gd（@tool EditorPlugin）+ bin/（.gdextension + 动态库））
 - [ ] EditorPlugin GUI 验证（骨架完成；4.6.2 编辑器模式 bug 阻塞 headless 验证，需 GUI 实测：Plugins 启用 → Tools 菜单切分）
 - [x] 用本机 Godot 4.6.2 加载验证（无头冒烟 24 断言全 PASS；`.gdextension` 配置各平台动态库；addons 布局下加载正常）
 
@@ -229,7 +229,7 @@ SplitResult split_image(const Image& image, const SplitOptions& options,
 |---|---|---|
 | `sprite-splitter` | CLI 参数/推荐工作流/陷阱/验证方法 | **调用 `sprite-split` CLI 前必读** |
 | `godot-gdextension` | Godot 4.x GDExtension 制作（类注册/构建/数据转换） | 开发 `godot/`（M5）时读取 |
-| `sprite-plugin-ui` | 插件 UI 开发（布局/交互/独立场景测试/编码约定） | 开发 `godot/project/addons/sprite_splitter/ui/` 时读取 |
+| `sprite-plugin-ui` | 插件 UI 开发（布局/交互/独立场景测试/编码约定） | 开发 `godot/project/addons/sprite_tool/ui/` 时读取 |
 
 **Godot/GDScript 编码约定（强制）**：
 - 节点路径一律用 `/` 表示子层级（`get_node("Main/Content/SidePanel/Side/SplitBtn")`），不链式 get_node；**例外：易随结构变动失效的关键节点（如主视图 CanvasView）用唯一名 `%` 访问**（`get_node("%CanvasView")`，2026-08-25 用户指定）

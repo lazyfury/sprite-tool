@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b0spsside01"]
 
-[ext_resource type="Script" uid="uid://bragmvn8ao8ls" path="res://addons/sprite_splitter/ui/sprite_splitter_side.gd" id="1_side"]
+[ext_resource type="Script" uid="uid://bragmvn8ao8ls" path="res://addons/sprite_tool/ui/sprite_splitter_side.gd" id="1_side"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_a7grt"]
 content_margin_left = 10.0

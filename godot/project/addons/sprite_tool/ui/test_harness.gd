@@ -8,7 +8,7 @@ const DEFAULT_SHEET: String = "res://sprites/sheet.png"
 const AUTO_TEST_FLAG: String = "--sps-ui-test"
 const AUTO_PROBE_FLAG: String = "--sps-ui-probe"
 const PROBE_OUT: String = "res://out_probe/ui_probe.json"
-const UiProbeScript: GDScript = preload("res://addons/sprite_splitter/ui/ui_probe.gd")
+const UiProbeScript: GDScript = preload("res://addons/sprite_tool/ui/ui_probe.gd")
 
 var _controller: SpsController = null
 var _main: Control = null
@@ -42,9 +42,9 @@ func _ready() -> void:
 	_clean_test_data("res://sps_data_test")
 	_controller = SpsController.new(get_tree(), "res://sps_data_test")
 	_controller.autosave_enabled = false   # 默认关自动保存：现有断言依赖 is_dirty 状态；自动保存段单独开启
-	_main = load("res://addons/sprite_splitter/ui/sprite_splitter_main.tscn").instantiate()
-	_side = load("res://addons/sprite_splitter/ui/sprite_splitter_side.tscn").instantiate()
-	_edit = load("res://addons/sprite_splitter/ui/sprite_splitter_edit_dock.tscn").instantiate()
+	_main = load("res://addons/sprite_tool/ui/sprite_splitter_main.tscn").instantiate()
+	_side = load("res://addons/sprite_tool/ui/sprite_splitter_side.tscn").instantiate()
+	_edit = load("res://addons/sprite_tool/ui/sprite_splitter_edit_dock.tscn").instantiate()
 	_main_holder.add_child(_main)
 	_side_holder.add_child(_side)
 	add_child(_edit)   # 编辑 dock 独立面板（harness 直接挂 root）
@@ -159,17 +159,20 @@ func _auto_test() -> void:
 			"auto test: split list first entry format (name+bbox)")
 	_check(not split_empty.visible, "auto test: empty hint hidden when rects exist")
 
-	# 导出三模式
+	# 导出三模式（export 为协程：exporting 复位需 2 帧，逐次等足避免被下一模式挡掉）
 	_controller.export(0, out_dir, _side._build_options())
-	await get_tree().process_frame
+	for _i in 2:
+		await get_tree().process_frame
 	_check(FileAccess.file_exists(out_dir + "/sprite_01.png"), "auto test: PNG exported")
 	_controller.export(1, out_dir, _side._build_options())
-	await get_tree().process_frame
+	for _i in 2:
+		await get_tree().process_frame
 	var j: Variant = JSON.parse_string(FileAccess.get_file_as_string(out_dir + "/meta.json"))
 	_check(j is Dictionary and int(j.get("sprites", []).size()) == _controller.rects.size(),
 			"auto test: meta.json count matches")
 	_controller.export(2, out_dir, _side._build_options())
-	await get_tree().process_frame
+	for _i in 2:
+		await get_tree().process_frame
 	_check(FileAccess.file_exists(out_dir + "/atlas_01.tres"), "auto test: atlas tres exported")
 
 	# 导入 meta.json → 画布更新
@@ -1076,7 +1079,7 @@ func _auto_test() -> void:
 	_check(not _controller.is_output_occupied(clean_png),
 			"cleanup: fresh export not occupied")
 	# 清理窗口：实例化 + 列表条目数 + 占用标注
-	var cw: Window = load("res://addons/sprite_splitter/ui/cleanup_window.tscn").instantiate()
+	var cw: Window = load("res://addons/sprite_tool/ui/cleanup_window.tscn").instantiate()
 	add_child(cw)
 	cw.set_controller(_controller)
 	cw.refresh()

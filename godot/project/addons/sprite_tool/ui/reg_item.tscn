@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://btlqwjnqddink"]
 
-[ext_resource type="Script" uid="uid://dixvd1ixskq88" path="res://addons/sprite_splitter/ui/reg_item.gd" id="1_reg"]
+[ext_resource type="Script" uid="uid://dixvd1ixskq88" path="res://addons/sprite_tool/ui/reg_item.gd" id="1_reg"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 content_margin_left = 16.0

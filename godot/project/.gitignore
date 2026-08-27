@@ -12,8 +12,9 @@ out_clean/
 
 # headless 测试隔离目录（每次运行清空重建，不提交）
 sps_data_test/
+sps_data_test2/
 
 # GDExtension 动态库产物（.gdextension 配置文件保留提交）
-addons/sprite_splitter/bin/macos/
-addons/sprite_splitter/bin/windows/
-addons/sprite_splitter/bin/linux/
+addons/sprite_tool/bin/macos/
+addons/sprite_tool/bin/windows/
+addons/sprite_tool/bin/linux/

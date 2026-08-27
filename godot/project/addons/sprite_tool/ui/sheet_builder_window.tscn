@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c0spsbldr01"]
 
-[ext_resource type="Script" uid="uid://020714bmhs7v" path="res://addons/sprite_splitter/ui/sheet_builder_window.gd" id="1_win"]
+[ext_resource type="Script" uid="uid://020714bmhs7v" path="res://addons/sprite_tool/ui/sheet_builder_window.gd" id="1_win"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
 content_margin_left = 12.0

@@ -6,7 +6,7 @@ description: Sprite Splitter CLI 使用规范（切雪碧图 / 精灵提取 / �
 > 💡 **AI 代理获取本规范**：直接运行 `sprite-split --prompt` 可输出本文档全文
 > （构建时嵌入，与 SKILL.md 同步；无需知道文件路径）。
 
-# Sprite Splitter CLI 使用指南
+# sprite-tool CLI 使用指南
 
 项目工具：`sprite-split`（C++20，CLI11 子命令，构建产物 `build/sprite-split`）。用于从 Sprite Sheet 中检测/切分精灵，导出 PNG + JSON 元数据。
 

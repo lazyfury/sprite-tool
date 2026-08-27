@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_d7ep4")
-entries = Array[String](["res://sps_data/5sg83q0j6kcj.tres", "res://sps_data/b2ynb75xa3ulw.tres"])
-updated_at = 1787840344
+entries = Array[String](["res://sps_data/5sg83q0j6kcj.tres", "res://sps_data/b2ynb75xa3ulw.tres", "res://sps_data/output_registry.tres"])
+updated_at = 1787840924

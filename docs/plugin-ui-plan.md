@@ -1,7 +1,7 @@
-# Sprite Splitter 插件 UI 设计与交互规划
+# sprite-tool 插件 UI 设计与交互规划
 
 > 状态：规划定稿，M5.1（独立场景 MVP）实施中
-> 关联：`godot/project/addons/sprite_splitter/ui/`（场景）、`godot/src/sprite_splitter.cpp`（GDExtension API）、`docs/` 其余设计文档
+> 关联：`godot/project/addons/sprite_tool/ui/`（场景）、`godot/src/sprite_splitter.cpp`（GDExtension API）、`docs/` 其余设计文档
 > 里程碑：M5.1 独立场景测试 → M5.2 挂载编辑器（dock/窗口）
 
 ## 1. 目标与约束
@@ -94,8 +94,8 @@ SpriteSplitterUI (Control)                      [脚本 sprite_splitter_ui.gd]
 
 ## 6. 独立场景测试策略（M5.1，不挂编辑器）
 
-- 场景放 `addons/sprite_splitter/ui/`，**运行方式**：编辑器选中 tscn 直接 F6，或命令行
-  `Godot --headless --path . res://addons/sprite_splitter/ui/sprite_splitter_ui.tscn`。
+- 场景放 `addons/sprite_tool/ui/`，**运行方式**：编辑器选中 tscn 直接 F6，或命令行
+  `Godot --headless --path . res://addons/sprite_tool/ui/sprite_splitter_ui.tscn`。
 - **headless 自动测试**：`_ready()` 先跑 `_selftest()`（内置 sheet.png → analyze → split → 断言 64），
   检测到自动测试标记（环境变量 `SPS_UI_TEST=1` 或用户参数 `--sps-ui-test`）再跑 `_auto_test()`
   （完整导出链路 PNG/meta/tres + 断言 + quit）。这样 CI/无头可回归，GUI 交互人工验证。

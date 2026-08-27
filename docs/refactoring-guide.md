@@ -1,4 +1,4 @@
-# Sprite Splitter — 项目审查与重构指南
+# sprite-tool — 项目审查与重构指南
 
 > 状态：审查完成，**重构已按用户决策执行完毕**（Phase 1-3 落地，见 §5 执行记录）。
 > 范围：CLI 架构重构（CLI11 解析库 + split/remover 解耦 + --stdout 管道 + 测试自动化）。core 算法层语义不变。

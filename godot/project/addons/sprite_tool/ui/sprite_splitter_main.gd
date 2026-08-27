@@ -10,10 +10,10 @@ extends Control
 var _controller: SpsController = null
 var _side: Control = null   # 侧栏引用（editor_plugin 注入，切换前保存用当前参数）
 const REG_THUMB_SIZE: int = 48   # 注册表缩略图边长（等比 contain 居中）
-const REG_ITEM_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/reg_item.tscn")
-const REG_SEP_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/reg_sep.tscn")
-const SHEET_WINDOW_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/sheet_builder_window.tscn")
-const CLEANUP_WINDOW_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/cleanup_window.tscn")
+const REG_ITEM_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/reg_item.tscn")
+const REG_SEP_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/reg_sep.tscn")
+const SHEET_WINDOW_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sheet_builder_window.tscn")
+const CLEANUP_WINDOW_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/cleanup_window.tscn")
 # 创建 Sheets 独立窗口（复用单例，关闭仅 hide）
 var _sheet_window: Window = null
 # 清理生成资源窗口（复用单例，关闭仅 hide）

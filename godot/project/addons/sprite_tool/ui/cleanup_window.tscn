@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c0spscln001"]
 
-[ext_resource type="Script" uid="uid://cjubo3xashras" path="res://addons/sprite_splitter/ui/cleanup_window.gd" id="1_cln"]
+[ext_resource type="Script" uid="uid://cjubo3xashras" path="res://addons/sprite_tool/ui/cleanup_window.gd" id="1_cln"]
 
 [node name="CleanupWindow" type="Window"]
 size = Vector2i(760, 480)

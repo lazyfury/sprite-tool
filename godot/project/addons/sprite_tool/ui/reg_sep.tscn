@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://pmp5x7ofnkwq"]
 
-[ext_resource type="Script" uid="uid://bwokr8v870t17" path="res://addons/sprite_splitter/ui/reg_sep.gd" id="1_sep"]
+[ext_resource type="Script" uid="uid://bwokr8v870t17" path="res://addons/sprite_tool/ui/reg_sep.gd" id="1_sep"]
 
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_ncwkk"]
 color = Color(0.18538326, 0.18538326, 0.18538326, 1)

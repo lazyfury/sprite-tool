@@ -1,9 +1,9 @@
 ---
 name: sprite-plugin-ui
-description: Sprite Splitter 插件 UI 开发规范——Godot 插件图形界面（选图/分析/切分/预览/导出）的设计与实现，含独立场景测试工作流（不挂载编辑器，headless 可回归）。开发/修改 godot/project/addons/sprite_splitter/ui/ 下的场景、或在 Godot 中为工具类插件做 UI 时使用。
+description: Sprite Splitter 插件 UI 开发规范——Godot 插件图形界面（选图/分析/切分/预览/导出）的设计与实现，含独立场景测试工作流（不挂载编辑器，headless 可回归）。开发/修改 godot/project/addons/sprite_tool/ui/ 下的场景、或在 Godot 中为工具类插件做 UI 时使用。
 ---
 
-# Sprite Splitter 插件 UI 开发规范
+# sprite-tool 插件 UI 开发规范
 
 > 配套：`docs/plugin-ui-plan.md`（设计规划，含节点树/交互状态机）、`sprite-splitter` skill（CLI 语义）、`godot-gdextension` skill（C++ 侧）。
 > 里程碑：M5.1 独立场景 ✅；M5.2 挂载编辑器 ✅；M5.3 主屏幕+侧栏双挂载 + controller 重构 ✅；M5.4 统一输出根目录 + 生成资源注册表 + 清理窗口 ✅；sheet 打包可选。
@@ -64,7 +64,7 @@ editor_plugin.gd（EditorPlugin，三挂载）
 # headless 自动回归（全链路：加载→切分→导出→画布→工具→去背景→断言→quit）：
 cd godot/project
 SPS_UI_TEST=1 "/Applications/Godot.app/Contents/MacOS/Godot" --headless --path . \
-  --quit-after 160 res://addons/sprite_splitter/ui/test_harness.tscn
+  --quit-after 160 res://addons/sprite_tool/ui/test_harness.tscn
 # 期望：[sps-ui] PASS 全绿 + "auto test done (fail=false)" + 退出码 0
 ```
 
@@ -113,9 +113,9 @@ SPS_UI_TEST=1 "/Applications/Godot.app/Contents/MacOS/Godot" --headless --path .
   _ui.hide()                      # 初始隐藏
   # 虚方法（⚠️ 必须实现 _has_main_screen 返回 true，否则标签不出现在 2D/3D 旁边的工作区选择器）
   func _has_main_screen() -> bool: return true
-  func _get_plugin_name() -> String: return "Sprite Splitter"
+  func _get_plugin_name() -> String: return "sprite-tool"
   func _get_plugin_icon() -> Texture2D:   # svg 未导入时兜底 theme 图标
-      var icon: Texture2D = load("res://addons/sprite_splitter/icon.svg")
+      var icon: Texture2D = load("res://addons/sprite_tool/icon.svg")
       if icon == null: return EditorInterface.get_editor_theme().get_icon("Node", "EditorIcons")
       return icon
   func _make_visible(p_visible: bool) -> void: _ui.visible = p_visible

@@ -1,4 +1,4 @@
-# Sprite Splitter — 任务看板
+# sprite-tool — 任务看板
 
 > 项目唯一任务看板。格式：按里程碑分节，`- [ ]` 未开始 / `- [x]` 已完成 / `（进行中）` 标注当前任务。
 > 每次开发会话结束同步状态；与 `agent.md` §4 里程碑保持一致。
@@ -83,14 +83,14 @@
 ## M5 — Godot GDExtension 插件
 
 - [x] godot-cpp 引入（✅ 完成：**git submodule** `godot/godot-cpp`，**godot-4.5-stable** @ e83fd09（gitlink 指针，源码不入库，参考 limboai）；github.com git clone 本环境代理下不通（502/Empty reply）→ api.github.com tarball 解压 + `git update-index --cacheinfo 160000,<sha>` 建立指针；CMake 子目录方式构建）
-- [x] godot 层构建配置（✅ 完成：`godot/CMakeLists.txt` 消费端模板 + core 源码直接编入动态库；**GODOTCPP_DISABLE_EXCEPTIONS=OFF 必须显式设**——godot-cpp 的 -fno-exceptions 是 PUBLIC 传播会覆盖消费者目标；macOS 产物带 `.arm64` 后缀；产物落盘 `project/addons/sprite_splitter/bin/<platform>/`）
+- [x] godot 层构建配置（✅ 完成：`godot/CMakeLists.txt` 消费端模板 + core 源码直接编入动态库；**GODOTCPP_DISABLE_EXCEPTIONS=OFF 必须显式设**——godot-cpp 的 -fno-exceptions 是 PUBLIC 传播会覆盖消费者目标；macOS 产物带 `.arm64` 后缀；产物落盘 `project/addons/sprite_tool/bin/<platform>/`）
 - [x] 数据转换层（✅ 完成：`godot/src/conversion.cpp`：godot::Image ↔ sps::Image（RGBA8 深拷贝、非 RGBA8 重建副本后 convert 不污染调用方）、SpriteRect ↔ Rect2i）
 - [x] SpriteSplitter 类（✅ 完成：RefCounted，GDScript 可调 `split/analyze/crop/export_sprite/split_and_export`，options 字典与 CLI 参数对齐；core 异常在边界 try/catch 不泄漏）
-- [x] **addons 规范布局**（✅ 完成：`project/addons/sprite_splitter/`：plugin.cfg + editor_plugin.gd（@tool EditorPlugin，Tools 菜单 → 选 PNG → 自动切分导出）+ bin/（.gdextension + 动态库）；.gdextension 路径改 res://addons/...）
+- [x] **addons 规范布局**（✅ 完成：`project/addons/sprite_tool/`：plugin.cfg + editor_plugin.gd（@tool EditorPlugin，Tools 菜单 → 选 PNG → 自动切分导出）+ bin/（.gdextension + 动态库）；.gdextension 路径改 res://addons/...）
 - [ ] EditorPlugin GUI 验证（editor_plugin.gd 骨架已写、结构规范，但 **4.6.2 编辑器模式 bug 阻塞 headless 验证**，需 GUI 编辑器实测：打开工程 → Plugins 启用 Sprite Splitter → Tools 菜单切分）
 - [x] Godot 4.6.2 本机加载验证（✅ 完成：无头冒烟 24 断言全 PASS、退出码 0；断言值 = CLI golden；addons 布局下扩展正常加载）
 - [x] AtlasTexture 测试（✅ 完成：main.gd 第 10/11 步——读 `sprites/meta.json`（80 区域，复制自 out_sprites/big/meta.json）在大图上直接建 80 个 AtlasTexture，**不切图**、零文件输出；校验 region/越界/重叠 + `get_image()` 与切图产物 sprite_01.png 像素级一致；前 3 个挂 Sprite2D 演示；第 11 步 ResourceSaver 落盘 3 个 `.tres`（atlas 用 load() 导入纹理引用）重载校验一致；无头冒烟全 PASS）
-- [x] 插件 UI 独立场景（M5.1，✅ 完成：`addons/sprite_splitter/ui/sprite_splitter_ui.tscn` + `.gd` + `overlay.gd`，**不挂载编辑器**；选图/分析（自动填建议参数）/切分/预览叠加描边/导出三模式（切 PNG｜仅 meta.json｜AtlasTexture .tres）；`SPS_UI_TEST=1` headless 自动回归全 PASS（64 精灵：64 PNG + 64 tres + meta.json）；编码约定：节点路径 `/` 层级 + var 显式类型不用 `:=`；规划见 `docs/plugin-ui-plan.md`）
+- [x] 插件 UI 独立场景（M5.1，✅ 完成：`addons/sprite_tool/ui/sprite_splitter_ui.tscn` + `.gd` + `overlay.gd`，**不挂载编辑器**；选图/分析（自动填建议参数）/切分/预览叠加描边/导出三模式（切 PNG｜仅 meta.json｜AtlasTexture .tres）；`SPS_UI_TEST=1` headless 自动回归全 PASS（64 精灵：64 PNG + 64 tres + meta.json）；编码约定：节点路径 `/` 层级 + var 显式类型不用 `:=`；规划见 `docs/plugin-ui-plan.md`）
 - [x] **M5.2 挂载编辑器（✅ 完成 4/4，M5.3 前奏）**：
   - [x] EditorPlugin 挂载（`editor_plugin.gd`：**主屏幕插件**，参考 limboai `LimboAIEditorPlugin`——`EditorInterface.get_editor_main_screen().add_child(ui)` + `_has_main_screen`/`_get_plugin_name`/`_get_plugin_icon`/`_make_visible`；顶部标签栏 **2D｜3D｜Sprite Splitter**，点标签进入全屏切分界面；`icon.svg` 已入库；保留 Tools 菜单快捷入口；GUI 编辑器实测：插件激活 `C++ core loaded: true`、退出无错误）**踩坑记录**：① 漏 `_has_main_screen() -> true` 标签不出现；② 主屏幕标签只在启动时注册，改代码必须完全重启编辑器；③ **UI 脚本缺 `@tool` → 编辑器里按钮静默失效**（`_ready` 不跑、信号不连、无任何报错；headless 运行模式正常）——已补 @tool 并用 GUI 编辑器验证 selftest 执行
   - [x] 手动框选（Overlay `_gui_input` 拖拽 + 青色高亮/右键清除 + `_view_to_image` 逆映射 + 「导出选中」按钮走 `export_sprite`；headless 断言导出选中像素与切分产物 `sprite_01.png` 逐像素一致）

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c0spsheett01"]
 
-[ext_resource type="Script" path="res://addons/sprite_splitter/ui/sheet_test.gd" id="1_sheet"]
+[ext_resource type="Script" path="res://addons/sprite_tool/ui/sheet_test.gd" id="1_sheet"]
 
 [node name="SheetTest" type="Control"]
 layout_mode = 3

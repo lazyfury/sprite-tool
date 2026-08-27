@@ -13,11 +13,11 @@ extends EditorPlugin
 ##
 ## 编码约定（项目强制）：var 显式类型标注，不用 :=。
 
-const MENU_NAME: String = "Sprite Splitter..."
-const MAIN_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/sprite_splitter_main.tscn")
-const SIDE_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/sprite_splitter_side.tscn")
-const EDIT_SCENE: PackedScene = preload("res://addons/sprite_splitter/ui/sprite_splitter_edit_dock.tscn")
-const ICON_PATH: String = "res://addons/sprite_splitter/icon.svg"
+const MENU_NAME: String = "sprite-tool..."
+const MAIN_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_splitter_main.tscn")
+const SIDE_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_splitter_side.tscn")
+const EDIT_SCENE: PackedScene = preload("res://addons/sprite_tool/ui/sprite_splitter_edit_dock.tscn")
+const ICON_PATH: String = "res://addons/sprite_tool/icon.svg"
 
 var _controller: SpsController = null
 var _main_ui: Control = null
@@ -41,7 +41,7 @@ func _enter_tree() -> void:
 	_edit_ui.set_controller(_controller)
 	_main_ui.set_side(_side_ui)   # 主视图需要侧栏当前参数（注册表切换前保存用）
 	add_tool_menu_item(MENU_NAME, _on_menu_split)
-	print("[sps-plugin] Sprite Splitter plugin active (C++ core loaded: ", _controller.splitter != null, ")")
+	print("[sps-plugin] sprite-tool plugin active (C++ core loaded: ", _controller.splitter != null, ")")
 
 
 func _exit_tree() -> void:
@@ -87,7 +87,7 @@ func _has_main_screen() -> bool:
 
 
 func _get_plugin_name() -> String:
-	return "Sprite Splitter"
+	return "sprite-tool"
 
 
 func _get_plugin_icon() -> Texture2D:
