@@ -76,7 +76,7 @@ target_include_directories(${LIBNAME} PRIVATE
 
 # 产物命名与落盘：名 = LIBNAME + 平台后缀，直接放 addons/<插件>/bin/<platform>/
 set_target_properties(${LIBNAME} PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/project/addons/sprite_splitter/bin/${GODOTCPP_PLATFORM}>"
-  LIBRARY_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/project/addons/sprite_splitter/bin/${GODOTCPP_PLATFORM}>"
+  RUNTIME_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/project/addons/sprite_tool/bin/${GODOTCPP_PLATFORM}>"
+  LIBRARY_OUTPUT_DIRECTORY "$<1:${CMAKE_CURRENT_SOURCE_DIR}/project/addons/sprite_tool/bin/${GODOTCPP_PLATFORM}>"
   PREFIX "" OUTPUT_NAME "${LIBNAME}${GODOTCPP_SUFFIX}"
 )
