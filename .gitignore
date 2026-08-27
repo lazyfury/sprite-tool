@@ -1,5 +1,9 @@
 # 构建产物
 build/
+godot/build*/
+
+# 发布产物（tools/pack_release.sh 生成）
+release/
 
 # Python venv（examples/rembg-api）
 .venv/

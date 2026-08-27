@@ -167,10 +167,25 @@
 
 > 需求：统一 out 目录（父目录可在项目设置配置）；注册表记录所有生成的资源以备清理；清理窗口列出并检查占用。
 
-- [x] **输出根目录（ProjectSettings 配置）**：`sprite_splitter/out_root`（默认 `res://out_sprites`；`set_out_root(persist=true)` 编辑器模式才写 project.godot，headless 仅内存不污染）；侧栏导出 tab「输出根目录」行（LineEdit + 默认按钮，输入内存生效、回车/失焦/默认按钮持久化，全局设置不 mark_dirty）；所有生成资源统一落根目录下——新建项目数据 out_dir = `<root>/<uid>`（旧 `res://out_sprites/ui/<uid>` 作废，测试断言已同步）、去背景 PNG、导出空目录 fallback、Tools 快捷入口（原 res://sprites）
+- [x] **输出根目录（ProjectSettings 配置）**：`sprite_tool/out_root`（默认 `res://out_sprites`；`set_out_root(persist=true)` 编辑器模式才写 project.godot，headless 仅内存不污染）；侧栏导出 tab「输出根目录」行（LineEdit + 默认按钮，输入内存生效、回车/失焦/默认按钮持久化，全局设置不 mark_dirty）；所有生成资源统一落根目录下——新建项目数据 out_dir = `<root>/<uid>`（旧 `res://out_sprites/ui/<uid>` 作废，测试断言已同步）、去背景 PNG、导出空目录 fallback、Tools 快捷入口（原 res://sprites）
 - [x] **生成资源注册表（SpriteOutputRegistry）**：`ui/sps_output_registry.gd`（@tool Resource，`<data_dir>/output_registry.tres`，与项目注册表 SpriteSplitterRegistry 职责分离——只管生成产物）；登记全部写盘产物（切分 PNG / meta.json / AtlasTexture .tres / 去背景 PNG / sheet PNG+meta），去重+时间/大小更新+`purge_missing` 自愈；controller `register_output_file(path, kind)` 统一出口（导出/去背景/sheet/快捷入口自动登记）
 - [x] **清理窗口（cleanup_window.gd/.tscn）**：main Header「清理资源」按钮打开独立窗口（复用单例，仿 sheet_builder_window）；ItemList 列出注册资源（🔴占用/🟢可清理 + 类型/大小/时间，tooltip 完整路径）；占用检查 `check_outputs_usage`（① 插件自身：当前图 image_res_path / 项目数据 source_image；② 项目文本资源 .tscn/.tres/.gd/.json/.cfg 含路径或 uid 引用，排除 .godot 缓存与生成资源自身——互相引用不算占用）；「清理选中」「清理全部未占用」+ ConfirmationDialog 确认，占用项拒绝（force=true 可强制）；删除后注册表移除 + 资产库重扫
 - [x] 回归：harness **227 PASS**（+20 断言：out_root set/get/default_out_dir、三模式导出自动登记、去背景登记+占用判定、清理窗口列表/占用标注、未占用删除+注册表移除/占用拒绝）；sheet_test 87 PASS 零回归
 - [ ] GUI 编辑器实测（插件重启用新 Header 按钮；清理窗口打开/占用标注/删除流程；输出根目录改值持久化到项目设置）
 
 **坑（已入 SKILL.md）**：① 测试脚本（.gd）里出现生成资源完整路径字面量 → 被占用扫描误判为"项目引用" → 断言/代码里路径拆串拼接规避；② 手写 tscn 根节点漏 `script = ExtResource(...)` 行 → 场景加载成功但脚本不挂（instantiate 后 `get_script()==null`，探针对照才定位）
+
+## 发布打包（2026-08-27，✅）
+
+> 首次发布流程落地：`tools/pack_release.sh` 一键产出 CLI / 插件 / demo 三个 zip + SHA256SUMS（产物在 `release/`，已 gitignore）。
+
+- [x] **release 动态库**：`godot/build-release` 独立构建目录（CMake + Ninja，`GODOTCPP_TARGET=template_release`、`CMAKE_BUILD_TYPE=Release`、`GODOTCPP_DISABLE_EXCEPTIONS=OFF`、`GODOTCPP_USE_HOT_RELOAD=OFF`）→ `addons/sprite_tool/bin/macos/sps_gdextension.macos.template_release.arm64.dylib`（与 debug 库并存，.gdextension 的 macos.debug/release 键均有实体）
+- [x] **打包脚本** `tools/pack_release.sh`：产物校验（CLI 二进制 + debug/release 库 + .gdextension + plugin.cfg/editor_plugin.gd/icon.svg）→ 三包：
+  - `sprite-split-<CLI_VER>-macos-arm64.zip`：CLI 二进制（755）+ 根 README.md
+  - `sprite-tool-plugin-<VER>.zip`：`addons/sprite_tool/` 全量（**保留 .uid**、剔除 `*.import`），debug+release 库带可执行位
+  - `sprite-tool-demo-<VER>.zip`：`godot/project/` 白名单拷贝（project.godot / main.gd(.uid) / main.tscn / addons / sprites）+ 剔 `*.import` / `.DS_Store` + **main.tscn 最小化**（剥离指向 out_sprites 生成产物的 Sprite2D 纹理引用，场景/脚本 uid 不变）+ MANIFEST.txt
+  - 版本来源：插件读 plugin.cfg `version`（0.1.0），CLI 读 `--version`（0.9.1）
+- [x] **产物验证全通过**：
+  - CLI 包实测：`--version` 0.9.1；`split` test_sheet → 3 精灵正确；`info --format json` 管道可用
+  - demo 包实测：解压 → Godot 4.7.2 `--headless --import` exit=0（编辑器模式带扩展正常，4.6.2 崩溃已确认修复）→ extension_list.cfg 自动生成（`res://addons/sprite_tool/bin/sps_gdextension.gdextension`）→ `--headless` 冒烟 `=== done (fail=false) ===`（80 精灵/AtlasTexture/导出全 PASS，无 ERROR）
+- [ ] 待办（后续迭代）：CLI 包独立精简 README；插件包裁剪 ui/ 下测试 harness（test_harness/sheet_test/ui_probe）；跨平台（windows/linux）库构建与打包；LICENSE 补充（README 标注"未指定"）

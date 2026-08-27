@@ -361,7 +361,36 @@ scons platform=macos target=template_debug
 13. **4.6.2 编辑器模式崩溃**（2026-08 实测，见 §7）：带 GDExtension 的项目 `--import`/`-e --quit` 退出时 `EditorHelp::_gen_extensions_docs` 段错误；与 reloadable 无关，用 §7 两步法导入 + 运行模式验证
 14. **运行模式不扫描 res://**（4.6 源码实测）：扩展加载完全依赖 `.godot/extension_list.cfg`（编辑器生成）；删 .godot 后直接运行会加载失败/异常，必须先走一次编辑器导入或手动写列表
 
-## 9. 参考链接
+## 9. 发布打包（sprite-tool 实测流程，2026-08-27）
+
+发布 = 三件套（CLI 二进制 / Godot 插件 addons / 干净 demo 工程），一键脚本 `tools/pack_release.sh`（产物 `release/`）。
+
+**前置构建**（插件动态库 debug + release 两套并存，.gdextension 的 `macos.debug`/`macos.release` 键各指一实体）：
+
+```bash
+# debug（编辑器/开发用）
+cmake -S godot -B godot/build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+    -DGODOTCPP_TARGET=template_debug -DGODOTCPP_DISABLE_EXCEPTIONS=OFF -DGODOTCPP_USE_STATIC_CPP=ON
+cmake --build godot/build -j
+# release（导出模板用）
+cmake -S godot -B godot/build-release -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DGODOTCPP_TARGET=template_release -DGODOTCPP_DISABLE_EXCEPTIONS=OFF -DGODOTCPP_USE_STATIC_CPP=ON -DGODOTCPP_USE_HOT_RELOAD=OFF
+cmake --build godot/build-release -j
+./tools/pack_release.sh
+```
+
+**打包要点**：
+- 插件包 = `addons/sprite_tool/` 全量：**保留 `.uid`**（Godot 4.4+ 资源 UID 映射，防引用错乱）、**剔除 `*.import`**（导入元数据，编辑器自动生成）、动态库显式 `chmod 755`
+- demo 包 = 工程白名单拷贝（project.godot/main.gd/main.tscn/addons/sprites）+ 剔 `.import`/`.DS_Store`；**main.tscn 最小化**——开发期场景若引用生成产物（res://out_*）须剥离（场景/脚本 uid 保持不变）
+- 版本来源：插件读 `plugin.cfg` 的 `version=`，CLI 读 `--version`（两者独立版本线）
+- 不带 `.godot/` 缓存（标准分发；首次打开编辑器自动导入并生成 extension_list.cfg）
+
+**发布验证（全链路，务必跑）**：
+1. CLI：解压 → `--version` + 用 tests/fixtures 素材实测 `split` 与 `info --format json`
+2. demo：解压 → `godot --headless --path <demo> --import`（exit=0；4.7.2 编辑器模式带扩展正常，4.6.2 的 EditorHelp 崩溃已修复）→ 确认 `.godot/extension_list.cfg` 含插件路径 → `godot --headless --path <demo>` 跑冒烟 → 输出 `=== done (fail=false) ===`
+3. `unzip -t` 完整性 + `shasum -a 256` 生成 SHA256SUMS
+
+## 10. 参考链接
 
 - 官方 C++ 入门：`https://docs.godotengine.org/en/latest/tutorials/scripting/cpp/gdextension_cpp_example.html`
 - CMake 构建：`.../tutorials/scripting/cpp/build_system/cmake.html`（SCons 在 `scons.html`）
